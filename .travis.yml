@@ -1,0 +1,20 @@
+sudo: required
+services:
+- docker
+jobs:
+  include:
+  - stage: build docker images
+    script:
+    - export TAG=$(if [ "x$TRAVIS_TAG" != "x" ]; then echo "$TRAVIS_TAG"; else git
+      rev-parse --short HEAD; fi)
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - docker build -t $DOCKER_REPO/hub .
+    - docker tag $DOCKER_REPO/hub $DOCKER_REPO/hub:$TAG
+    after_success:
+    - docker push $DOCKER_REPO/hub
+    - docker push $DOCKER_REPO/hub:$TAG
+env:
+  global:
+  - DOCKER_REPO=eginotebooks
+  - secure: nhfJreL9BJ8rN9EfVttZvJmCHMPK0OIwnvaIWIKojEnW2T5XHsf7ZLeG2Fj2cpqyA8KZ27fsFfTXsSYIbAKcCzZSPD19bXFZ6p4lv8Os1d4s+QySB/oWz+C7seV+SPPVxeAiqnAdR6kCzzOh7TQYOiVuhvgp2Gg0grbTOlB/01DUS/SKS2bUtRSXaLNRH4znNV8wJT4Xt6m6sE6QgJGd2uEagcZs7bfCossYKY2HiJhG2dpOsl2dBqL3MYt9CW3ccv0Ehb+96jJBB15hACBnI+K5gYcLPQAWO7/8ikYLl+60kn164AEk+DyJn9416fBdsOfRjhdJeOp3H+gP1JZc47/08mvmJ6J0IhDRuaSb4NOs1cKTZGHRd27vJJ/86ijMd08LlDwZn9tRkJqqT9M/TwMZ3qIX92P5cetgDyoIrkF/GsWrr+YBGZUZBXiUsa8PmnVFwgxjT6yLbICqnZrS3UQ6ZBWqX2t7SxpJE6zaN5NiUgrNU7ji87rIPtbZa6WTDrDC1dv5Tn9pzkUSmty3ENM8KOUW8CYFT4mncEOpfpxkH+tSOKr0tBzxvfO/7j+mLI1sQVZaAyVTjT7xVrCUMVAD3pZmJDwrcmsz9lIZKFzGbJSr5VQOVPtHQANgisyUZQxV/maWWelprbI4G25KYk78UOGDmGn9GUgBw9rZ5z4=
+  - secure: YKj1wN0Wzu8zWPpdZwBWuZJ1qHJ+BIMKwoaqR4UiI4V2JinBNlvSvxVDwaAsEFfIf8Ir/k7my7zNsPNsytvhjg6At6DVk3LbNcMcItnAXYligo12hZu8b5KsLYmLFZbRK+JSmMa3Ki2S17YiNFCp8+bIHV9M0ujcm8AJKda335cn5z5sP10Lgwf8RjY7OpxtvLw1LNL8dhgh7JtnupQch+T/4vhj9JLPTtn8g1hWgnSA6TEhLR6DwbAI2S7de5+GMQtMk7B1OG4LWHKO5VFpnEpw1CWMLoSeDfWoozwwCex6cESFl5xRbrpv9dWimqjGDwDf9rfUglajuYOZSSBKPf1/bjJk1IUZwy9yHopCO8oSmDHu9JdRfWpq/GZg4M8Ko2RhPRyiNq4vnoXl+kUFTRU04NkpjpzSp+9oMBAi4CXo6xyqTXxq49B2QmHzaAPcI89j5OM34iHWjFeleg8iYB1Cvm6t+qHmlaKKuEGcQDMjnKyRahtjy4d9a8yCA9mgL3ZXpbvxmvgs9vKC7u4OJBUQqxGBqp/R6WdnzLur4FYwt93PZZre0qG5OcZfmiIQ93/G4epdX/mDsJ7j6ac7oYkakAMkgf7ht+uumIVR4DLTAVCVMor4lqCvW0BqAI/9WLDz3z7dGfn+gAUyegUZi2mneUJkqn7DPpuGdhc0D4w=
