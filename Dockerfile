@@ -6,7 +6,7 @@ USER root
 RUN pip3 install git+https://github.com/enolfc/d4scienceauth.git
 
 # install oauthenticator with EGI Check-in, with refresh
-RUN pip3 install git+https://github.com/enolfc/oauthenticator@checkin-0.1
+RUN pip3 install git+https://github.com/enolfc/oauthenticator@checkin
 
 # install the EGI Spawner
 RUN pip3 install git+https://github.com/enolfc/egispawner
