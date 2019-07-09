@@ -1,5 +1,5 @@
 # Starting with the image used in helm jupyterhub
-FROM jupyterhub/k8s-hub:0.9-065e939
+FROM jupyterhub/k8s-hub:0.9-445a953
 
 # install d4science auth plugin for using the service in D4Science
 USER root
