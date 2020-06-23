@@ -7,14 +7,11 @@ jobs:
     script:
     - export TAG=$(if [ "x$TRAVIS_TAG" != "x" ]; then echo "$TRAVIS_TAG"; else git
       rev-parse --short HEAD; fi)
-    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+    - if [ "x$DOCKER_USERNAME" != "x" ]; then echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin; fi
     - docker build -t $DOCKER_REPO/hub .
     - docker tag $DOCKER_REPO/hub $DOCKER_REPO/hub:$TAG
     after_success:
-    - docker push $DOCKER_REPO/hub
-    - docker push $DOCKER_REPO/hub:$TAG
+    - if [ "x$DOCKER_USERNAME" != "x" ]; then docker push $DOCKER_REPO/hub && docker push $DOCKER_REPO/hub:$TAG; fi
 env:
   global:
   - DOCKER_REPO=eginotebooks
-  - secure: ZrCZr9CiYmOfSbguqoi1Td7PUJ/Von1ARNKCc6dU//FFAfHIPKC4BJQnW0LIAP8Uczdv+Wx7OTzJcgv0KXeKFF2PGA5EvzaftoDaOqMn7A8scaQnqD9c94nUGRiAKrB7j1mQLUtzNkVLp2Nhclrb13c58cYF1aqADmmFW+ZMPln7NqzfrfDuehsorMzPKOPccUT9iZC7/b+0zUlFBNe9FaItOXau/xzSQoeay8rXz8AdqLzQ5enRLdfR9Sc64okCEynyP8SxUTKtoA6Pu/1zjl6PSj8bF1C6lJP8kSQxLGGOyEnS7wPulZmWZR4q0UC2gU2sLgii8Exspf8b2bOWK4FPoNqG6DSoypk0/AkTguCBr8ST9zhzYtbXvIa4sGWGW4mSlG7Az2WL/dW2icI0bHJZBxziDfe4Jb78dUg2uwgoaNJK8sqFl35n1wxcuWMXcbjF+de52Aywh/V5W5irYPIYTYmCcHBTaYmzWNoISSYG33j57kyf/on1Kz4yBWhYjABdQI601J2f5PVZExom42Je33xCUNIONlsDQb8RCD8m8WviE7sq4keOBc4n7Fs1SUCL1vmbtqCrI+dxxr6xu8D2pa0XyeU6LeUuqx9Rg5GmtBHjHqSHSIeuMMbumc9IRN0uxFHBgTU15U3tC09og3q0Ea4769UFhMwgnSpLJ8Y=
-  - secure: xMk89IZRdK0Y+bMii1jNHFtcE9L9sG9Oi+jcq9kMNLHHVD9Y1CfxSarb/wtq6WD+vF6uynQJUmOtHgBy5l0N7lnno82PdlJZZa++Wfo/HP6FqoPR30EnSjxQ4NYezvlEt/8ex0JwPwCd53Cl8KVW6XWWV9GMskOoCQIKPr30kmi4RCIqUF9e2kCJXYTDYBeogWY55X7KMjylnfQbtpnjIBxcRyFEqWxMSipb74msjrjuMS00p7BeJ/nKJwTasIKhnNnZiuYPzMzOyE5dMOQNvpHgdx6y8PeImA/xIcQcQ4eiMMH/Zc2C7PuU/xvO5tokCSA+MK2+CVNjRJe3NMu038zfExJbHw4F9DJPrbslkinb2IstM0fpOEI2NCS+/SlRAStoXpYWw5D0AP/pMF3cc4RK2+8+/IaC+CfCGdIol2/KBccF91iDOtTWCIJkzyy3JjmMyYFpHdfmVRwH0BqgkyE1duOg+in9rhJyLDAbI3Ofy1ROvc5lrQlqQf34KTQtipDhBIZwWJtNPZEv462DNQIPlGZRVKBmlXJQFCs0yAoBkM/2DR4RSECtszA9Btd4oAHRio6Tn7cbpzzOJWgqpCL/eufihRFipJXDgseVi9LZef0RaUfOCtiJznIMr0kzR5bbXDAMj25h2abLEWKDoJos2xFTFyOSQ82BKnrnzsI=
