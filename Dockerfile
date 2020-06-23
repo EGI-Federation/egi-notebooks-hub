@@ -1,5 +1,5 @@
 # Starting with the image used in helm jupyterhub
-FROM jupyterhub/k8s-hub:0.9.0-alpha.1
+FROM jupyterhub/k8s-hub:0.9.0-n033.h8211ad2
 
 USER root
 # install d4science auth plugin for using the service in D4Science
@@ -23,6 +23,7 @@ COPY 401.html /usr/local/share/jupyterhub/templates/403.html
 COPY egi-notebooks.png /usr/local/share/jupyterhub/static/images/jupyter.png
 COPY notebooks-logo.png /usr/local/share/jupyterhub/static/images/notebooks-logo.png
 COPY cesnet.png /usr/local/share/jupyterhub/static/images/cesnet.png
+COPY cesga.jpg /usr/local/share/jupyterhub/static/images/cesga.jpg
 COPY infn-ct.jpg /usr/local/share/jupyterhub/static/images/infn-ct.jpg
 
 ARG NB_USER=jovyan
