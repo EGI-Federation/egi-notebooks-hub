@@ -1,3 +1,7 @@
-# EGI Notebooks - Hub image
+# EGI Notebooks Hub
 
-Jupyterhub with minor adjustments to make it EGI friendly
+Jupyterhub with some adjustments to make it EGI friendly:
+
+* EGI Check-in authenticator
+* EGI Spawner
+* EGI DataHub integration
