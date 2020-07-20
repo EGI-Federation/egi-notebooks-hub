@@ -1,0 +1,3 @@
+jupyterhub>=1.0
+oauthenticator>=0.10
+jupyterhub-kubespawner
