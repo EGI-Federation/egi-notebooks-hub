@@ -3,12 +3,14 @@ A Spawner for the EGI Notebooks service
 """
 
 import base64
+import json
 import uuid
 
 from kubespawner import KubeSpawner
 from kubernetes.client.rest import ApiException
 from kubernetes.client import V1Secret, V1ObjectMeta
 
+from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPError
 
 from traitlets import Unicode
 
@@ -90,3 +92,87 @@ class EGISpawner(KubeSpawner):
                     raise
             else:
                 raise
+
+
+class DataHubSpawner(EGISpawner):
+    onezone_url = Unicode(
+        'https://datahub.egi.eu',
+        config=True,
+        help="""URL of onezone"""
+    )
+
+    oneprovider_host = Unicode(
+        'plg-cyfronet-01.datahub.egi.eu',
+        config=True,
+        help="""Hostname of the oneprovider to use"""
+    )
+    manager_class = Unicode(
+        'eginotebooks.manager.MixedContentsManager',
+        config=True,
+        help="""DataHub Content Manager"""
+    )
+ 
+    token_variable = Unicode(
+        'ONECLIENT_ACCESS_TOKEN',
+        config=True,
+        help="""Name of the environment variable to store the token"""
+    )
+
+    force_proxy_io = Bool(
+        False,
+        config=True,
+        help="""Force the use of proxied I/O"""
+    )
+
+    force_direct_io = Bool(
+        True,
+        config=True,
+        help="""Force the use of direct I/O"""
+    )
+
+    async def add_datahub_args(self, pod):
+        # if coming via binder, this shouldn't be done
+        if self.environment.get(self.token_variable, ''):
+            http_client = AsyncHTTPClient()
+            url = self.onezone_url + '/api/v3/onezone/user/effective_spaces'
+            req = HTTPRequest(url,
+                    headers={'content-type': 'application/json',
+                             'x-auth-token': self.environment[self.token_variable]},
+                    method='GET')
+            try:
+                resp = await http_client.fetch(req)
+                datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
+            except HTTPError as e:
+                self.log.warn("Something failed! %s", e)
+                raise e
+            scheme = []
+            for space in datahub_response['spaces']:
+                url = self.onezone_url + '/api/v3/onezone/user/spaces/%s' % space
+                req = HTTPRequest(url
+                        headers={'content-type': 'application/json',
+                                 'x-auth-token': self.environment[self.token_variable]},
+                        method='GET')
+                try:
+                    resp = await http_client.fetch(req)
+                    datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
+                    scheme.append({
+                        "root": datahub_response["name"],
+                        "class": "onedatafs_jupyter.OnedataFSContentsManager",
+                        "config": {"space": "/" + datahub_response["name"] },
+                    })
+                except HTTPError as e:
+                    self.log.info("Something failed! %s", e)
+                    raise e
+            pod.spec.containers[0].args = (pod.spec.containers[0].args +
+                [
+                    '--NotebookApp.contents_manager_class=%s' % manager_class,
+                    '--OnedataFSContentsManager.oneprovider_host=%s' % self.oneprovider_host,
+                    '--OnedataFSContentsManager.access_token=$(%s)' % self.token_variable,
+                    '--OnedataFSContentsManager.path=""',
+                    '--OnedataFSContentsManager.force_proxy_io=%s' % self.force_proxy_io,
+                    '--OnedataFSContentsManager.force_direct_io=%s' % self.force_direct_io,
+                    '--MixedContentsManager.filesystem_scheme=%s' % json.dumps(scheme)
+                ]
+            )
+            self.log.info("POD: %s", pod.spec.containers[0].args)
+        return pod
