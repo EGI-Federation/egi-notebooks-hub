@@ -95,29 +95,31 @@ class EGISpawner(KubeSpawner):
 
 
 class DataHubSpawner(EGISpawner):
-    onezone_url = Unicode(
-        'https://datahub.egi.eu',
+    onezone_env = Unicode(
+        "ONEZONE_URL",
         config=True,
-        help="""URL of onezone"""
+        help="""Environment variable that contains the onezone URL"""
+                
     )
 
-    oneprovider_host = Unicode(
-        'plg-cyfronet-01.datahub.egi.eu',
+    token_env = Unicode(
+        'ONECLIENT_ACCESS_TOKEN',
         config=True,
-        help="""Hostname of the oneprovider to use"""
+        help="""Name of the environment variable to store the token"""
     )
+
+    oneprovider_env = Unicode(
+        'ONEPROVIDER_HOST',
+        config=True,
+        help="""Name of the environment variable to store the oneprovider host"""
+    )
+
     manager_class = Unicode(
         'eginotebooks.manager.MixedContentsManager',
         config=True,
         help="""DataHub Content Manager"""
     )
  
-    token_variable = Unicode(
-        'ONECLIENT_ACCESS_TOKEN',
-        config=True,
-        help="""Name of the environment variable to store the token"""
-    )
-
     force_proxy_io = Bool(
         False,
         config=True,
@@ -132,12 +134,12 @@ class DataHubSpawner(EGISpawner):
 
     async def add_datahub_args(self, pod):
         # if coming via binder, this shouldn't be done
-        if self.environment.get(self.token_variable, ''):
+        if self.environment.get(self.token_env, ''):
+            onezone_url = self.environment.get(self.onezone_env, "")
             http_client = AsyncHTTPClient()
-            url = self.onezone_url + '/api/v3/onezone/user/effective_spaces'
-            req = HTTPRequest(url,
+            req = HTTPRequest(onezone_url + '/api/v3/onezone/user/effective_spaces',
                     headers={'content-type': 'application/json',
-                             'x-auth-token': self.environment[self.token_variable]},
+                             'x-auth-token': self.environment[self.token_env]},
                     method='GET')
             try:
                 resp = await http_client.fetch(req)
@@ -147,10 +149,9 @@ class DataHubSpawner(EGISpawner):
                 raise e
             scheme = []
             for space in datahub_response['spaces']:
-                url = self.onezone_url + '/api/v3/onezone/user/spaces/%s' % space
-                req = HTTPRequest(url
+                req = HTTPRequest(onezone_url + '/api/v3/onezone/user/spaces/%s' % space,
                         headers={'content-type': 'application/json',
-                                 'x-auth-token': self.environment[self.token_variable]},
+                                 'x-auth-token': self.environment[self.token_env]},
                         method='GET')
                 try:
                     resp = await http_client.fetch(req)
@@ -166,8 +167,8 @@ class DataHubSpawner(EGISpawner):
             pod.spec.containers[0].args = (pod.spec.containers[0].args +
                 [
                     '--NotebookApp.contents_manager_class=%s' % manager_class,
-                    '--OnedataFSContentsManager.oneprovider_host=%s' % self.oneprovider_host,
-                    '--OnedataFSContentsManager.access_token=$(%s)' % self.token_variable,
+                    '--OnedataFSContentsManager.oneprovider_host=$(%s)' % self.oneprovider_env,
+                    '--OnedataFSContentsManager.access_token=$(%s)' % self.token_env,
                     '--OnedataFSContentsManager.path=""',
                     '--OnedataFSContentsManager.force_proxy_io=%s' % self.force_proxy_io,
                     '--OnedataFSContentsManager.force_direct_io=%s' % self.force_direct_io,
