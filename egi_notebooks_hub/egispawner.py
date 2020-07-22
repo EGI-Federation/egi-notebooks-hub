@@ -166,7 +166,7 @@ class DataHubSpawner(EGISpawner):
                     raise e
             pod.spec.containers[0].args = (pod.spec.containers[0].args +
                 [
-                    '--NotebookApp.contents_manager_class=%s' % manager_class,
+                    '--NotebookApp.contents_manager_class=%s' % self.manager_class,
                     '--OnedataFSContentsManager.oneprovider_host=$(%s)' % self.oneprovider_env,
                     '--OnedataFSContentsManager.access_token=$(%s)' % self.token_env,
                     '--OnedataFSContentsManager.path=""',
