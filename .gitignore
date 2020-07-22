@@ -1,0 +1,9 @@
+*.egg*
+*.log
+*.mo
+*.pyc
+*.swo
+*.swp
+*~
+.venv
+build
