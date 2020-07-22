@@ -236,7 +236,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                                    'x-auth-token': 'egi:%s' % user_data['auth_state']['access_token']},
                           method='GET')
         try:
-            resp = yield http_client.fetch(req)
+            resp = await http_client.fetch(req)
             datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
             if datahub_response['tokens']:
                 onedata_token = datahub_response['tokens'].pop(0)
@@ -251,7 +251,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                               method='POST',
                               body='')
             try:
-                resp = yield http_client.fetch(req)
+                resp = await http_client.fetch(req)
                 datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
                 onedata_token = datahub_response['token']
             except HTTPError as e:

@@ -12,7 +12,7 @@ from kubernetes.client import V1Secret, V1ObjectMeta
 
 from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPError
 
-from traitlets import Unicode
+from traitlets import Bool, Unicode
 
 
 class EGISpawner(KubeSpawner):
