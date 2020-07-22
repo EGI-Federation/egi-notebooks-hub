@@ -66,6 +66,7 @@ class EGISpawner(KubeSpawner):
                 v['persistentVolumeClaim']['claimName'] = self.pvc_name
             vols.append(v)
         self.volumes = vols
+        return super().get_pvc_manifest()
 
     def set_access_token(self, token):
         """creates a secret in k8s with the token of the user"""
