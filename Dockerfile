@@ -8,9 +8,6 @@ COPY . /egi-notebooks-hub/
 # install the hub extensions
 RUN pip3 install /egi-notebooks-hub/
 
-# install d4science auth plugin for using the service in D4Science
-RUN pip3 install git+https://github.com/enolfc/d4scienceauth.git
-
 # Customise Jupyter login
 # TODO(enolfc): this can break quite easily, should find a better way
 RUN cp /egi-notebooks-hub/templates/login.html /usr/local/share/jupyterhub/templates/login.html \
