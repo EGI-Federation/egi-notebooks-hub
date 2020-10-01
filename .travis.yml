@@ -1,9 +1,12 @@
 sudo: required
+language: python
 services:
 - docker
 jobs:
   include:
   - stage: build docker images
+    install:
+    - pip install tox
     script:
     - tox
     - export TAG=$(if [ "x$TRAVIS_TAG" != "x" ]; then echo "$TRAVIS_TAG"; else git
