@@ -1,9 +1,7 @@
 """D4Science Authenticator for JupyterHub
 """
 
-import base64
 import datetime
-import hashlib
 import json
 import os
 from xml.etree import ElementTree
@@ -13,27 +11,34 @@ from tornado import gen, web
 from tornado.httputil import url_concat
 from tornado.httpclient import HTTPError, HTTPRequest, AsyncHTTPClient
 
-from jupyterhub.auth import Authenticator, LocalAuthenticator
+from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
 
 
-D4SCIENCE_SOCIAL_URL = (os.environ.get('D4SCIENCE_SOCIAL_URL') or
-                        'https://socialnetworking1.d4science.org/'
-                        'social-networking-library-ws/rest/')
-D4SCIENCE_PROFILE= '2/people/profile'
+D4SCIENCE_SOCIAL_URL = (
+    os.environ.get('D4SCIENCE_SOCIAL_URL',
+                   'https://socialnetworking1.d4science.org/'
+                   'social-networking-library-ws/rest/')
+)
 
-D4SCIENCE_DM_REGISTRY_URL = (os.environ.get('D4SCIENCE_REGISTRY_URL') or
-                             'https://registry.d4science.org/icproxy/gcube/'
-                             'service/ServiceEndpoint/DataAnalysis/DataMiner')
+D4SCIENCE_PROFILE = '2/people/profile'
+
+D4SCIENCE_DM_REGISTRY_URL = (
+    os.environ.get('D4SCIENCE_REGISTRY_URL',
+                   'https://registry.d4science.org/icproxy/gcube/'
+                   'service/ServiceEndpoint/DataAnalysis/DataMiner')
+)
 
 
 class D4ScienceLoginHandler(BaseHandler):
-    # override implementation of clear_cookies from tornado to add extra options
+    # override implementation of clear_cookies from tornado to add extra
+    # options
     def clear_cookie(self, name, path="/", domain=None):
         kwargs = self.settings.get('cookie_options', {})
         expires = datetime.datetime.utcnow() - datetime.timedelta(days=365)
-        self.set_cookie(name, value="", path=path, expires=expires, domain=domain, **kwargs)
+        self.set_cookie(name, value="", path=path, expires=expires,
+                        domain=domain, **kwargs)
 
     @gen.coroutine
     def get(self):
@@ -46,9 +51,9 @@ class D4ScienceLoginHandler(BaseHandler):
 
             self.clear_login_cookie()
             # make sure we don't do a mess here
-            self.redirect(url_concat(
-                    self.authenticator.login_url(self.hub.base_url),
-                    {'gcube-token': token}),
+            self.redirect(
+                url_concat(self.authenticator.login_url(self.hub.base_url),
+                           {'gcube-token': token}),
                 permanent=False)
             return
         if not token:

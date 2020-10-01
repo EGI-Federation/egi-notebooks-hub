@@ -1,5 +1,4 @@
-"""
-A Spawner for the EGI Notebooks service
+"""A Spawner for the EGI Notebooks service
 """
 
 import base64
@@ -52,9 +51,9 @@ class EGISpawner(KubeSpawner):
         super().__init__(*args, **kwargs)
         self.pvc_name = uuid.uuid4().hex
         self.token_secret_name = self._expand_user_properties(
-                self.token_secret_name_template)
+            self.token_secret_name_template)
         token_secret_volume_name = self._expand_user_properties(
-                self.token_secret_volume_name_template)
+            self.token_secret_volume_name_template)
         self.volumes.append({"name": token_secret_volume_name,
                              "secret": {"secretName": self.token_secret_name}})
         self.volume_mounts.append({"name": token_secret_volume_name,
@@ -62,15 +61,18 @@ class EGISpawner(KubeSpawner):
                                    "readOnly": True})
 
     def get_pvc_manifest(self):
-        """ Tries to fix volumes of to avoid issues with too long user name for k8s """
-        pvcs = self.api.list_namespaced_persistent_volume_claim(namespace=self.namespace)
+        """Tries to fix volumes of to avoid issues with too long user names"""
+        pvcs = self.api.list_namespaced_persistent_volume_claim(
+            namespace=self.namespace)
         for pvc in pvcs.items:
-            if pvc.metadata.annotations.get('hub.jupyter.org/username', '') == self.user.name:
+            if pvc.metadata.annotations.get('hub.jupyter.org/username', '') \
+                    == self.user.name:
                 self.pvc_name = pvc.metadata.name
                 break
         vols = []
         for v in self.volumes:
-            if v.get('persistentVolumeClaim', {}).get('claimName', '').startswith('claim-'):
+            claim = v.get('persistentVolumeClaim', {})
+            if claim.get('claimName', '').startswith('claim-'):
                 v['persistentVolumeClaim']['claimName'] = self.pvc_name
             vols.append(v)
         self.volumes = vols
@@ -81,9 +83,11 @@ class EGISpawner(KubeSpawner):
         meta = V1ObjectMeta(name=self.token_secret_name,
                             labels=self._build_common_labels({}),
                             annotations=self._build_common_annotations({}))
-        data = {"access_token": base64.b64encode(access_token.encode()).decode()}
+        data = {
+            "access_token": base64.b64encode(access_token.encode()).decode()
+        }
         if id_token:
-            data["id_token"] = base64.b64encode(id_token.encode()).decode()}
+            data["id_token"] = base64.b64encode(id_token.encode()).decode()
         secret = V1Secret(metadata=meta,
                           type="Opaque",
                           data=data)
@@ -96,10 +100,12 @@ class EGISpawner(KubeSpawner):
             if e.status == 409:
                 self.log.info("Updating secret %s", self.token_secret_name)
                 try:
-                    self.api.patch_namespaced_secret(name=self.token_secret_name,
-                                                     namespace=self.namespace,
-                                                     body=secret)
-                except ApiException as e:
+                    self.api.patch_namespaced_secret(
+                        name=self.token_secret_name,
+                        namespace=self.namespace,
+                        body=secret
+                    )
+                except ApiException:
                     raise
             else:
                 raise
@@ -110,7 +116,6 @@ class DataHubSpawner(EGISpawner):
         "ONEZONE_URL",
         config=True,
         help="""Environment variable that contains the onezone URL"""
-                
     )
 
     token_env = Unicode(
@@ -122,7 +127,8 @@ class DataHubSpawner(EGISpawner):
     oneprovider_env = Unicode(
         'ONEPROVIDER_HOST',
         config=True,
-        help="""Name of the environment variable to store the oneprovider host"""
+        help="""Name of the environment variable to store the oneprovider
+                host"""
     )
 
     manager_class = Unicode(
@@ -130,7 +136,7 @@ class DataHubSpawner(EGISpawner):
         config=True,
         help="""DataHub Content Manager"""
     )
- 
+
     force_proxy_io = Bool(
         False,
         config=True,
@@ -145,45 +151,56 @@ class DataHubSpawner(EGISpawner):
 
     async def add_datahub_args(self, pod):
         # if coming via binder, this shouldn't be done
-        if self.environment.get(self.token_env, ''):
+        token = self.environment.get(self.token_env, '')
+        if token:
             onezone_url = self.environment.get(self.onezone_env, "")
+            url = onezone_url + '/api/v3/onezone/user/effective_spaces'
             http_client = AsyncHTTPClient()
-            req = HTTPRequest(onezone_url + '/api/v3/onezone/user/effective_spaces',
-                    headers={'content-type': 'application/json',
-                             'x-auth-token': self.environment[self.token_env]},
-                    method='GET')
+            req = HTTPRequest(url,
+                              headers={'content-type': 'application/json',
+                                       'x-auth-token': token},
+                              method='GET')
             try:
                 resp = await http_client.fetch(req)
-                datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
+                datahub_response = json.loads(resp.body.decode('utf8',
+                                                               'replace'))
             except HTTPError as e:
                 self.log.warn("Something failed! %s", e)
                 raise e
             scheme = []
             for space in datahub_response['spaces']:
-                req = HTTPRequest(onezone_url + '/api/v3/onezone/user/spaces/%s' % space,
-                        headers={'content-type': 'application/json',
-                                 'x-auth-token': self.environment[self.token_env]},
-                        method='GET')
+                url = onezone_url + '/api/v3/onezone/user/spaces/%s' % space
+                req = HTTPRequest(url,
+                                  headers={'content-type': 'application/json',
+                                           'x-auth-token': token},
+                                  method='GET')
                 try:
                     resp = await http_client.fetch(req)
-                    datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
+                    datahub_response = json.loads(resp.body.decode('utf8',
+                                                                   'replace'))
                     scheme.append({
                         "root": datahub_response["name"],
                         "class": "onedatafs_jupyter.OnedataFSContentsManager",
-                        "config": {"space": "/" + datahub_response["name"] },
+                        "config": {"space": "/" + datahub_response["name"]},
                     })
                 except HTTPError as e:
                     self.log.info("Something failed! %s", e)
                     raise e
-            pod.spec.containers[0].args = (pod.spec.containers[0].args +
-                [
-                    '--NotebookApp.contents_manager_class=%s' % self.manager_class,
-                    '--OnedataFSContentsManager.oneprovider_host=$(%s)' % self.oneprovider_env,
-                    '--OnedataFSContentsManager.access_token=$(%s)' % self.token_env,
-                    '--OnedataFSContentsManager.path=""',
-                    '--OnedataFSContentsManager.force_proxy_io=%s' % self.force_proxy_io,
-                    '--OnedataFSContentsManager.force_direct_io=%s' % self.force_direct_io,
-                    '--MixedContentsManager.filesystem_scheme=%s' % json.dumps(scheme)
+            pod.spec.containers[0].args = (
+                pod.spec.containers[0].args + [
+                    ('--NotebookApp.contents_manager_class=%s'
+                     % self.manager_class),
+                    ('--OnedataFSContentsManager.oneprovider_host=$(%s)'
+                     % self.oneprovider_env),
+                    ('--OnedataFSContentsManager.access_token=$(%s)'
+                     % self.token_env),
+                    ('--OnedataFSContentsManager.path=""',)
+                    ('--OnedataFSContentsManager.force_proxy_io=%s'
+                     % self.force_proxy_io),
+                    ('--OnedataFSContentsManager.force_direct_io=%s'
+                     % self.force_direct_io),
+                    ('--MixedContentsManager.filesystem_scheme=%s'
+                     % json.dumps(scheme))
                 ]
             )
             self.log.info("POD: %s", pod.spec.containers[0].args)

@@ -1,30 +1,27 @@
-"""
-EGI Check-in authenticator for JupyterHub
+"""EGI Check-in authenticator for JupyterHub
 
 Uses OpenID Connect with aai.egi.eu
 """
 
 
-import base64
 import json
 import os
-import urllib
 import time
 
 
-from jupyterhub.auth import LocalAuthenticator
-from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado.httputil import url_concat
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
-from traitlets import Unicode, List, Bool, default, validate
+from tornado.httpclient import (AsyncHTTPClient, HTTPClientError, HTTPError,
+                                HTTPRequest)
+from traitlets import Unicode, List, default, validate
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
 
     checkin_host_env = "EGICHECKIN_HOST"
-    checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
+    checkin_host = Unicode(config=True,
+                           help="""The EGI Check-in host to use""")
 
     @default("checkin_host")
     def _checkin_host_default(self):
@@ -45,7 +42,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def _userdata_url_default(self):
         return "https://%s/oidc/userinfo" % self.checkin_host
 
-
     client_id_env = "EGICHECKIN_CLIENT_ID"
     client_secret_env = "EGICHECKIN_CLIENT_SECRET"
 
@@ -61,7 +57,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         config=True,
         help="""The OAuth scopes to request.
 
-        See https://wiki.egi.eu/wiki/AAI_guide_for_SPs#OpenID_Connect_Service_Provider for details.
+        See https://wiki.egi.eu/wiki/AAI_guide_for_SPs
+        #OpenID_Connect_Service_Provider for details.
+
         At least 'openid' is required.
         """,
     )
@@ -80,7 +78,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     )
 
     allowed_entitlements = List(
-        config=True, help="""A list of user claims that are authorized to login.""",
+        config=True,
+        help="A list of user claims that are authorized to login.",
     )
 
     affiliations_key = Unicode(
@@ -124,10 +123,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         entitlements = self.check_allowed_attrs(
             user_info, self.allowed_entitlements, self.entitlements_key
         )
-        return (
-            affiliations
-            and entitlements
-        )
+        return affiliations and entitlements
 
     # Refresh auth data for user
     async def refresh_user(self, user, handler=None):
@@ -185,7 +181,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     async def pre_spawn_start(self, user, spawner):
         auth_state = await user.get_auth_state()
-        if auth_state and callable(getattr(user.spawner, "set_access_token", None)):
+        if auth_state and callable(getattr(user.spawner,
+                                           "set_access_token",
+                                           None)):
             user.spawner.set_access_token(auth_state["access_token"])
 
 
@@ -204,7 +202,8 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
     token_env = Unicode(
         "ONECLIENT_ACCESS_TOKEN",
         config=True,
-        help="""Environment variable that contains the access token for DataHub"""
+        help="""Environment variable that contains the access token
+                for DataHub"""
     )
 
     oneprovider_env = Unicode(
@@ -231,9 +230,11 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         http_client = AsyncHTTPClient()
         onedata_token = None
         # We now go to the datahub to get a token
-        req = HTTPRequest(self.onezone_url + '/api/v3/onezone/user/client_tokens',
+        checkin_token = user_data['auth_state']['access_token']
+        url = self.onezone_url + '/api/v3/onezone/user/client_tokens'
+        req = HTTPRequest(url,
                           headers={'content-type': 'application/json',
-                                   'x-auth-token': 'egi:%s' % user_data['auth_state']['access_token']},
+                                   'x-auth-token': 'egi:%s' % checkin_token},
                           method='GET')
         try:
             resp = await http_client.fetch(req)
@@ -245,14 +246,17 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             raise e
         if not onedata_token:
             # we don't have a token, create one
-            req = HTTPRequest(self.onezone_url + '/api/v3/onezone/user/client_tokens',
-                              headers={'content-type': 'application/json',
-                                       'x-auth-token': 'egi:%s' % user_data['auth_state']['access_token']},
-                              method='POST',
-                              body='')
+            url = self.onezone_url + '/api/v3/onezone/user/client_tokens'
+            req = HTTPRequest(
+                url,
+                headers={'content-type': 'application/json',
+                         'x-auth-token': 'egi:%s' % checkin_token},
+                method='POST',
+                body='')
             try:
                 resp = await http_client.fetch(req)
-                datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
+                datahub_response = json.loads(resp.body.decode('utf8',
+                                                               'replace'))
                 onedata_token = datahub_response['token']
             except HTTPError as e:
                 self.log.info("Something failed! %s", e)
