@@ -85,7 +85,7 @@ class EGISpawner(KubeSpawner):
                             annotations=self._build_common_annotations({}))
 
         data = {
-            "access_token": base64.b64encode(access_token.encode()).decode()
+            "access_token": base64.b64encode(access_token.encode()).decode(),
             "id_token": None
         }
         if id_token:
