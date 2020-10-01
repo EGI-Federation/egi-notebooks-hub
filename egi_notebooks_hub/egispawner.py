@@ -83,11 +83,14 @@ class EGISpawner(KubeSpawner):
         meta = V1ObjectMeta(name=self.token_secret_name,
                             labels=self._build_common_labels({}),
                             annotations=self._build_common_annotations({}))
+
         data = {
-            "access_token": base64.b64encode(access_token.encode()).decode()
+            "access_token": base64.b64encode(access_token.encode()).decode(),
+            "id_token": None
         }
         if id_token:
             data["id_token"] = base64.b64encode(id_token.encode()).decode()
+
         secret = V1Secret(metadata=meta,
                           type="Opaque",
                           data=data)
