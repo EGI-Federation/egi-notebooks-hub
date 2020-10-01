@@ -40,6 +40,14 @@ class EGISpawner(KubeSpawner):
         """
     )
 
+    token_mount_path = Unicode(
+        '/var/run/secrets/egi.eu/',
+        config=True,
+        help="""
+        Path where the token secret will be mounted.
+        """
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pvc_name = uuid.uuid4().hex
@@ -50,8 +58,8 @@ class EGISpawner(KubeSpawner):
         self.volumes.append({"name": token_secret_volume_name,
                              "secret": {"secretName": self.token_secret_name}})
         self.volume_mounts.append({"name": token_secret_volume_name,
-                                  "mountPath": "/etc/egi",
-                                  "readOnly": True})
+                                   "mountPath": self.token_mount_path,
+                                   "readOnly": True})
 
     def get_pvc_manifest(self):
         """ Tries to fix volumes of to avoid issues with too long user name for k8s """
@@ -68,12 +76,14 @@ class EGISpawner(KubeSpawner):
         self.volumes = vols
         return super().get_pvc_manifest()
 
-    def set_access_token(self, token):
+    def set_access_token(self, access_token, id_token=None):
         """creates a secret in k8s with the token of the user"""
         meta = V1ObjectMeta(name=self.token_secret_name,
                             labels=self._build_common_labels({}),
                             annotations=self._build_common_annotations({}))
-        data = {"CHECKIN_TOKEN": base64.b64encode(token.encode()).decode()}
+        data = {"access_token": base64.b64encode(access_token.encode()).decode()}
+        if id_token:
+            data["id_token"] = base64.b64encode(id_token.encode()).decode()}
         secret = V1Secret(metadata=meta,
                           type="Opaque",
                           data=data)
