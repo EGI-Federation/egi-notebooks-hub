@@ -122,7 +122,7 @@ class EGISpawner(KubeSpawner):
         }
         if id_token:
             data["id_token"] = base64.b64encode(id_token.encode()).decode()
-        self._update_token_secret(self._get_secret_manifest(data))
+        self._update_token_secret(data)
 
 
 class DataHubSpawner(EGISpawner):
