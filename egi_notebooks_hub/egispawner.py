@@ -59,6 +59,7 @@ class EGISpawner(KubeSpawner):
         self.volume_mounts.append({"name": token_secret_volume_name,
                                    "mountPath": self.token_mount_path,
                                    "readOnly": True})
+        self._create_token_secret()
 
     def get_pvc_manifest(self):
         """Tries to fix volumes of to avoid issues with too long user names"""
@@ -78,22 +79,18 @@ class EGISpawner(KubeSpawner):
         self.volumes = vols
         return super().get_pvc_manifest()
 
-    def set_access_token(self, access_token, id_token=None):
-        """creates a secret in k8s with the token of the user"""
+    def _get_secret_manifest(self, data):
+        """creates a secret in k8s that will contain the token of the user"""
         meta = V1ObjectMeta(name=self.token_secret_name,
                             labels=self._build_common_labels({}),
                             annotations=self._build_common_annotations({}))
-
-        data = {
-            "access_token": base64.b64encode(access_token.encode()).decode(),
-            "id_token": None
-        }
-        if id_token:
-            data["id_token"] = base64.b64encode(id_token.encode()).decode()
-
         secret = V1Secret(metadata=meta,
                           type="Opaque",
                           data=data)
+        return secret
+
+    def _create_token_secret(self):
+        secret = self._get_secret_manifest({})
         try:
             self.api.create_namespaced_secret(namespace=self.namespace,
                                               body=secret)
@@ -101,17 +98,31 @@ class EGISpawner(KubeSpawner):
                           self.token_secret_name)
         except ApiException as e:
             if e.status == 409:
-                self.log.info("Updating secret %s", self.token_secret_name)
-                try:
-                    self.api.patch_namespaced_secret(
-                        name=self.token_secret_name,
-                        namespace=self.namespace,
-                        body=secret
-                    )
-                except ApiException:
-                    raise
+                self.log.info("Secret %s exists, not creating",
+                              self.token_secret_name)
             else:
                 raise
+
+    def _update_token_secret(self, data):
+        secret = self._get_secret_manifest(data)
+        try:
+            self.api.patch_namespaced_secret(
+                name=self.token_secret_name,
+                namespace=self.namespace,
+                body=secret
+            )
+        except ApiException:
+            raise
+
+    def set_access_token(self, access_token, id_token=None):
+        """updates the secret in k8s with the token of the user"""
+        data = {
+            "access_token": base64.b64encode(access_token.encode()).decode(),
+            "id_token": None
+        }
+        if id_token:
+            data["id_token"] = base64.b64encode(id_token.encode()).decode()
+        self._update_token_secret(self._get_secret_manifest(data))
 
 
 class DataHubSpawner(EGISpawner):
