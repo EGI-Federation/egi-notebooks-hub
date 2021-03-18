@@ -8,20 +8,22 @@ import json
 import os
 import time
 
-
 from oauthenticator.generic import GenericOAuthenticator
+from tornado.httpclient import (
+    AsyncHTTPClient,
+    HTTPClientError,
+    HTTPError,
+    HTTPRequest,
+)
 from tornado.httputil import url_concat
-from tornado.httpclient import (AsyncHTTPClient, HTTPClientError, HTTPError,
-                                HTTPRequest)
-from traitlets import Unicode, List, default, validate
+from traitlets import List, Unicode, default, validate
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
 
     checkin_host_env = "EGICHECKIN_HOST"
-    checkin_host = Unicode(config=True,
-                           help="""The EGI Check-in host to use""")
+    checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
 
     @default("checkin_host")
     def _checkin_host_default(self):
@@ -72,14 +74,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         return proposal.value
 
     entitlements_key = Unicode(
-        "edu_person_entitlements",
-        config=True,
-        help="Claim name used to allow users",
+        "edu_person_entitlements", config=True, help="Claim name used to allow users",
     )
 
     allowed_entitlements = List(
-        config=True,
-        help="A list of user claims that are authorized to login.",
+        config=True, help="A list of user claims that are authorized to login.",
     )
 
     affiliations_key = Unicode(
@@ -175,15 +174,14 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         auth_state["refresh_token"] = refresh_info["refresh_token"]
         self.log.debug("Refreshed token for user!")
         if callable(getattr(user.spawner, "set_access_token", None)):
-            user.spawner.set_access_token(auth_state["access_token"],
-                                          refresh_info.get("id_token", None))
+            user.spawner.set_access_token(
+                auth_state["access_token"], refresh_info.get("id_token", None)
+            )
         return {"auth_state": auth_state}
 
     async def pre_spawn_start(self, user, spawner):
         auth_state = await user.get_auth_state()
-        if auth_state and callable(getattr(user.spawner,
-                                           "set_access_token",
-                                           None)):
+        if auth_state and callable(getattr(user.spawner, "set_access_token", None)):
             user.spawner.set_access_token(auth_state["access_token"])
 
 
@@ -193,75 +191,79 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
     Uses OpenID Connect with aai.egi.eu, fetches DataHub token
     and keeps it in auth_state
     """
+
     onezone_env = Unicode(
         "ONEZONE_URL",
         config=True,
-        help="""Environment variable that contains the onezone URL"""
+        help="""Environment variable that contains the onezone URL""",
     )
 
     token_env = Unicode(
         "ONECLIENT_ACCESS_TOKEN",
         config=True,
         help="""Environment variable that contains the access token
-                for DataHub"""
+                for DataHub""",
     )
 
     oneprovider_env = Unicode(
         "ONEPROVIDER_HOST",
         config=True,
-        help="""Environment variable that contains the oneprovider host"""
+        help="""Environment variable that contains the oneprovider host""",
     )
 
     onezone_url = Unicode(
-        "https://datahub.egi.eu",
-        config=True,
-        help="""Onedata onezone URL"""
+        "https://datahub.egi.eu", config=True, help="""Onedata onezone URL"""
     )
 
     oneprovider_host = Unicode(
         "plg-cyfronet-01.datahub.egi.eu",
         config=True,
-        help="""Onedata oneprovider hostname"""
+        help="""Onedata oneprovider hostname""",
     )
 
     async def authenticate(self, handler, data=None):
-        user_data = await super(DataHubAuthenticator,
-                                self).authenticate(handler, data)
+        user_data = await super(DataHubAuthenticator, self).authenticate(handler, data)
         http_client = AsyncHTTPClient()
         onedata_token = None
         # We now go to the datahub to get a token
-        checkin_token = user_data['auth_state']['access_token']
-        url = self.onezone_url + '/api/v3/onezone/user/client_tokens'
-        req = HTTPRequest(url,
-                          headers={'content-type': 'application/json',
-                                   'x-auth-token': 'egi:%s' % checkin_token},
-                          method='GET')
+        checkin_token = user_data["auth_state"]["access_token"]
+        url = self.onezone_url + "/api/v3/onezone/user/client_tokens"
+        req = HTTPRequest(
+            url,
+            headers={
+                "content-type": "application/json",
+                "x-auth-token": "egi:%s" % checkin_token,
+            },
+            method="GET",
+        )
         try:
             resp = await http_client.fetch(req)
-            datahub_response = json.loads(resp.body.decode('utf8', 'replace'))
-            if datahub_response['tokens']:
-                onedata_token = datahub_response['tokens'].pop(0)
+            datahub_response = json.loads(resp.body.decode("utf8", "replace"))
+            if datahub_response["tokens"]:
+                onedata_token = datahub_response["tokens"].pop(0)
         except HTTPError as e:
             self.log.info("Something failed! %s", e)
             raise e
         if not onedata_token:
             # we don't have a token, create one
-            url = self.onezone_url + '/api/v3/onezone/user/client_tokens'
+            url = self.onezone_url + "/api/v3/onezone/user/client_tokens"
             req = HTTPRequest(
                 url,
-                headers={'content-type': 'application/json',
-                         'x-auth-token': 'egi:%s' % checkin_token},
-                method='POST',
-                body='')
+                headers={
+                    "content-type": "application/json",
+                    "x-auth-token": "egi:%s" % checkin_token,
+                },
+                method="POST",
+                body="",
+            )
             try:
                 resp = await http_client.fetch(req)
-                datahub_response = json.loads(resp.body.decode('utf8',
-                                                               'replace'))
-                onedata_token = datahub_response['token']
+                datahub_response = json.loads(resp.body.decode("utf8", "replace"))
+                onedata_token = datahub_response["token"]
             except HTTPError as e:
                 self.log.info("Something failed! %s", e)
                 raise e
-        user_data['auth_state'].update({'onedata_token': onedata_token})
+        user_data["auth_state"].update({"onedata_token": onedata_token})
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
@@ -270,5 +272,5 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         if not auth_state:
             # auth_state not enabled
             return
-        spawner.environment[self.token_env] = auth_state.get('onedata_token')
+        spawner.environment[self.token_env] = auth_state.get("onedata_token")
         spawner.environment[self.oneprovider_env] = self.oneprovider_host

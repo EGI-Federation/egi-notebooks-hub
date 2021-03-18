@@ -1,5 +1,0 @@
--r ./requirements.txt
-flake8
-tox
-pep8
-bandit
