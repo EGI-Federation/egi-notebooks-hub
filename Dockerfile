@@ -6,7 +6,8 @@ USER root
 COPY . /egi-notebooks-hub/
 
 # install the hub extensions
-RUN pip3 install /egi-notebooks-hub/
+# hadolint ignore=DL3013
+RUN pip3 install --no-cache-dir /egi-notebooks-hub
 
 # Customise Jupyter login
 # TODO(enolfc): this can break quite easily, should find a better way
