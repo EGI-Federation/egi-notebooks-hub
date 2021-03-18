@@ -6,15 +6,12 @@ import json
 import os
 from xml.etree import ElementTree
 
-from tornado import gen, web
-
-from tornado.httputil import url_concat
-from tornado.httpclient import HTTPError, HTTPRequest, AsyncHTTPClient
-
 from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
-
+from tornado import gen, web
+from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
+from tornado.httputil import url_concat
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",

@@ -5,12 +5,10 @@ import base64
 import json
 import uuid
 
-from kubespawner import KubeSpawner
+from kubernetes.client import V1ObjectMeta, V1Secret
 from kubernetes.client.rest import ApiException
-from kubernetes.client import V1Secret, V1ObjectMeta
-
-from tornado.httpclient import HTTPRequest, AsyncHTTPClient, HTTPError
-
+from kubespawner import KubeSpawner
+from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Bool, Unicode
 
 
@@ -84,6 +82,7 @@ class EGISpawner(KubeSpawner):
                 self.pvc_name = pvc.metadata.name
                 break
         vols = []
+        # pylint: disable=access-member-before-definition
         for v in self.volumes:
             claim = v.get("persistentVolumeClaim", {})
             if claim.get("claimName", "").startswith("claim-"):
@@ -202,9 +201,8 @@ class DataHubSpawner(EGISpawner):
                     % self.oneprovider_env
                 ),
                 ("--OnedataFSContentsManager.access_token=$(%s)" % self.token_env),
-                ('--OnedataFSContentsManager.path=""',)(
-                    "--OnedataFSContentsManager.force_proxy_io=%s" % self.force_proxy_io
-                ),
+                ('--OnedataFSContentsManager.path=""'),
+                ("--OnedataFSContentsManager.force_proxy_io=%s" % self.force_proxy_io),
                 (
                     "--OnedataFSContentsManager.force_direct_io=%s"
                     % self.force_direct_io

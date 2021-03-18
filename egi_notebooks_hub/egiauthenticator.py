@@ -8,11 +8,15 @@ import json
 import os
 import time
 
-
 from oauthenticator.generic import GenericOAuthenticator
+from tornado.httpclient import (
+    AsyncHTTPClient,
+    HTTPClientError,
+    HTTPError,
+    HTTPRequest,
+)
 from tornado.httputil import url_concat
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
-from traitlets import Unicode, List, default, validate
+from traitlets import List, Unicode, default, validate
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
@@ -70,14 +74,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         return proposal.value
 
     entitlements_key = Unicode(
-        "edu_person_entitlements",
-        config=True,
-        help="Claim name used to allow users",
+        "edu_person_entitlements", config=True, help="Claim name used to allow users",
     )
 
     allowed_entitlements = List(
-        config=True,
-        help="A list of user claims that are authorized to login.",
+        config=True, help="A list of user claims that are authorized to login.",
     )
 
     affiliations_key = Unicode(
