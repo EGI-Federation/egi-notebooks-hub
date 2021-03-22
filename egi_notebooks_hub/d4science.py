@@ -74,8 +74,10 @@ class D4ScienceLoginHandler(BaseHandler):
             raise web.HTTPError(403)
         resp_json = json.loads(resp.body.decode("utf8", "replace"))
         username = resp_json.get("result", {}).get("username", "")
-        if not username:
-            self.log.error("Unable to get the user from gcube?")
+        context = resp_json.get("result", {}).get("context", "")
+
+        if not username or not context:
+            self.log.error("Unable to get the user or context from gcube?")
             raise web.HTTPError(403)
 
         # discover WPS
@@ -106,6 +108,7 @@ class D4ScienceLoginHandler(BaseHandler):
             "gcube-token": token,
             "gcube-user": username,
             "wps-endpoint": wps_endpoint,
+            "context": context,
         }
         data.update(resp_json["result"])
         user = yield self.login_user(data)
@@ -133,6 +136,7 @@ class D4ScienceAuthenticator(Authenticator):
             return
         spawner.environment["GCUBE_TOKEN"] = auth_state["gcube-token"]
         spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
+        spawner.environment["GCUBE_VRE"] = auth_state["context"]
 
     def get_handlers(self, app):
         return [(r"/login", self.login_handler)]
