@@ -26,7 +26,11 @@ D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "service/ServiceEndpoint/DataAnalysis/DataMiner",
 )
 
-
+D4SCIENCE_DISCOVER_WPS = os.environ.get(
+    "D4SCIENCE_DISCOVER_WPS", 
+    "false",
+)
+ 
 class D4ScienceLoginHandler(BaseHandler):
     # override implementation of clear_cookies from tornado to add extra
     # options
@@ -80,30 +84,31 @@ class D4ScienceLoginHandler(BaseHandler):
             self.log.error("Unable to get the user or context from gcube?")
             raise web.HTTPError(403)
 
-        # discover WPS
-        self.log.info("Discover wps")
+        # discover WPS if enabled
         wps_endpoint = ""
-        discovery_url = url_concat(D4SCIENCE_DM_REGISTRY_URL, {"gcube-token": token})
-        req = HTTPRequest(discovery_url, method="GET")
-        try:
-            self.log.info("fetch")
-            resp = yield http_client.fetch(req)
-        except HTTPError as e:
-            # whatever, get out
-            self.log.warning("Something happened with gcube service: %s", e)
-            raise web.HTTPError(403)
-        root = ElementTree.fromstring(resp.body.decode("utf8", "replace"))
-        self.log.info("root %s", root)
-        for child in root.findall("Resource/Profile/AccessPoint/" "Interface/Endpoint"):
-            entry_name = child.attrib["EntryName"]
-            self.log.info("entry_name %s", entry_name)
-            if entry_name != "GetCapabilities":
-                wps_endpoint = child.text
-                self.log.info("WPS endpoint: %s", wps_endpoint)
-                break
-
+        if D4SCIENCE_DISCOVER_WPS.lower() in ['true', '1']:
+              
+            self.log.info("Discover wps")
+            discovery_url = url_concat(D4SCIENCE_DM_REGISTRY_URL, {"gcube-token": token})
+            req = HTTPRequest(discovery_url, method="GET")
+            try:
+                self.log.info("fetch")
+                resp = yield http_client.fetch(req)
+            except HTTPError as e:
+                # whatever, get out
+                self.log.warning("Something happened with gcube service: %s", e)
+                raise web.HTTPError(403)
+            root = ElementTree.fromstring(resp.body.decode("utf8", "replace"))
+            self.log.info("root %s", root)
+            for child in root.findall("Resource/Profile/AccessPoint/" "Interface/Endpoint"):
+                entry_name = child.attrib["EntryName"]
+                self.log.info("entry_name %s", entry_name)
+                if entry_name != "GetCapabilities":
+                    wps_endpoint = child.text
+                    self.log.info("WPS endpoint: %s", wps_endpoint)
+                    break
+        
         self.log.info("D4Science user is %s", username)
-        self.log.info("WPS %s", wps_endpoint)
         data = {
             "gcube-token": token,
             "gcube-user": username,
