@@ -27,7 +27,7 @@ D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
 )
 
 D4SCIENCE_DISCOVER_WPS = os.environ.get(
-    "D4SCIENCE_DISCOVER_WPS", 
+    "D4SCIENCE_DISCOVER_WPS",
     "false",
 )
  
@@ -47,7 +47,7 @@ class D4ScienceLoginHandler(BaseHandler):
         user = yield self.get_current_user()
         token = self.get_argument("gcube-token")
         if user and token:
-            self.log.info("Clearing login cookie, new user?")
+            self.log.debug("Clearing login cookie, new user?")
             # clear login cookies with full set of options
 
             self.clear_login_cookie()
@@ -87,27 +87,29 @@ class D4ScienceLoginHandler(BaseHandler):
         # discover WPS if enabled
         wps_endpoint = ""
         if D4SCIENCE_DISCOVER_WPS.lower() in ['true', '1']:
-              
-            self.log.info("Discover wps")
-            discovery_url = url_concat(D4SCIENCE_DM_REGISTRY_URL, {"gcube-token": token})
+            self.log.debug("Discover wps")
+            discovery_url = url_concat(
+                D4SCIENCE_DM_REGISTRY_URL, {"gcube-token": token}
+            )
             req = HTTPRequest(discovery_url, method="GET")
             try:
-                self.log.info("fetch")
+                self.log.debug("fetch")
                 resp = yield http_client.fetch(req)
             except HTTPError as e:
                 # whatever, get out
                 self.log.warning("Something happened with gcube service: %s", e)
                 raise web.HTTPError(403)
             root = ElementTree.fromstring(resp.body.decode("utf8", "replace"))
-            self.log.info("root %s", root)
-            for child in root.findall("Resource/Profile/AccessPoint/" "Interface/Endpoint"):
+            self.log.debug("root %s", root)
+            for child in root.findall(
+                "Resource/Profile/AccessPoint/" "Interface/Endpoint"
+            ):
                 entry_name = child.attrib["EntryName"]
-                self.log.info("entry_name %s", entry_name)
+                self.log.debug("entry_name %s", entry_name)
                 if entry_name != "GetCapabilities":
                     wps_endpoint = child.text
-                    self.log.info("WPS endpoint: %s", wps_endpoint)
+                    self.log.debug("WPS endpoint: %s", wps_endpoint)
                     break
-        
         self.log.info("D4Science user is %s", username)
         data = {
             "gcube-token": token,
