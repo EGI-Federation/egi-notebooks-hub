@@ -17,7 +17,7 @@ D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
     "https://socialnetworking1.d4science.org/" "social-networking-library-ws/rest/",
 )
- 
+
 
 D4SCIENCE_PROFILE = "2/people/profile"
 
@@ -34,7 +34,7 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
     "false",
 )
 
- 
+
 class D4ScienceLoginHandler(BaseHandler):
     # override implementation of clear_cookies from tornado to add extra
     # options
@@ -90,7 +90,7 @@ class D4ScienceLoginHandler(BaseHandler):
 
         # discover WPS if enabled
         wps_endpoint = ""
-        if D4SCIENCE_DISCOVER_WPS.lower() in ['true', '1']:
+        if D4SCIENCE_DISCOVER_WPS.lower() in ["true", "1"]:
             self.log.debug("Discover wps")
             discovery_url = url_concat(
                 D4SCIENCE_DM_REGISTRY_URL, {"gcube-token": token}
@@ -101,7 +101,7 @@ class D4ScienceLoginHandler(BaseHandler):
                 resp = yield http_client.fetch(req)
             except HTTPError as e:
                 # whatever, get out
-                self.log.warning("Something happened with gcube service: %s", e)
+                self.log.error("Something happened with gcube service: %s", e)
                 raise web.HTTPError(403)
             root = ElementTree.fromstring(resp.body.decode("utf8", "replace"))
             self.log.debug("root %s", root)
