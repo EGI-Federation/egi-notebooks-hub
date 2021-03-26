@@ -17,8 +17,10 @@ D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
     "https://socialnetworking1.d4science.org/" "social-networking-library-ws/rest/",
 )
+ 
 
 D4SCIENCE_PROFILE = "2/people/profile"
+
 
 D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_URL",
@@ -26,10 +28,12 @@ D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "service/ServiceEndpoint/DataAnalysis/DataMiner",
 )
 
+
 D4SCIENCE_DISCOVER_WPS = os.environ.get(
     "D4SCIENCE_DISCOVER_WPS",
     "false",
 )
+
  
 class D4ScienceLoginHandler(BaseHandler):
     # override implementation of clear_cookies from tornado to add extra
