@@ -21,8 +21,9 @@ jobs:
         uses: crazy-max/ghaction-docker-meta@v2.1.0
         with:
           images: eginotebooks/hub
-          tag-sha: true
-          tag-custom: latest
+          tags: |
+            type=sha
+            latest
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
