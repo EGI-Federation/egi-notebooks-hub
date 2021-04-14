@@ -1,3 +1,4 @@
+<!-- htmlhint doctype-first:false -->
 {% extends "page.html" %}
 {% if announcement_login %}
   {% set announcement = announcement_login %}
@@ -23,7 +24,7 @@
 
 {% block nav_bar_right_items %}
 <li>
-  <span id="user_guide">
+  <span id="user-guide">
   <a role="button" class="navbar-btn btn-sm btn btn-egi" href="https://docs.egi.eu/users/notebooks/">
       <i aria-hidden="true" class="fa fa-book"></i> User Guide</a>
   </span>
@@ -36,24 +37,24 @@
 {% block login %}
 <div id="login-main" class="container">
 <div class="jumbotron">
-    <h1><img height=100 src="{{ static_url("images/notebooks-logo.png") }}">Notebooks</h1>
-	<p>
-	Notebooks is an environment based on <a href="http://jupyter.org/">Jupyter</a> and
-	the <a href="https://www.egi.eu/services/cloud-compute/">EGI cloud service</a> that
-	offers a browser-based, scalable tool for interactive data analysis. The Notebooks
-	environment provides users with notebooks where they can combine text, mathematics,
-	computations and rich media output.
-	</p>
+    <h1><img alt="Notebooks Logo" src="{{ static_url('images/notebooks-logo.png') }}" height="100">Notebooks</h1>
+    <p>
+    Notebooks is an environment based on <a href="http://jupyter.org/">Jupyter</a> and
+    the <a href="https://www.egi.eu/services/cloud-compute/">EGI cloud service</a> that
+    offers a browser-based, scalable tool for interactive data analysis. The Notebooks
+    environment provides users with notebooks where they can combine text, mathematics,
+    computations and rich media output.
+    </p>
     <p>
     Individual users can directly login by clicking the button below. The notebooks are
     limited to 1 CPU, 1GB RAM and 10GB of persistent storage per user.
     </p>
     <div class="spacer-sm"></div>
-	<p class="text-center">
-  		<a role="button" class='btn btn-egi btn-lg' href='{{authenticator_login_url}}'>
+    <p class="text-center">
+          <a role="button" class="btn btn-egi btn-lg" href="{{authenticator_login_url}}">
             Start your notebooks!
-  		</a>
-	</p>
+          </a>
+    </p>
     <div class="spacer-sm"></div>
    <p>
    User communities/advanced users can have their customised EGI Notebooks service
@@ -66,7 +67,7 @@
     <div class="row">
       <div class="col-md-12 text-center">
         <a href="https://www.cesnet.cz/?lang=en">
-        <img src="{{ static_url("images/cesnet.png") }}" height="100" alt="CESNET" >
+        <img alt="CESNET logo" src="{{ static_url('images/cesnet.png') }}" height="100">
         </a>
       </div>
    </div>
