@@ -16,7 +16,7 @@ from tornado.httpclient import (
     HTTPRequest,
 )
 from tornado.httputil import url_concat
-from traitlets import List, Unicode, default, validate
+from traitlets import List, Unicode, default, validate, Bool
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
@@ -221,13 +221,29 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         help="""Onedata oneprovider hostname""",
     )
 
+    oneprovider_pwd = Unicode("", config=True, help="""Onedata oneprovider password""",)
+
+    map_users = Bool(False, config=True, help="""perform mapping""")
+
+    token_name = Unicode(
+        "notebooks.egi.eu",
+        config=True,
+        help="""Name of token in the onezone for the user""",
+    )
+
+    storage_id = Unicode("", config=True, help="""Storage id to use for mapping""",)
+
     async def authenticate(self, handler, data=None):
         user_data = await super(DataHubAuthenticator, self).authenticate(handler, data)
         http_client = AsyncHTTPClient()
         onedata_token = None
+        onedata_user = None
         # We now go to the datahub to get a token
         checkin_token = user_data["auth_state"]["access_token"]
-        url = self.onezone_url + "/api/v3/onezone/user/client_tokens"
+        url = (
+            self.onezone_url
+            + "/api/v3/onezone/user/tokens/named/name/%s" % self.token_name
+        )
         req = HTTPRequest(
             url,
             headers={
@@ -239,14 +255,21 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         try:
             resp = await http_client.fetch(req)
             datahub_response = json.loads(resp.body.decode("utf8", "replace"))
-            if datahub_response["tokens"]:
-                onedata_token = datahub_response["tokens"].pop(0)
+            onedata_token = datahub_response["token"]
+            onedata_user = datahub_response["subject"]["id"]
+            self.log.debug("Reusing existing token!")
         except HTTPError as e:
-            self.log.info("Something failed! %s", e)
-            raise e
+            if e.code != 404:
+                self.log.info("Something failed! %s", e)
+                raise e
         if not onedata_token:
             # we don't have a token, create one
-            url = self.onezone_url + "/api/v3/onezone/user/client_tokens"
+            token_desc = {
+                "name": self.token_name,
+                "type": {"accessToken": {}},
+                "caveats": [{"type": "interface", "interface": "oneclient"},],
+            }
+            url = self.onezone_url + "/api/v3/onezone/user/tokens/named"
             req = HTTPRequest(
                 url,
                 headers={
@@ -254,7 +277,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                     "x-auth-token": "egi:%s" % checkin_token,
                 },
                 method="POST",
-                body="",
+                body=json.dumps(token_desc),
             )
             try:
                 resp = await http_client.fetch(req)
@@ -263,7 +286,26 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             except HTTPError as e:
                 self.log.info("Something failed! %s", e)
                 raise e
-        user_data["auth_state"].update({"onedata_token": onedata_token})
+            # Finally get the user information
+            url = self.onezone_url + "/api/v3/onezone/user"
+            req = HTTPRequest(
+                url,
+                headers={
+                    "content-type": "application/json",
+                    "x-auth-token": "egi:%s" % checkin_token,
+                },
+                method="GET",
+            )
+            try:
+                resp = await http_client.fetch(req)
+                datahub_response = json.loads(resp.body.decode("utf8", "replace"))
+                onedata_user = datahub_response["userId"]
+            except HTTPError as e:
+                self.log.info("Something failed! %s", e)
+                raise e
+        user_data["auth_state"].update(
+            {"onedata_token": onedata_token, "onedata_user": onedata_user}
+        )
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
@@ -272,5 +314,62 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         if not auth_state:
             # auth_state not enabled
             return
+        if self.map_users:
+            http_client = AsyncHTTPClient()
+            user_id = auth_state.get("onedata_user")
+            url = (
+                f"https://{self.oneprovider_host}/api"
+                f"/v3/onepanel/provider/storages/{self.storage_id}"
+                f"/luma/local_feed/storage_access/all"
+                f"/onedata_user_to_credentials/{user_id}"
+            )
+            req = HTTPRequest(
+                url,
+                auth_username="onepanel",
+                auth_password=self.oneprovider_pwd,
+                auth_mode="basic",
+                headers={"content-type": "application/json",},
+                method="GET",
+            )
+            try:
+                resp = await http_client.fetch(req)
+                self.log.info("Mapping exists: %s", resp.body)
+            except HTTPError as e:
+                if e.code == 404:
+                    url = (
+                        f"https://{self.oneprovider_host}/api"
+                        f"/v3/onepanel/provider/storages/{self.storage_id}"
+                        f"/luma/local_feed/storage_access/all"
+                        f"/onedata_user_to_credentials"
+                    )
+                    mapping = {
+                        "onedataUser": {
+                            "mappingScheme": "onedataUser",
+                            "onedataUserId": user_id,
+                        },
+                        "storageUser": {
+                            "storageCredentials": {"type": "posix", "uid": "1000"},
+                            "displayUid": "1000",
+                        },
+                    }
+                    req = HTTPRequest(
+                        url,
+                        auth_username="onepanel",
+                        auth_password=self.oneprovider_pwd,
+                        auth_mode="basic",
+                        headers={"content-type": "application/json",},
+                        method="POST",
+                        body=json.dumps(mapping),
+                    )
+                    try:
+                        resp = await http_client.fetch(req)
+                        self.log.info("Mapping created: %s", resp.body)
+                    except HTTPError as e:
+                        self.log.info("Something failed! %s", e)
+                        self.log.info("Something failed! %s", e.response)
+                        raise e
+                else:
+                    self.log.info("Something failed! %s", e)
+                    raise e
         spawner.environment[self.token_env] = auth_state.get("onedata_token")
         spawner.environment[self.oneprovider_env] = self.oneprovider_host

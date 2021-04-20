@@ -29,10 +29,7 @@ D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
 )
 
 
-D4SCIENCE_DISCOVER_WPS = os.environ.get(
-    "D4SCIENCE_DISCOVER_WPS",
-    "false",
-)
+D4SCIENCE_DISCOVER_WPS = os.environ.get("D4SCIENCE_DISCOVER_WPS", "false",)
 
 
 class D4ScienceLoginHandler(BaseHandler):

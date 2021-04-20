@@ -9,7 +9,7 @@ from kubernetes.client import V1ObjectMeta, V1Secret
 from kubernetes.client.rest import ApiException
 from kubespawner import KubeSpawner
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
-from traitlets import Bool, Unicode
+from traitlets import Bool, List, Unicode
 
 
 class EGISpawner(KubeSpawner):
@@ -152,62 +152,77 @@ class DataHubSpawner(EGISpawner):
                 host""",
     )
 
-    manager_class = Unicode(
-        "eginotebooks.manager.MixedContentsManager",
-        config=True,
-        help="""DataHub Content Manager""",
-    )
-
     force_proxy_io = Bool(False, config=True, help="""Force the use of proxied I/O""")
 
-    force_direct_io = Bool(True, config=True, help="""Force the use of direct I/O""")
+    force_direct_io = Bool(False, config=True, help="""Force the use of direct I/O""")
 
-    async def add_datahub_args(self, pod):
-        # if coming via binder, this shouldn't be done
-        token = self.environment.get(self.token_env, "")
-        if token:
-            onezone_url = self.environment.get(self.onezone_env, "")
-            url = onezone_url + "/api/v3/onezone/user/effective_spaces"
-            headers = {"content-type": "application/json", "x-auth-token": token}
-            http_client = AsyncHTTPClient()
-            req = HTTPRequest(url, headers=headers, method="GET")
-            try:
-                resp = await http_client.fetch(req)
-                datahub_response = json.loads(resp.body.decode("utf8", "replace"))
-            except HTTPError as e:
-                self.log.warn("Something failed! %s", e)
-                raise e
-            scheme = []
-            for space in datahub_response["spaces"]:
-                url = onezone_url + "/api/v3/onezone/user/spaces/%s" % space
-                req = HTTPRequest(url, headers=headers, method="GET")
-                try:
-                    resp = await http_client.fetch(req)
-                    datahub_response = json.loads(resp.body.decode("utf8", "replace"))
-                    scheme.append(
-                        {
-                            "root": datahub_response["name"],
-                            "class": "onedatafs_jupyter.OnedataFSContentsManager",
-                            "config": {"space": "/" + datahub_response["name"]},
-                        }
-                    )
-                except HTTPError as e:
-                    self.log.info("Something failed! %s", e)
-                    raise e
-            pod.spec.containers[0].args = pod.spec.containers[0].args + [
-                ("--NotebookApp.contents_manager_class=%s" % self.manager_class),
-                (
-                    "--OnedataFSContentsManager.oneprovider_host=$(%s)"
-                    % self.oneprovider_env
-                ),
-                ("--OnedataFSContentsManager.access_token=$(%s)" % self.token_env),
-                ('--OnedataFSContentsManager.path=""'),
-                ("--OnedataFSContentsManager.force_proxy_io=%s" % self.force_proxy_io),
-                (
-                    "--OnedataFSContentsManager.force_direct_io=%s"
-                    % self.force_direct_io
-                ),
-                ("--MixedContentsManager.filesystem_scheme=%s" % json.dumps(scheme)),
-            ]
-            self.log.info("POD: %s", pod.spec.containers[0].args)
-        return pod
+    mount_point = Unicode(
+        "/mnt/oneclient", config=True, help="""Mountpoint for oneclient""",
+    )
+
+    client_image = Unicode(
+        "onedata/oneclient:20.02.7", config=True, help="""Mountpoint for oneclient""",
+    )
+
+    oneprovider_storage_mapping = List(
+        [],
+        config=True,
+        help="""
+        List of dicts like:
+            {"storage_id": "<oneprovider storage id>", "mount_point": "volume mount point"}
+        """,
+    )
+
+    extra_mounts = List([], config=True, help="""extra volume mounts in k8s""")
+
+    async def pre_spawn_hook(self, spawner):
+        host = spawner.environment.get("ONEPROVIDER_HOST", "")
+        token = spawner.environment.get("ONECLIENT_ACCESS_TOKEN", "")
+        cmd = ["oneclient", "-f"]
+        cmd.append(f"-H {host}")
+        if self.force_proxy_io:
+            cmd.append("--force-proxy-io")
+        if self.force_direct_io:
+            cmd.append("--force-direct-io")
+        if self.oneprovider_storage_mapping:
+            for mapping in self.oneprovider_storage_mapping:
+                cmd.append(
+                    "--override %(storage_id)s:mountPoint:%(mount_point)s" % mapping
+                )
+        cmd.append(self.mount_point)
+        volume_mounts = [
+            {"mountPath": f"{self.mount_point}:shared", "name": "oneclient"},
+        ]
+        if self.extra_mounts:
+            volume_mounts.extend(self.extra_mounts)
+        spawner.extra_containers = [
+            {
+                "name": "oneclient",
+                "image": self.client_image,
+                "env": [
+                    {"name": "ONECLIENT_PROVIDER_HOST", "value": host},
+                    {"name": "ONECLIENT_ACCESS_TOKEN", "value": token},
+                ],
+                "resources": {
+                    "requests": {"memory": "512Mi", "cpu": "250m"},
+                    "limits": {"memory": "4Gi", "cpu": "500m"},
+                },
+                "command": [
+                    "sh",
+                    "-c",
+                    "useradd -u 1000 -g 100 jovyan && su -p jovyan -c '%s'"
+                    % " ".join(cmd),
+                ],
+                "securityContext": {
+                    "runAsUser": 0,
+                    "privileged": True,
+                    "capabilities": {"add": ["SYS_ADMIN"]},
+                },
+                "volumeMounts": volume_mounts,
+                "lifecycle": {
+                    "preStop": {
+                        "exec": {"command": ["fusermount", "-u", self.mount_point]}
+                    },
+                },
+            }
+        ]
