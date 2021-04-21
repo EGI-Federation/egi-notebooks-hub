@@ -181,17 +181,15 @@ class DataHubSpawner(EGISpawner):
     async def pre_spawn_hook(self, spawner):
         host = spawner.environment.get("ONEPROVIDER_HOST", "")
         token = spawner.environment.get("ONECLIENT_ACCESS_TOKEN", "")
-        cmd = ["oneclient", "-f"]
-        cmd.append(f"-H {host}")
+        cmd = ["oneclient", "-f", "-H", f"{host}"]
         if self.force_proxy_io:
             cmd.append("--force-proxy-io")
         if self.force_direct_io:
             cmd.append("--force-direct-io")
         if self.oneprovider_storage_mapping:
             for mapping in self.oneprovider_storage_mapping:
-                cmd.append(
-                    "--override %(storage_id)s:mountPoint:%(mount_point)s" % mapping
-                )
+                cmd.append("--override")
+                cmd.append("%(storage_id)s:mountPoint:%(mount_point)s" % mapping)
         cmd.append(self.mount_point)
         volume_mounts = [
             {"mountPath": f"{self.mount_point}:shared", "name": "oneclient"},
