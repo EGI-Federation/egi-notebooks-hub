@@ -155,11 +155,15 @@ class DataHubSpawner(EGISpawner):
     force_direct_io = Bool(False, config=True, help="""Force the use of direct I/O""")
 
     mount_point = Unicode(
-        "/mnt/oneclient", config=True, help="""Mountpoint for oneclient""",
+        "/mnt/oneclient",
+        config=True,
+        help="""Mountpoint for oneclient""",
     )
 
     client_image = Unicode(
-        "onedata/oneclient:20.02.7", config=True, help="""Mountpoint for oneclient""",
+        "onedata/oneclient:20.02.7",
+        config=True,
+        help="""Mountpoint for oneclient""",
     )
 
     oneprovider_storage_mapping = List(

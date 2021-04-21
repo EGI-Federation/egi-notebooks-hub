@@ -74,11 +74,14 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         return proposal.value
 
     entitlements_key = Unicode(
-        "edu_person_entitlements", config=True, help="Claim name used to allow users",
+        "edu_person_entitlements",
+        config=True,
+        help="Claim name used to allow users",
     )
 
     allowed_entitlements = List(
-        config=True, help="A list of user claims that are authorized to login.",
+        config=True,
+        help="A list of user claims that are authorized to login.",
     )
 
     affiliations_key = Unicode(
@@ -264,7 +267,9 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             token_desc = {
                 "name": self.token_name,
                 "type": {"accessToken": {}},
-                "caveats": [{"type": "interface", "interface": "oneclient"},],
+                "caveats": [
+                    {"type": "interface", "interface": "oneclient"},
+                ],
             }
             req = HTTPRequest(
                 self.onezone_url + "/api/v3/onezone/user/tokens/named",
