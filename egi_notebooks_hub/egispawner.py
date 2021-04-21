@@ -163,7 +163,7 @@ class DataHubSpawner(EGISpawner):
     client_image = Unicode(
         "onedata/oneclient:20.02.7",
         config=True,
-        help="""Mountpoint for oneclient""",
+        help="""Oneclient image to use""",
     )
 
     oneprovider_storage_mapping = List(
