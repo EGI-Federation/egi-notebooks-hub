@@ -221,7 +221,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         help="""Onedata oneprovider hostname""",
     )
 
-    oneprovider_pwd = Unicode("", config=True, help="""Onedata oneprovider password""",)
+    oneprovider_token = Unicode("", config=True, help="""Onedata oneprovider token""")
 
     map_users = Bool(False, config=True, help="""perform mapping""")
 
@@ -231,7 +231,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         help="""Name of token in the onezone for the user""",
     )
 
-    storage_id = Unicode("", config=True, help="""Storage id to use for mapping""",)
+    storage_id = Unicode("", config=True, help="""Storage id to use for mapping""")
 
     async def authenticate(self, handler, data=None):
         user_data = await super(DataHubAuthenticator, self).authenticate(handler, data)
@@ -304,6 +304,10 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             # auth_state not enabled
             return
         if self.map_users:
+            headers = {
+                "content-type": "application/json",
+                "x-auth-token": self.oneprovider_token,
+            }
             http_client = AsyncHTTPClient()
             user_id = auth_state.get("onedata_user")
             user_mapping_url = (
@@ -312,14 +316,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                 f"/luma/local_feed/storage_access/all"
                 f"/onedata_user_to_credentials/{user_id}"
             )
-            req = HTTPRequest(
-                user_mapping_url,
-                auth_username="onepanel",
-                auth_password=self.oneprovider_pwd,
-                auth_mode="basic",
-                headers={"content-type": "application/json"},
-                method="GET",
-            )
+            req = HTTPRequest(user_mapping_url, headers=headers, method="GET")
             try:
                 resp = await http_client.fetch(req)
                 self.log.info("Mapping exists: %s", resp.body)
@@ -343,10 +340,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                     }
                     req = HTTPRequest(
                         new_mapping_url,
-                        auth_username="onepanel",
-                        auth_password=self.oneprovider_pwd,
-                        auth_mode="basic",
-                        headers={"content-type": "application/json"},
+                        headers=headers,
                         method="POST",
                         body=json.dumps(mapping),
                     )
