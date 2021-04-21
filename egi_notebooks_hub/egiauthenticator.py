@@ -16,7 +16,7 @@ from tornado.httpclient import (
     HTTPRequest,
 )
 from tornado.httputil import url_concat
-from traitlets import List, Unicode, default, validate, Bool
+from traitlets import Bool, List, Unicode, default, validate
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
@@ -267,7 +267,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             token_desc = {
                 "name": self.token_name,
                 "type": {"accessToken": {}},
-                "caveats": [{"type": "interface", "interface": "oneclient"},],
+                "caveats": [{"type": "interface", "interface": "oneclient"}, ],
             }
             url = self.onezone_url + "/api/v3/onezone/user/tokens/named"
             req = HTTPRequest(
@@ -328,7 +328,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                 auth_username="onepanel",
                 auth_password=self.oneprovider_pwd,
                 auth_mode="basic",
-                headers={"content-type": "application/json",},
+                headers={"content-type": "application/json"},
                 method="GET",
             )
             try:
@@ -357,7 +357,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                         auth_username="onepanel",
                         auth_password=self.oneprovider_pwd,
                         auth_mode="basic",
-                        headers={"content-type": "application/json",},
+                        headers={"content-type": "application/json"},
                         method="POST",
                         body=json.dumps(mapping),
                     )
@@ -366,7 +366,6 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                         self.log.info("Mapping created: %s", resp.body)
                     except HTTPError as e:
                         self.log.info("Something failed! %s", e)
-                        self.log.info("Something failed! %s", e.response)
                         raise e
                 else:
                     self.log.info("Something failed! %s", e)

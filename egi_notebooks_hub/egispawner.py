@@ -2,13 +2,11 @@
 """
 
 import base64
-import json
 import uuid
 
 from kubernetes.client import V1ObjectMeta, V1Secret
 from kubernetes.client.rest import ApiException
 from kubespawner import KubeSpawner
-from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Bool, List, Unicode
 
 
@@ -169,7 +167,8 @@ class DataHubSpawner(EGISpawner):
         config=True,
         help="""
         List of dicts like:
-            {"storage_id": "<oneprovider storage id>", "mount_point": "volume mount point"}
+            {"storage_id": "<oneprovider storage id>",
+             "mount_point": "volume mount point"}
         """,
     )
 
