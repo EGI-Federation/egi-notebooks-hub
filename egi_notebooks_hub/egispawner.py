@@ -179,8 +179,8 @@ class DataHubSpawner(EGISpawner):
     extra_mounts = List([], config=True, help="""extra volume mounts in k8s""")
 
     async def pre_spawn_hook(self, spawner):
-        host = spawner.environment.get("ONEPROVIDER_HOST", "")
-        token = spawner.environment.get("ONECLIENT_ACCESS_TOKEN", "")
+        host = spawner.environment.get(self.oneprovider_env, "")
+        token = spawner.environment.get(self.token_env, "")
         cmd = ["oneclient", "-f", "-H", f"{host}"]
         if self.force_proxy_io:
             cmd.append("--force-proxy-io")
@@ -201,21 +201,16 @@ class DataHubSpawner(EGISpawner):
                 "name": "oneclient",
                 "image": self.client_image,
                 "env": [
-                    {"name": "ONECLIENT_PROVIDER_HOST", "value": host},
-                    {"name": "ONECLIENT_ACCESS_TOKEN", "value": token},
+                    {"name": self.oneprovider_env, "value": host},
+                    {"name": self.token_env, "value": token},
                 ],
                 "resources": {
                     "requests": {"memory": "512Mi", "cpu": "250m"},
                     "limits": {"memory": "4Gi", "cpu": "500m"},
                 },
-                "command": [
-                    "sh",
-                    "-c",
-                    "useradd -u 1000 -g 100 jovyan && su -p jovyan -c '%s'"
-                    % " ".join(cmd),
-                ],
+                "command": cmd,
                 "securityContext": {
-                    "runAsUser": 0,
+                    "runAsUser": 1000,
                     "privileged": True,
                     "capabilities": {"add": ["SYS_ADMIN"]},
                 },
