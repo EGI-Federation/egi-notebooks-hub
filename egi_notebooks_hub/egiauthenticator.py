@@ -319,9 +319,9 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             if self.onepanel_url:
                 map_url = self.onepanel_url
             else:
-                map_url = f"https://{self.oneprovider_host}:9442"
-            map_url = +(
-                f"api/v3/onepanel/provider/storages/{self.storage_id}"
+                map_url = f"https://{self.oneprovider_host}:9443"
+            map_url += (
+                f"/api/v3/onepanel/provider/storages/{self.storage_id}"
                 "/luma/local_feed/storage_access/all"
                 "/onedata_user_to_credentials"
             )
