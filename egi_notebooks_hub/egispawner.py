@@ -160,10 +160,19 @@ class DataHubSpawner(EGISpawner):
         help="""Mountpoint for oneclient""",
     )
 
-    client_image = Unicode(
-        "onedata/oneclient:20.02.7",
+    sidecar_image = Unicode(
+        "eginotebooks/oneclient-sidecar",
         config=True,
         help="""Oneclient image to use""",
+    )
+
+    sidecar_resources = Dict(
+        {
+            "requests": {"memory": "512Mi", "cpu": "250m"},
+            "limits": {"memory": "1Gi", "cpu": "500m"},
+        },
+        config=True,
+        help="""resource limits for the sidecar""",
     )
 
     oneprovider_storage_mapping = List(
@@ -199,15 +208,12 @@ class DataHubSpawner(EGISpawner):
         spawner.extra_containers = [
             {
                 "name": "oneclient",
-                "image": self.client_image,
+                "image": self.sidecar_image,
                 "env": [
                     {"name": self.oneprovider_env, "value": host},
                     {"name": self.token_env, "value": token},
                 ],
-                "resources": {
-                    "requests": {"memory": "512Mi", "cpu": "250m"},
-                    "limits": {"memory": "4Gi", "cpu": "500m"},
-                },
+                "resources": self.sidecar_resources,
                 "command": cmd,
                 "securityContext": {
                     "runAsUser": 1000,
