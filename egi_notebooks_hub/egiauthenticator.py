@@ -224,6 +224,13 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         help="""Onedata oneprovider hostname""",
     )
 
+    onepanel_url = Unicode(
+        "",
+        config=True,
+        help="""Endpoint of the oneprovider to establish mappings,
+                if undefined, it will use https://<oneprovider_host>:9443/""",
+    )
+
     oneprovider_token = Unicode("", config=True, help="""Onedata oneprovider token""")
 
     map_users = Bool(False, config=True, help="""perform mapping""")
@@ -309,30 +316,27 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             # auth_state not enabled
             return
         if self.map_users:
+            if self.onepanel_url:
+                map_url = self.onepanel_url
+            else:
+                map_url = f"https://{self.oneprovider_host}:9442"
+            map_url = +(
+                f"api/v3/onepanel/provider/storages/{self.storage_id}"
+                "/luma/local_feed/storage_access/all"
+                "/onedata_user_to_credentials"
+            )
             headers = {
                 "content-type": "application/json",
                 "x-auth-token": self.oneprovider_token,
             }
             http_client = AsyncHTTPClient()
             user_id = auth_state.get("onedata_user")
-            user_mapping_url = (
-                f"https://{self.oneprovider_host}/api"
-                f"/v3/onepanel/provider/storages/{self.storage_id}"
-                f"/luma/local_feed/storage_access/all"
-                f"/onedata_user_to_credentials/{user_id}"
-            )
-            req = HTTPRequest(user_mapping_url, headers=headers, method="GET")
+            req = HTTPRequest(map_url + f"/{user_id}", headers=headers, method="GET")
             try:
                 resp = await http_client.fetch(req)
                 self.log.info("Mapping exists: %s", resp.body)
             except HTTPError as e:
                 if e.code == 404:
-                    new_mapping_url = (
-                        f"https://{self.oneprovider_host}/api"
-                        f"/v3/onepanel/provider/storages/{self.storage_id}"
-                        f"/luma/local_feed/storage_access/all"
-                        f"/onedata_user_to_credentials"
-                    )
                     mapping = {
                         "onedataUser": {
                             "mappingScheme": "onedataUser",
@@ -344,7 +348,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                         },
                     }
                     req = HTTPRequest(
-                        new_mapping_url,
+                        map_url,
                         headers=headers,
                         method="POST",
                         body=json.dumps(mapping),
