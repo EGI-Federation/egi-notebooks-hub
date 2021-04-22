@@ -7,7 +7,7 @@ import uuid
 from kubernetes.client import V1ObjectMeta, V1Secret
 from kubernetes.client.rest import ApiException
 from kubespawner import KubeSpawner
-from traitlets import Bool, List, Unicode
+from traitlets import Bool, Dict, List, Unicode
 
 
 class EGISpawner(KubeSpawner):
