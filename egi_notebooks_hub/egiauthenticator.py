@@ -73,28 +73,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return ["openid"] + proposal.value
         return proposal.value
 
-    entitlements_key = Unicode(
-        "edu_person_entitlements",
-        config=True,
-        help="Claim name used to allow users",
-    )
-
-    allowed_entitlements = List(
-        config=True,
-        help="A list of user claims that are authorized to login.",
-    )
-
-    affiliations_key = Unicode(
-        "edu_person_scoped_affiliations",
-        config=True,
-        help="Claim name used to allow affiliations",
-    )
-
-    allowed_affiliations = List(
-        config=True,
-        help="""A list of user affiliations that are authorized to login.""",
-    )
-
     #  User name in Check-in comes in sub, but we are defaulting to
     # preferred_username as sub is too long to be used as id for
     # volumes
@@ -106,26 +84,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         too long.
         """,
     )
-
-    def check_allowed_attrs(self, user_info, allowed, key):
-        # our check uses affiliations and entitlements
-        if not allowed:
-            return True
-        gotten_claims = user_info(key, "")
-        self.log.debug("These are the claims: %s", gotten_claims)
-        return any(x in gotten_claims for x in allowed)
-
-    def check_whitelist(self, username, authentication=None):
-        user_info = authentication.get("oauth_user", {})
-        # this clearly needs some thought
-        # does it make sense to have both?
-        affiliations = self.check_allowed_attrs(
-            user_info, self.allowed_affiliations, self.affiliations_key
-        )
-        entitlements = self.check_allowed_attrs(
-            user_info, self.allowed_entitlements, self.entitlements_key
-        )
-        return affiliations and entitlements
 
     # Refresh auth data for user
     async def refresh_user(self, user, handler=None):
