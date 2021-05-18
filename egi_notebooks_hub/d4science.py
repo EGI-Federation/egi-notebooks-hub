@@ -178,6 +178,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
     async def get_iam_public_keys(self):
         if self._pubkeys:
             return self._pubkeys
+        self.log.debug("Getting OIDC discovery info at %s", self.oidc_discovery_url)
         http_client = AsyncHTTPClient()
         req = HTTPRequest(self.oidc_discovery_url, method="GET")
         try:
@@ -187,6 +188,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             self.log.warning("Discovery endpoint not working? %s", e)
             raise web.HTTPError(403)
         jwks_uri = json.loads(resp.body.decode("utf8", "replace"))["jwks_uri"]
+        self.log.debug("Getting JWKS info at %s", jwks_uri)
         req = HTTPRequest(jwks_uri, method="GET")
         try:
             resp = await http_client.fetch(req)
@@ -208,14 +210,15 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         if not context:
             self.log.error("Unable to get the user context")
             raise web.HTTPError(403)
-        claim_token = {"context": [f"{context}"]}
+        self.log.debug("Context is %s", context)
+        # TODO: do we need to check anything on the context?
         body = urlencode(
             {
                 "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
                 "claim_token_format": "urn:ietf:params:oauth:token-type:jwt",
                 "audience": self.client_id,
                 "claim_token": base64.b64encode(
-                    json.dumps(claim_token).encode("utf-8")
+                    json.dumps({"context": [f"{context}"]}).encode("utf-8")
                 ),
             }
         )
@@ -237,11 +240,13 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             # whatever, get out
             self.log.warning("Unable to get the permission for user: %s", e)
             raise web.HTTPError(403)
+        self.log.debug("Got UMA ticket from server...")
         token = json.loads(resp.body.decode("utf8", "replace"))["access_token"]
         kid = jwt.get_unverified_header(token)["kid"]
+        key = (await self.get_iam_public_keys())[kid]
         decoded_token = jwt.decode(
             token,
-            key=self.get_iam_keys()[kid],
+            key=key,
             audience=self.client_id,
             algorithms=["RS256"],
         )
