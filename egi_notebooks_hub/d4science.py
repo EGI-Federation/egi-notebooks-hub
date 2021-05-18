@@ -1,45 +1,42 @@
 """D4Science Authenticator for JupyterHub
 """
 
-import datetime
 import base64
+import datetime
 import json
 import os
 from urllib.parse import urlencode
 from xml.etree import ElementTree
 
+import jwt
 from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
-import jwt
 from kubespawner import KubeSpawner
 from oauthenticator.generic import GenericOAuthenticator
 from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import gen, web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
-from traitlets import Unicode
-
+from traitlets import Dict, List, Unicode
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
-    "https://socialnetworking1.d4science.org/" "social-networking-library-ws/rest/",
+    "https://socialnetworking1.d4science.org/social-networking-library-ws/rest/",
 )
-
-
 D4SCIENCE_PROFILE = "2/people/profile"
-
-
 D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_URL",
     "https://registry.d4science.org/icproxy/gcube/"
     "service/ServiceEndpoint/DataAnalysis/DataMiner",
 )
-
-
 D4SCIENCE_DISCOVER_WPS = os.environ.get(
     "D4SCIENCE_DISCOVER_WPS",
     "false",
+)
+D4SCIENCE_OIDC_DISCOVER_URL = (
+    "https://accounts.d4science.org/auth/realms/d4science/"
+    ".well-known/openid-configuration"
 )
 
 
@@ -170,11 +167,11 @@ class D4ScienceContextHandler(OAuthLoginHandler):
 class D4ScienceOauthenticator(GenericOAuthenticator):
     login_handler = D4ScienceContextHandler
     oidc_discovery_url = Unicode(
-        "https://accounts.d4science.org/auth/realms/d4science/.well-known/openid-configuration",
+        D4SCIENCE_OIDC_DISCOVER_URL,
         config=True,
-        help="""The OIDC discovery URL to get jwks information""",
+        help="""The OIDC discovery URL""",
     )
-    _pubkeys = {}
+    _pubkeys = None
 
     async def get_iam_public_keys(self):
         if self._pubkeys:
@@ -270,8 +267,11 @@ class D4ScienceSpawner(KubeSpawner):
     d4science_profiles = List(
         trait=Dict(),
         config=True,
-        help="""List of profiles for the spawners, follows same config as profile_list from kubespawner
-                but gets filtered according to the permissions of the user""",
+        help="""
+        List of profiles for the spawners, follows same config as
+        profile_list from kubespawner but gets filtered according
+        to the permissions of the user.
+        """,
     )
 
     def get_args(self):
