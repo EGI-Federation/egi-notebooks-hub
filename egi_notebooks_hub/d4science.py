@@ -2,16 +2,23 @@
 """
 
 import datetime
+import base64
 import json
 import os
+from urllib.parse import urlencode
 from xml.etree import ElementTree
 
 from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
+import jwt
+from oauthenticator.generic import GenericOAuthenticator
+from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import gen, web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
+from traitlets import Unicode
+
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
@@ -130,7 +137,6 @@ class D4ScienceLoginHandler(BaseHandler):
 
 class D4ScienceAuthenticator(Authenticator):
     login_handler = D4ScienceLoginHandler
-    auto_login = True
 
     @gen.coroutine
     def authenticate(self, handler, data=None):
@@ -151,3 +157,94 @@ class D4ScienceAuthenticator(Authenticator):
 
     def get_handlers(self, app):
         return [(r"/login", self.login_handler)]
+
+
+class D4ScienceContextHandler(OAuthLoginHandler):
+    def get_state(self):
+        context = self.get_argument("context", None)
+        self.authenticator.d4science_context = context
+        return super().get_state()
+
+
+class D4ScienceOauthenticator(GenericOAuthenticator):
+    login_handler = D4ScienceContextHandler
+    oidc_discovery_url = Unicode(
+        "https://accounts.d4science.org/auth/realms/d4science/.well-known/openid-configuration",
+        config=True,
+        help="""The OIDC discovery URL to get jwks information""",
+    )
+    _pubkeys = {}
+
+    async def get_iam_public_keys(self):
+        if self._pubkeys:
+            return self._pubkeys
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest(self.oidc_discovery_url, method="GET")
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Discovery endpoint not working? %s", e)
+            raise web.HTTPError(403)
+        jwks_uri = json.loads(resp.body.decode("utf8", "replace"))["jwks_uri"]
+        req = HTTPRequest(jwks_uri, method="GET")
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Unable to get jwks info: %s", e)
+            raise web.HTTPError(403)
+        self._pubkeys = {}
+        jwks_keys = json.loads(resp.body.decode("utf8", "replace"))["keys"]
+        for jwk in jwks_keys:
+            kid = jwk["kid"]
+            self._pubkeys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+        return self._pubkeys
+
+    async def authenticate(self, handler, data=None):
+        # first get authorized upstream
+        user_data = await super().authenticate(handler, data)
+        context = getattr(self, "d4science_context", None)
+        if not context:
+            self.log.error("Unable to get the user context")
+            raise web.HTTPError(403)
+        claim_token = {"context": [f"{context}"]}
+        body = urlencode(
+            {
+                "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
+                "claim_token_format": "urn:ietf:params:oauth:token-type:jwt",
+                "audience": self.client_id,
+                "claim_token": base64.b64encode(
+                    json.dumps(claim_token).encode("utf-8")
+                ),
+            }
+        )
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest(
+            self.token_url,
+            method="POST",
+            auth_username=self.client_id,
+            auth_password=self.client_secret,
+            auth_mode="basic",
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"
+            },
+            body=body,
+        )
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Unable to get the permission for user: %s", e)
+            raise web.HTTPError(403)
+        token = json.loads(resp.body.decode("utf8", "replace"))["access_token"]
+        kid = jwt.get_unverified_header(token)["kid"]
+        decoded_token = jwt.decode(
+            token,
+            key=self.get_iam_keys()[kid],
+            audience=self.client_id,
+            algorithms=["RS256"],
+        )
+        # TODO: add extra checks?
+        user_data["auth_state"].update(decoded_token["authorization"])
+        return user_data
