@@ -12,6 +12,7 @@ from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
 import jwt
+from kubespawner import KubeSpawner
 from oauthenticator.generic import GenericOAuthenticator
 from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import gen, web
@@ -253,3 +254,75 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         # TODO: add extra checks?
         user_data["auth_state"].update(decoded_token["authorization"])
         return user_data
+
+
+class D4ScienceSpawner(KubeSpawner):
+    frame_ancestors = Unicode(
+        "https://*.d4science.org 'self'",
+        config=True,
+        help="""Frame ancestors for embedding the hub in d4science""",
+    )
+    sidecare_image = Unicode(
+        "eginotebooks/d4science-storage",
+        config=True,
+        help="""Oneclient image to use""",
+    )
+    d4science_profiles = List(
+        trait=Dict(),
+        config=True,
+        help="""List of profiles for the spawners, follows same config as profile_list from kubespawner
+                but gets filtered according to the permissions of the user""",
+    )
+
+    def get_args(self):
+        args = super().get_args()
+        tornado_settings = {
+            "headers": {
+                "Content-Security-Policy": "frame-ancestors %s" % self.frame_ancestors
+            },
+            "cookie_options": {"samesite": "None", "secure": True},
+        }
+        # TODO: check if this keeps making sense
+        return [
+            "--SingleUserNotebookApp.tornado_settings=%s" % tornado_settings,
+            "--FileCheckpoints.checkpoint_dir='/home/jovyan/.notebookCheckpoints'",
+            "--FileContentsManager.use_atomic_writing=False",
+            "--NotebookApp.ResourceUseDisplay.track_cpu_percent=True",
+        ] + args
+
+    async def pre_spawn_hook(self, spawner):
+        gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
+        vre = spawner.environment.get("GCUBE_VRE", "")
+        if vre:
+            vre = vre[vre.rindex("/") + 1 :]
+            spawner.log.info("VRE: %s", vre)
+            spawner.environment["VRE"] = vre
+        if gcube_token:
+            spawner.extra_containers = [
+                {
+                    "name": "sh",
+                    "image": self.sidecar_image,
+                    "securityContext": {
+                        "privileged": True,
+                        "capabilities": {"add": ["SYS_ADMIN"]},
+                        "runAsGroup": 0,
+                        "runAsUser": 1000,
+                    },
+                    "env": [
+                        {"name": "MNTPATH", "value": "/workspace"},
+                        {"name": "GCUBE_TOKEN", "value": gcube_token},
+                    ],
+                    "volumeMounts": [
+                        {"mountPath": "/workspace:shared", "name": "workspace"},
+                    ],
+                    "lifecycle": {
+                        "preStop": {
+                            "exec": {"command": ["fusermount", "-uz", "/workspace"]}
+                        },
+                    },
+                }
+            ]
+
+    async def profile_list(self, spawner):
+        # TODO: filter out options
+        return self.d4science_profiles
