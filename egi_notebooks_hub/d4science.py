@@ -249,9 +249,22 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             algorithms=["RS256"],
         )
         # TODO: add extra checks?
-        user_data["auth_state"].update(decoded_token["authorization"])
+        user_data["auth_state"].update({
+            "uma_token": token,
+            "permissions": decoded_token["authorization"]["permissions"],
+            "context": context,
+        })
         return user_data
 
+    async def pre_spawn_start(self, user, spawner):
+        """Pass gcube-token to spawner via environment variable"""
+        auth_state = yield user.get_auth_state()
+        if not auth_state:
+            # auth_state not enabled
+            return
+        spawner.environment["GCUBE_TOKEN"] = auth_state["uma_token"]
+        # spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
+        spawner.environment["GCUBE_VRE"] = auth_state["context"]
 
 class D4ScienceSpawner(KubeSpawner):
     frame_ancestors = Unicode(
