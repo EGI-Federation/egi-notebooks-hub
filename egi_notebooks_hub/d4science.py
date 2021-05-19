@@ -262,7 +262,7 @@ class D4ScienceSpawner(KubeSpawner):
     sidecare_image = Unicode(
         "eginotebooks/d4science-storage",
         config=True,
-        help="""Oneclient image to use""",
+        help="""the D4science storage image to use""",
     )
     d4science_profiles = List(
         trait=Dict(),
