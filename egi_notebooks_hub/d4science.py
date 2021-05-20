@@ -15,7 +15,7 @@ from jupyterhub.utils import url_path_join
 from kubespawner import KubeSpawner
 from oauthenticator.generic import GenericOAuthenticator
 from oauthenticator.oauth2 import OAuthLoginHandler
-from tornado import gen, web
+from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
 from traitlets import Dict, List, Unicode
@@ -50,10 +50,9 @@ class D4ScienceLoginHandler(BaseHandler):
             name, value="", path=path, expires=expires, domain=domain, **kwargs
         )
 
-    @gen.coroutine
-    def get(self):
+    async def get(self):
         self.log.debug("Authenticating user")
-        user = yield self.get_current_user()
+        user = await self.get_current_user()
         token = self.get_argument("gcube-token")
         if user and token:
             self.log.debug("Clearing login cookie, new user?")
@@ -80,7 +79,7 @@ class D4ScienceLoginHandler(BaseHandler):
         )
         req = HTTPRequest(user_url, method="GET")
         try:
-            resp = yield http_client.fetch(req)
+            resp = await http_client.fetch(req)
         except HTTPError as e:
             # whatever, get out
             self.log.warning("Something happened with gcube service: %s", e)
@@ -103,7 +102,7 @@ class D4ScienceLoginHandler(BaseHandler):
             req = HTTPRequest(discovery_url, method="GET")
             try:
                 self.log.debug("fetch")
-                resp = yield http_client.fetch(req)
+                resp = await http_client.fetch(req)
             except HTTPError as e:
                 # whatever, get out
                 self.log.error("Something happened with gcube service: %s", e)
@@ -127,7 +126,7 @@ class D4ScienceLoginHandler(BaseHandler):
             "context": context,
         }
         data.update(resp_json["result"])
-        user = yield self.login_user(data)
+        user = await self.login_user(data)
         if user:
             self._jupyterhub_user = user
             self.redirect(self.get_next_url(user), permanent=False)
@@ -136,16 +135,14 @@ class D4ScienceLoginHandler(BaseHandler):
 class D4ScienceAuthenticator(Authenticator):
     login_handler = D4ScienceLoginHandler
 
-    @gen.coroutine
-    def authenticate(self, handler, data=None):
+    async def authenticate(self, handler, data=None):
         if data and data.get("gcube-user"):
             return {"name": data["gcube-user"], "auth_state": data}
         return None
 
-    @gen.coroutine
-    def pre_spawn_start(self, user, spawner):
+    async def pre_spawn_start(self, user, spawner):
         """Pass gcube-token to spawner via environment variable"""
-        auth_state = yield user.get_auth_state()
+        auth_state = await user.get_auth_state()
         if not auth_state:
             # auth_state not enabled
             return
@@ -258,13 +255,14 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
 
     async def pre_spawn_start(self, user, spawner):
         """Pass gcube-token to spawner via environment variable"""
-        auth_state = yield user.get_auth_state()
+        auth_state = await user.get_auth_state()
         if not auth_state:
             # auth_state not enabled
             return
         spawner.environment["GCUBE_TOKEN"] = auth_state["uma_token"]
         # spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
         spawner.environment["GCUBE_VRE"] = auth_state["context"]
+
 
 class D4ScienceSpawner(KubeSpawner):
     frame_ancestors = Unicode(
@@ -336,6 +334,6 @@ class D4ScienceSpawner(KubeSpawner):
                 }
             ]
 
-    async def profile_list(self, spawner):
-        # TODO: filter out options
-        return self.d4science_profiles
+    #async def profile_list(self, spawner):
+    #    # TODO: filter out options
+    #    return self.d4science_profiles
