@@ -5,7 +5,7 @@ import base64
 import datetime
 import json
 import os
-from urllib.parse import urlencode
+from urllib.parse import unquote, urlencode
 from xml.etree import ElementTree
 
 import jwt
@@ -261,7 +261,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             return
         spawner.environment["GCUBE_TOKEN"] = auth_state["uma_token"]
         # spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
-        spawner.environment["GCUBE_VRE"] = auth_state["context"]
+        spawner.environment["GCUBE_VRE"] = unquote(auth_state["context"])
 
 
 class D4ScienceSpawner(KubeSpawner):
@@ -270,7 +270,7 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Frame ancestors for embedding the hub in d4science""",
     )
-    sidecare_image = Unicode(
+    sidecar_image = Unicode(
         "eginotebooks/d4science-storage",
         config=True,
         help="""the D4science storage image to use""",
