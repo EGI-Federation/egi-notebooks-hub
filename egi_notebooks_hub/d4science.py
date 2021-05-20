@@ -246,11 +246,13 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             algorithms=["RS256"],
         )
         # TODO: add extra checks?
-        user_data["auth_state"].update({
-            "uma_token": token,
-            "permissions": decoded_token["authorization"]["permissions"],
-            "context": context,
-        })
+        user_data["auth_state"].update(
+            {
+                "uma_token": token,
+                "permissions": decoded_token["authorization"]["permissions"],
+                "context": context,
+            }
+        )
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
@@ -334,6 +336,6 @@ class D4ScienceSpawner(KubeSpawner):
                 }
             ]
 
-    #async def profile_list(self, spawner):
+    # async def profile_list(self, spawner):
     #    # TODO: filter out options
     #    return self.d4science_profiles
