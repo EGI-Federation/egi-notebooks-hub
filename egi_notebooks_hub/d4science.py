@@ -246,10 +246,11 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             algorithms=["RS256"],
         )
         # TODO: add extra checks?
+        permissions = decoded_token["authorization"]["permissions"]
         user_data["auth_state"].update(
             {
                 "uma_token": token,
-                "permissions": decoded_token["authorization"]["permissions"],
+                "permissions": permissions,
                 "context": context,
             }
         )
@@ -277,15 +278,6 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""the D4science storage image to use""",
     )
-    d4science_profiles = List(
-        trait=Dict(),
-        config=True,
-        help="""
-        List of profiles for the spawners, follows same config as
-        profile_list from kubespawner but gets filtered according
-        to the permissions of the user.
-        """,
-    )
 
     def get_args(self):
         args = super().get_args()
@@ -302,6 +294,21 @@ class D4ScienceSpawner(KubeSpawner):
             "--FileContentsManager.use_atomic_writing=False",
             "--NotebookApp.ResourceUseDisplay.track_cpu_percent=True",
         ] + args
+
+    def auth_state_hook(self, spawner, auth_state):
+        permissions = auth_state["permissions"]
+        # this will filter according to permissions
+        # Assuming that there are no permissions coming from D4Science,
+        # the everything is allowed
+        if spawner.profile_list and permissions:
+            allowed_profiles = [claim["rsname"] for claim in permissions]
+            self.log.debug("allowed profiles: %s", allowed_profiles)
+            spawner.profile_list = list(
+                filter(
+                    lambda x: x.get("profile_type", None) in allowed_profiles,
+                    self.profile_list,
+                )
+            )
 
     async def pre_spawn_hook(self, spawner):
         gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
@@ -335,7 +342,3 @@ class D4ScienceSpawner(KubeSpawner):
                     },
                 }
             ]
-
-    # async def profile_list(self, spawner):
-    #    # TODO: filter out options
-    #    return self.d4science_profiles
