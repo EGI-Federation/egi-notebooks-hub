@@ -22,7 +22,7 @@ from traitlets import Unicode
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
-    "https://socialnetworking1.d4science.org/social-networking-library-ws/rest/",
+    "https://api.d4science.org/social-networking-library-ws/rest/",
 )
 D4SCIENCE_PROFILE = "2/people/profile"
 D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
