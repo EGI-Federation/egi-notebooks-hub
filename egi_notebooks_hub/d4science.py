@@ -147,7 +147,7 @@ class D4ScienceAuthenticator(Authenticator):
             return
         spawner.environment["GCUBE_TOKEN"] = auth_state["gcube-token"]
         spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
-        spawner.environment["GCUBE_VRE"] = auth_state["context"]
+        spawner.environment["GCUBE_CONTEXT"] = auth_state["context"]
 
     def get_handlers(self, app):
         return [(r"/login", self.login_handler)]
@@ -266,7 +266,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             return
         spawner.environment["GCUBE_TOKEN"] = auth_state["uma_token"]
         # spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
-        spawner.environment["GCUBE_VRE"] = unquote(auth_state["context"])
+        spawner.environment["GCUBE_CONTEXT"] = unquote(auth_state["context"])
 
 
 class D4ScienceSpawner(KubeSpawner):
@@ -314,9 +314,12 @@ class D4ScienceSpawner(KubeSpawner):
 
     async def pre_spawn_hook(self, spawner):
         gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
-        vre = spawner.environment.get("GCUBE_VRE", "")
-        if vre:
-            vre = vre[vre.rindex("/") + 1 :]
+        context = spawner.environment.get("GCUBE_CONTEXT", "")
+        if context:
+            # set the whole context as annotation (needed for accounting)
+            spawner.extra_annotations["d4science_context"] = context
+            # set only the VRE name in the environment (needed for NFS subpath)
+            vre = context[context.rindex("/") + 1 :]
             spawner.log.info("VRE: %s", vre)
             spawner.environment["VRE"] = vre
         if gcube_token:
