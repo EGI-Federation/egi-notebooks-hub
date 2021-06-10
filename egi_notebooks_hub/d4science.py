@@ -34,9 +34,8 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
     "D4SCIENCE_DISCOVER_WPS",
     "false",
 )
-D4SCIENCE_OIDC_DISCOVER_URL = (
-    "https://accounts.d4science.org/auth/realms/d4science/"
-    ".well-known/openid-configuration"
+D4SCIENCE_OIDC_URL = os.environ.get(
+    "D4SCIENCE_OIDC_URL", "https://accounts.d4science.org/auth/realms/d4science/"
 )
 
 
@@ -163,19 +162,22 @@ class D4ScienceContextHandler(OAuthLoginHandler):
 
 class D4ScienceOauthenticator(GenericOAuthenticator):
     login_handler = D4ScienceContextHandler
-    oidc_discovery_url = Unicode(
-        D4SCIENCE_OIDC_DISCOVER_URL,
+    d4science_oidc_url = Unicode(
+        D4SCIENCE_OIDC_URL,
         config=True,
-        help="""The OIDC discovery URL""",
+        help="""The OIDC URL for D4science""",
     )
     _pubkeys = None
 
     async def get_iam_public_keys(self):
         if self._pubkeys:
             return self._pubkeys
-        self.log.debug("Getting OIDC discovery info at %s", self.oidc_discovery_url)
+        discovery_url = url_path_join(
+            self.d4science_oidc_url, ".well-known/openid-configuration"
+        )
+        self.log.debug("Getting OIDC discovery info at %s", self.discovery_url)
         http_client = AsyncHTTPClient()
-        req = HTTPRequest(self.oidc_discovery_url, method="GET")
+        req = HTTPRequest(discovery_url, method="GET")
         try:
             resp = await http_client.fetch(req)
         except HTTPError as e:
