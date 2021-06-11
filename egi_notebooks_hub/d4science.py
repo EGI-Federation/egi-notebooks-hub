@@ -175,7 +175,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         discovery_url = url_path_join(
             self.d4science_oidc_url, ".well-known/openid-configuration"
         )
-        self.log.debug("Getting OIDC discovery info at %s", self.discovery_url)
+        self.log.debug("Getting OIDC discovery info at %s", discovery_url)
         http_client = AsyncHTTPClient()
         req = HTTPRequest(discovery_url, method="GET")
         try:
