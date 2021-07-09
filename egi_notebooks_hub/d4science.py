@@ -200,17 +200,13 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             self._pubkeys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
         return self._pubkeys
 
-    async def get_uma_token(self, context, audience, access_token):
-        body = urlencode(
-            {
-                "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
-                "claim_token_format": "urn:ietf:params:oauth:token-type:jwt",
-                "audience": audience,
-                "claim_token": base64.b64encode(
-                    json.dumps({"context": [f"{context}"]}).encode("utf-8")
-                ),
-            }
-        )
+    async def get_uma_token(self, context, audience, access_token, extra_params={}):
+        body = {
+            "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
+            "claim_token_format": "urn:ietf:params:oauth:token-type:jwt",
+            "audience": audience,
+        }
+        body.update(extra_params)
         http_client = AsyncHTTPClient()
         req = HTTPRequest(
             self.token_url,
@@ -219,7 +215,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
                 "Authorization": f"Bearer {access_token}",
             },
-            body=body,
+            body=urlencode(body),
         )
         try:
             resp = await http_client.fetch(req)
@@ -234,7 +230,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         decoded_token = jwt.decode(
             token,
             key=key,
-            audience=self.client_id,
+            audience=audience,
             algorithms=["RS256"],
         )
         return token, decoded_token
@@ -248,13 +244,20 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             self.log.error("Unable to get the user context")
             raise web.HTTPError(403)
         access_token = user_data["auth_state"]["access_token"]
-        token, decoded_token = get_uma_token(context, self.client_id, access_token)
-        ws_token, _ = get_uma_token(context, context, access_token)
+        extra_params = {
+            "claim_token": base64.b64encode(
+                json.dumps({"context": [f"{context}"]}).encode("utf-8")
+            )
+        }
+        token, decoded_token = await self.get_uma_token(
+            context, self.client_id, access_token, extra_params
+        )
+        ws_token, _ = await self.get_uma_token(context, context, access_token)
         # TODO: add extra checks?
         permissions = decoded_token["authorization"]["permissions"]
         user_data["auth_state"].update(
             {
-                "uma_token": ws_token,
+                "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
             }
@@ -267,7 +270,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         if not auth_state:
             # auth_state not enabled
             return
-        spawner.environment["GCUBE_TOKEN"] = auth_state["uma_token"]
+        spawner.environment["GCUBE_TOKEN"] = auth_state["context_token"]
         # spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
         spawner.environment["GCUBE_CONTEXT"] = unquote(auth_state["context"])
 
