@@ -200,20 +200,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             self._pubkeys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
         return self._pubkeys
 
-    async def authenticate(self, handler, data=None):
-        # first get authorized upstream
-        user_data = await super().authenticate(handler, data)
-        context = getattr(self, "d4science_context", None)
-        if not context:
-            self.log.error("Unable to get the user context")
-            raise web.HTTPError(403)
-        self.log.debug("Context is %s", context)
-        # TODO: do we need to check anything on the context?
+    async def get_uma_token(self, context, audience, access_token):
         body = urlencode(
             {
                 "grant_type": "urn:ietf:params:oauth:grant-type:uma-ticket",
                 "claim_token_format": "urn:ietf:params:oauth:token-type:jwt",
-                "audience": self.client_id,
+                "audience": audience,
                 "claim_token": base64.b64encode(
                     json.dumps({"context": [f"{context}"]}).encode("utf-8")
                 ),
@@ -223,11 +215,9 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         req = HTTPRequest(
             self.token_url,
             method="POST",
-            auth_username=self.client_id,
-            auth_password=self.client_secret,
-            auth_mode="basic",
             headers={
-                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8"
+                "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+                "Authorization": f"Bearer {access_token}",
             },
             body=body,
         )
@@ -247,11 +237,24 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             audience=self.client_id,
             algorithms=["RS256"],
         )
+        return token, decoded_token
+
+    async def authenticate(self, handler, data=None):
+        # first get authorized upstream
+        user_data = await super().authenticate(handler, data)
+        context = getattr(self, "d4science_context", None)
+        self.log.debug("Context is %s", context)
+        if not context:
+            self.log.error("Unable to get the user context")
+            raise web.HTTPError(403)
+        access_token = user_data["auth_state"]["access_token"]
+        token, decoded_token = get_uma_token(context, self.client_id, access_token)
+        ws_token, _ = get_uma_token(context, context, access_token)
         # TODO: add extra checks?
         permissions = decoded_token["authorization"]["permissions"]
         user_data["auth_state"].update(
             {
-                "uma_token": token,
+                "uma_token": ws_token,
                 "permissions": permissions,
                 "context": context,
             }
