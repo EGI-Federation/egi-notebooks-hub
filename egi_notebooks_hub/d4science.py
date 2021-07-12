@@ -331,7 +331,7 @@ class D4ScienceSpawner(KubeSpawner):
         if gcube_token:
             spawner.extra_containers = [
                 {
-                    "name": "sh",
+                    "name": "workspace-sidecar",
                     "image": self.sidecar_image,
                     "securityContext": {
                         "privileged": True,
