@@ -336,7 +336,6 @@ class D4ScienceSpawner(KubeSpawner):
                     "securityContext": {
                         "privileged": True,
                         "capabilities": {"add": ["SYS_ADMIN"]},
-                        "runAsGroup": 0,
                         "runAsUser": 1000,
                     },
                     "env": [
