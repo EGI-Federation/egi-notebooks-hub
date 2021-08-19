@@ -153,25 +153,6 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
     and keeps it in auth_state
     """
 
-    onezone_env = Unicode(
-        "ONEZONE_URL",
-        config=True,
-        help="""Environment variable that contains the onezone URL""",
-    )
-
-    token_env = Unicode(
-        "ONECLIENT_ACCESS_TOKEN",
-        config=True,
-        help="""Environment variable that contains the access token
-                for DataHub""",
-    )
-
-    oneprovider_env = Unicode(
-        "ONEPROVIDER_HOST",
-        config=True,
-        help="""Environment variable that contains the oneprovider host""",
-    )
-
     onezone_url = Unicode(
         "https://datahub.egi.eu", config=True, help="""Onedata onezone URL"""
     )
@@ -193,28 +174,30 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
 
     map_users = Bool(False, config=True, help="""perform mapping""")
 
-    token_name = Unicode(
-        "notebooks.egi.eu",
+    oneclient_token_name = Unicode(
+        "oneclient.notebooks.egi.eu",
         config=True,
-        help="""Name of token in the onezone for the user""",
+        help="""Name of token in the onezone for oneclient""",
+    )
+
+    onezone_token_name = Unicode(
+        "onezone.notebooks.egi.eu",
+        config=True,
+        help="""Name of token in the onezone for the onezone""",
     )
 
     storage_id = Unicode("", config=True, help="""Storage id to use for mapping""")
 
-    async def authenticate(self, handler, data=None):
-        user_data = await super(DataHubAuthenticator, self).authenticate(handler, data)
-        http_client = AsyncHTTPClient()
+    async def create_onedata_token(self, checkin_token, token_name, caveats):
         onedata_token = None
         onedata_user = None
-        # We now go to the datahub to get a token
-        checkin_token = user_data["auth_state"]["access_token"]
+        http_client = AsyncHTTPClient()
         headers = {
             "content-type": "application/json",
             "x-auth-token": "egi:%s" % checkin_token,
         }
         token_url = (
-            self.onezone_url
-            + "/api/v3/onezone/user/tokens/named/name/%s" % self.token_name
+            self.onezone_url + "/api/v3/onezone/user/tokens/named/name/%s" % token_name
         )
         req = HTTPRequest(token_url, headers=headers, method="GET")
         try:
@@ -230,11 +213,9 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         if not onedata_token:
             # we don't have a token, create one
             token_desc = {
-                "name": self.token_name,
+                "name": token_name,
                 "type": {"accessToken": {}},
-                "caveats": [
-                    {"type": "interface", "interface": "oneclient"},
-                ],
+                "caveats": caveats,
             }
             req = HTTPRequest(
                 self.onezone_url + "/api/v3/onezone/user/tokens/named",
@@ -262,9 +243,30 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
             except HTTPError as e:
                 self.log.info("Something failed! %s", e)
                 raise e
-        user_data["auth_state"].update(
-            {"onedata_token": onedata_token, "onedata_user": onedata_user}
+        return onedata_token, onedata_user
+
+    async def authenticate(self, handler, data=None):
+        user_data = await super(DataHubAuthenticator, self).authenticate(handler, data)
+        checkin_token = user_data["auth_state"]["access_token"]
+        caveats = [{"type": "interface", "interface": "oneclient"}]
+        oneclient_token, onedata_user = await self.create_onedata_token(
+            checkin_token, self.oneclient_token_name, caveats
         )
+        caveats = [
+            {"type": "interface", "interface": "rest"},
+            {"whitelist": ["opw-*"], "type": "service"},
+        ]
+        onezone_token, _ = await self.create_onedata_token(
+            checkin_token, self.onezone_token_name, caveats
+        )
+        onedata_info = {
+            "oneclient_token": oneclient_token,
+            "onedata_user": onedata_user,
+            "oneprovider": self.oneprovider_host,
+            "onezone_url": self.onezone_url,
+            "onezone_token": onezone_token,
+        }
+        user_data["auth_state"].update(onedata_info)
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
@@ -320,5 +322,3 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
                 else:
                     self.log.info("Something failed! %s", e)
                     raise e
-        spawner.environment[self.token_env] = auth_state.get("onedata_token")
-        spawner.environment[self.oneprovider_env] = self.oneprovider_host

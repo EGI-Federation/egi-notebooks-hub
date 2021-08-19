@@ -2,11 +2,14 @@
 """
 
 import base64
+import json
 import uuid
 
 from kubernetes.client import V1ObjectMeta, V1Secret
 from kubernetes.client.rest import ApiException
 from kubespawner import KubeSpawner
+from tornado import web
+from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Bool, Dict, List, Unicode
 
 
@@ -89,6 +92,12 @@ class EGISpawner(KubeSpawner):
         self.volumes = vols
         return super().get_pvc_manifest()
 
+    # overriding this one to avoid long usernames as labels
+    def _build_common_labels(self, extra_labels):
+        labels = super()._build_common_labels(extra_labels)
+        del labels["hub.jupyter.org/username"]
+        return labels
+
     def _get_secret_manifest(self, data):
         """creates a secret in k8s that will contain the token of the user"""
         meta = V1ObjectMeta(
@@ -131,6 +140,12 @@ class EGISpawner(KubeSpawner):
 
 
 class DataHubSpawner(EGISpawner):
+    onedata_user_env = Unicode(
+        "ONEDATA_USER",
+        config=True,
+        help="""Environment variable that contains the onedata user""",
+    )
+
     onezone_env = Unicode(
         "ONEZONE_URL",
         config=True,
@@ -143,6 +158,12 @@ class DataHubSpawner(EGISpawner):
         help="""Name of the environment variable to store the token""",
     )
 
+    onezone_token_env = Unicode(
+        "ONEZONE_ACCESS_TOKEN",
+        config=True,
+        help="""Name of the environment variable to store the token for onezone""",
+    )
+
     oneprovider_env = Unicode(
         "ONEPROVIDER_HOST",
         config=True,
@@ -153,6 +174,10 @@ class DataHubSpawner(EGISpawner):
     force_proxy_io = Bool(False, config=True, help="""Force the use of proxied I/O""")
 
     force_direct_io = Bool(False, config=True, help="""Force the use of direct I/O""")
+
+    only_local_spaces = Bool(
+        True, config=True, help="""Only mount those spaces local to the provider"""
+    )
 
     mount_point = Unicode(
         "/mnt/oneclient",
@@ -187,10 +212,52 @@ class DataHubSpawner(EGISpawner):
 
     extra_mounts = List([], config=True, help="""extra volume mounts in k8s""")
 
+    def auth_state_hook(self, spawner, auth_state):
+        # get onedata stuff ready to be used later on
+        spawner.environment[self.token_env] = auth_state.get("oneclient_token")
+        spawner.environment[self.onezone_env] = auth_state.get("onezone_url")
+        spawner.environment[self.oneprovider_env] = auth_state.get("oneprovider")
+        spawner.environment[self.onezone_token_env] = auth_state.get("onezone_token")
+        spawner.environment[self.onedata_user_env] = auth_state.get("onedata_user")
+
     async def pre_spawn_hook(self, spawner):
         host = spawner.environment.get(self.oneprovider_env, "")
         token = spawner.environment.get(self.token_env, "")
+        onezone_url = spawner.environment.get(self.onezone_env, "")
+        onezone_token = spawner.environment.get(self.onezone_token_env, "")
         cmd = ["oneclient", "-f", "-H", f"{host}"]
+        if self.only_local_spaces:
+            # 1. Get the id of the oneprovider
+            http_client = AsyncHTTPClient()
+            req = HTTPRequest(
+                f"https://{host}/api/v3/oneprovider/configration", method="GET"
+            )
+            try:
+                resp = await http_client.fetch(req)
+            except HTTPError as e:
+                self.log.warning("Unable to connect to oneprovider: %s", e)
+                raise web.HTTPError(403)
+            resp_json = json.loads(resp.body.decode("utf8", "replace"))
+            provider_id = resp_json.get("providerId", None)
+            if not provider_id:
+                self.log.warning("Unable to get provider id: %s", resp_json)
+                raise web.HTTPError(403)
+            # 2. Get the spaces supported by the oneprovider
+            req = HTTPRequest(
+                f"{onezone_url}/api/v3/onezone/providers/{provider_id}/spaces",
+                method="GET",
+                headers={"X-Auth-Token", f"{onezone_token}"},
+            )
+            try:
+                resp = await http_client.fetch(req)
+            except HTTPError as e:
+                self.log.warning("Unable to get spaces from onezone: %s", e)
+                raise web.HTTPError(403)
+            resp_json = json.loads(resp.body.decode("utf8", "replace"))
+            # also limit the spaces we mount to avoid issues
+            for space_id in resp_json.get("spaces", []):
+                cmd.append("--spaceid")
+                cmd.append(f"{space_id}" % space_id)
         if self.force_proxy_io:
             cmd.append("--force-proxy-io")
         if self.force_direct_io:
