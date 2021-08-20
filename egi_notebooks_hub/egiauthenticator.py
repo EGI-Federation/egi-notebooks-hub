@@ -254,7 +254,7 @@ class DataHubAuthenticator(EGICheckinAuthenticator):
         )
         caveats = [
             {"type": "interface", "interface": "rest"},
-            {"whitelist": ["opw-*"], "type": "service"},
+            {"whitelist": ["ozw-onezone"], "type": "service"},
         ]
         onezone_token, _ = await self.create_onedata_token(
             checkin_token, self.onezone_token_name, caveats
