@@ -220,6 +220,37 @@ class DataHubSpawner(EGISpawner):
         spawner.environment[self.onezone_token_env] = auth_state.get("onezone_token")
         spawner.environment[self.onedata_user_env] = auth_state.get("onedata_user")
 
+    async def _get_local_spaces(self, oneprovider_host, onezone_url, onezone_token):
+        # 1. Get the id of the oneprovider
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest(
+            f"https://{oneprovider_host}/api/v3/oneprovider/configuration", method="GET"
+        )
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            self.log.warning("Unable to connect to oneprovider: %s", e)
+            raise web.HTTPError(403)
+        resp_json = json.loads(resp.body.decode("utf8", "replace"))
+        provider_id = resp_json.get("providerId", None)
+        if not provider_id:
+            self.log.warning("Unable to get provider id: %s", resp_json)
+            raise web.HTTPError(403)
+        # 2. Get the spaces supported by the oneprovider
+        req = HTTPRequest(
+            f"{onezone_url}/api/v3/onezone/providers/{provider_id}/spaces",
+            method="GET",
+            headers={"X-Auth-Token": f"{onezone_token}"},
+        )
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            self.log.warning("Unable to get spaces from onezone: %s", e)
+            raise web.HTTPError(403)
+        resp_json = json.loads(resp.body.decode("utf8", "replace"))
+        self.log.debug(resp_json.get("spaces", []))
+        return resp_json.get("spaces", [])
+
     async def pre_spawn_hook(self, spawner):
         host = spawner.environment.get(self.oneprovider_env, "")
         token = spawner.environment.get(self.token_env, "")
@@ -227,37 +258,12 @@ class DataHubSpawner(EGISpawner):
         onezone_token = spawner.environment.get(self.onezone_token_env, "")
         cmd = ["oneclient", "-f", "-H", f"{host}"]
         if self.only_local_spaces:
-            # 1. Get the id of the oneprovider
-            http_client = AsyncHTTPClient()
-            req = HTTPRequest(
-                f"https://{host}/api/v3/oneprovider/configration", method="GET"
-            )
-            try:
-                resp = await http_client.fetch(req)
-            except HTTPError as e:
-                self.log.warning("Unable to connect to oneprovider: %s", e)
-                raise web.HTTPError(403)
-            resp_json = json.loads(resp.body.decode("utf8", "replace"))
-            provider_id = resp_json.get("providerId", None)
-            if not provider_id:
-                self.log.warning("Unable to get provider id: %s", resp_json)
-                raise web.HTTPError(403)
-            # 2. Get the spaces supported by the oneprovider
-            req = HTTPRequest(
-                f"{onezone_url}/api/v3/onezone/providers/{provider_id}/spaces",
-                method="GET",
-                headers={"X-Auth-Token", f"{onezone_token}"},
-            )
-            try:
-                resp = await http_client.fetch(req)
-            except HTTPError as e:
-                self.log.warning("Unable to get spaces from onezone: %s", e)
-                raise web.HTTPError(403)
-            resp_json = json.loads(resp.body.decode("utf8", "replace"))
-            # also limit the spaces we mount to avoid issues
-            for space_id in resp_json.get("spaces", []):
-                cmd.append("--spaceid")
-                cmd.append(f"{space_id}" % space_id)
+            # limit the spaces we mount to avoid issues
+            for space_id in await self._get_local_spaces(
+                host, onezone_url, onezone_token
+            ):
+                cmd.extend(["--space-id", f"{space_id}"])
+            self.log.debug("CMD: %s", cmd)
         if self.force_proxy_io:
             cmd.append("--force-proxy-io")
         if self.force_direct_io:
