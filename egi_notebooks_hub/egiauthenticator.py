@@ -9,11 +9,7 @@ import os
 import time
 
 from oauthenticator.generic import GenericOAuthenticator
-from tornado.httpclient import (
-    AsyncHTTPClient,
-    HTTPClientError,
-    HTTPRequest,
-)
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
 from tornado.httputil import url_concat
 from traitlets import List, Unicode, default, validate
 

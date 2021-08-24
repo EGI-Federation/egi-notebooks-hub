@@ -6,11 +6,7 @@ import json
 
 from egi_notebooks_hub.egiauthenticator import EGICheckinAuthenticator
 from egi_notebooks_hub.egispawner import EGISpawner
-from tornado.httpclient import (
-    AsyncHTTPClient,
-    HTTPError,
-    HTTPRequest,
-)
+from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Bool, Dict, List, Unicode
 
 
@@ -120,9 +116,7 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
         return onedata_token, onedata_user
 
     async def authenticate(self, handler, data=None):
-        user_data = await super(OnedataAuthenticator, self).authenticate(
-            handler, data
-        )
+        user_data = await super(OnedataAuthenticator, self).authenticate(handler, data)
         access_token = user_data["auth_state"]["access_token"]
         caveats = [{"type": "interface", "interface": "oneclient"}]
         oneclient_token, onedata_user = await self.create_onedata_token(
