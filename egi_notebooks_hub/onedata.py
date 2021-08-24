@@ -1,5 +1,5 @@
 """
-DataHub extras for the Oauthenticator
+Onedata extras for the Oauthenticator
 """
 
 import json
