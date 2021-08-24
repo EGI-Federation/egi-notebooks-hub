@@ -12,7 +12,7 @@ from traitlets import Bool, Dict, List, Unicode
 
 class OnedataAuthenticator(EGICheckinAuthenticator):
     """
-    Datahub authenticator for JupyterHub
+    Onedata authenticator for JupyterHub
     Expands the authenticator to fetch DataHub tokens
     and keep them in auth_state
     """
