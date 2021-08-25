@@ -7,7 +7,7 @@ import uuid
 from kubernetes.client import V1ObjectMeta, V1Secret
 from kubernetes.client.rest import ApiException
 from kubespawner import KubeSpawner
-from traitlets import Bool, Dict, List, Unicode
+from traitlets import Unicode
 
 
 class EGISpawner(KubeSpawner):
@@ -89,6 +89,12 @@ class EGISpawner(KubeSpawner):
         self.volumes = vols
         return super().get_pvc_manifest()
 
+    # overriding this one to avoid long usernames as labels
+    def _build_common_labels(self, extra_labels):
+        labels = super()._build_common_labels(extra_labels)
+        del labels["hub.jupyter.org/username"]
+        return labels
+
     def _get_secret_manifest(self, data):
         """creates a secret in k8s that will contain the token of the user"""
         meta = V1ObjectMeta(
@@ -128,103 +134,3 @@ class EGISpawner(KubeSpawner):
         if id_token:
             data["id_token"] = base64.b64encode(id_token.encode()).decode()
         self._update_token_secret(data)
-
-
-class DataHubSpawner(EGISpawner):
-    onezone_env = Unicode(
-        "ONEZONE_URL",
-        config=True,
-        help="""Environment variable that contains the onezone URL""",
-    )
-
-    token_env = Unicode(
-        "ONECLIENT_ACCESS_TOKEN",
-        config=True,
-        help="""Name of the environment variable to store the token""",
-    )
-
-    oneprovider_env = Unicode(
-        "ONEPROVIDER_HOST",
-        config=True,
-        help="""Name of the environment variable to store the oneprovider
-                host""",
-    )
-
-    force_proxy_io = Bool(False, config=True, help="""Force the use of proxied I/O""")
-
-    force_direct_io = Bool(False, config=True, help="""Force the use of direct I/O""")
-
-    mount_point = Unicode(
-        "/mnt/oneclient",
-        config=True,
-        help="""Mountpoint for oneclient""",
-    )
-
-    sidecar_image = Unicode(
-        "eginotebooks/oneclient-sidecar",
-        config=True,
-        help="""Oneclient image to use""",
-    )
-
-    sidecar_resources = Dict(
-        {
-            "requests": {"memory": "512Mi", "cpu": "250m"},
-            "limits": {"memory": "1Gi", "cpu": "500m"},
-        },
-        config=True,
-        help="""resource limits for the sidecar""",
-    )
-
-    oneprovider_storage_mapping = List(
-        [],
-        config=True,
-        help="""
-        List of dicts like:
-            {"storage_id": "<oneprovider storage id>",
-             "mount_point": "volume mount point"}
-        """,
-    )
-
-    extra_mounts = List([], config=True, help="""extra volume mounts in k8s""")
-
-    async def pre_spawn_hook(self, spawner):
-        host = spawner.environment.get(self.oneprovider_env, "")
-        token = spawner.environment.get(self.token_env, "")
-        cmd = ["oneclient", "-f", "-H", f"{host}"]
-        if self.force_proxy_io:
-            cmd.append("--force-proxy-io")
-        if self.force_direct_io:
-            cmd.append("--force-direct-io")
-        if self.oneprovider_storage_mapping:
-            for mapping in self.oneprovider_storage_mapping:
-                cmd.append("--override")
-                cmd.append("%(storage_id)s:mountPoint:%(mount_point)s" % mapping)
-        cmd.append(self.mount_point)
-        volume_mounts = [
-            {"mountPath": f"{self.mount_point}:shared", "name": "oneclient"},
-        ]
-        if self.extra_mounts:
-            volume_mounts.extend(self.extra_mounts)
-        spawner.extra_containers = [
-            {
-                "name": "oneclient",
-                "image": self.sidecar_image,
-                "env": [
-                    {"name": self.oneprovider_env, "value": host},
-                    {"name": self.token_env, "value": token},
-                ],
-                "resources": self.sidecar_resources,
-                "command": cmd,
-                "securityContext": {
-                    "runAsUser": 1000,
-                    "privileged": True,
-                    "capabilities": {"add": ["SYS_ADMIN"]},
-                },
-                "volumeMounts": volume_mounts,
-                "lifecycle": {
-                    "preStop": {
-                        "exec": {"command": ["fusermount", "-u", self.mount_point]}
-                    },
-                },
-            }
-        ]
