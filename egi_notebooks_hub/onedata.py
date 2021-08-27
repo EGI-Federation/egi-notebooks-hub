@@ -276,7 +276,7 @@ class OnedataSpawner(EGISpawner):
         spawner.environment[self.onedata_user_env] = auth_state.get("onedata_user")
 
     async def _get_local_spaces(self, oneprovider_host, onezone_url, onezone_token):
-        # 1. Get the id of the oneprovider
+        # 1. Get the id of the oneprovider (this may be just config?)
         http_client = AsyncHTTPClient()
         req = HTTPRequest(
             f"https://{oneprovider_host}/api/v3/oneprovider/configuration", method="GET"
@@ -293,7 +293,7 @@ class OnedataSpawner(EGISpawner):
             raise HTTPError(403)
         # 2. Get the spaces supported by the oneprovider
         req = HTTPRequest(
-            f"{onezone_url}/api/v3/onezone/providers/{provider_id}/spaces",
+            f"{onezone_url}/api/v3/onezone/user/effective_providers/{provider_id}/spaces",
             method="GET",
             headers={"X-Auth-Token": f"{onezone_token}"},
         )
