@@ -293,7 +293,8 @@ class OnedataSpawner(EGISpawner):
             raise HTTPError(403)
         # 2. Get the spaces supported by the oneprovider
         req = HTTPRequest(
-            f"{onezone_url}/api/v3/onezone/user/effective_providers/{provider_id}/spaces",
+            f"{onezone_url}/api/v3/onezone/user/effective_providers/"
+            f"{provider_id}/spaces",
             method="GET",
             headers={"X-Auth-Token": f"{onezone_token}"},
         )
