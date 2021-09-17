@@ -67,6 +67,15 @@ class EGISpawner(KubeSpawner):
         )
         self._create_token_secret()
 
+        # filter out those profiles that are not for the current user
+        if self.profile_list and not callable(self.profile_list):
+            self.profile_list = list(
+                filter(
+                    lambda x: x.get("user", None) in [self.user.id, None],
+                    self.profile_list,
+                )
+            )
+
     def get_pvc_manifest(self):
         """Tries to fix volumes of to avoid issues with too long user names"""
         pvcs = self.api.list_namespaced_persistent_volume_claim(
