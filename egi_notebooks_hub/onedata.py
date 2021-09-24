@@ -312,6 +312,11 @@ class OnedataSpawner(EGISpawner):
         token = spawner.environment.get(self.token_env, "")
         onezone_url = spawner.environment.get(self.onezone_env, "")
         onezone_token = spawner.environment.get(self.onezone_token_env, "")
+        if not all([host, token, onezone_url, onezone_token]):
+            self.log.warning(
+                "Missing environment values for onedata mounting, skipping"
+            )
+            return
         cmd = ["oneclient", "-f", "-H", f"{host}"]
         if self.only_local_spaces:
             # limit the spaces we mount to avoid issues
