@@ -269,6 +269,9 @@ class OnedataSpawner(EGISpawner):
 
     def auth_state_hook(self, spawner, auth_state):
         # get onedata stuff ready to be used later on
+        if auth_state is None:
+            self.log.warning("No auth_state provided")
+            return
         spawner.environment[self.token_env] = auth_state.get("oneclient_token")
         spawner.environment[self.onezone_env] = auth_state.get("onezone_url")
         spawner.environment[self.oneprovider_env] = auth_state.get("oneprovider")
@@ -312,6 +315,11 @@ class OnedataSpawner(EGISpawner):
         token = spawner.environment.get(self.token_env, "")
         onezone_url = spawner.environment.get(self.onezone_env, "")
         onezone_token = spawner.environment.get(self.onezone_token_env, "")
+        if not all([host, token, onezone_url, onezone_token]):
+            self.log.warning(
+                "Missing environment values for onedata mounting, skipping"
+            )
+            return
         cmd = ["oneclient", "-f", "-H", f"{host}"]
         if self.only_local_spaces:
             # limit the spaces we mount to avoid issues
