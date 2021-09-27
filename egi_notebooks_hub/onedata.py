@@ -269,6 +269,9 @@ class OnedataSpawner(EGISpawner):
 
     def auth_state_hook(self, spawner, auth_state):
         # get onedata stuff ready to be used later on
+        if auth_state is None:
+            self.log.warning("No auth_state provided")
+            return
         spawner.environment[self.token_env] = auth_state.get("oneclient_token")
         spawner.environment[self.onezone_env] = auth_state.get("onezone_url")
         spawner.environment[self.oneprovider_env] = auth_state.get("oneprovider")
