@@ -117,7 +117,11 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
 
     async def authenticate(self, handler, data=None):
         user_data = await super(OnedataAuthenticator, self).authenticate(handler, data)
-        access_token = user_data["auth_state"]["access_token"]
+        if not user_data:
+            return user_data
+        access_token = user_data.get("auth_state", {}).get("access_token", None)
+        if not access_token:
+            return None
         caveats = [{"type": "interface", "interface": "oneclient"}]
         oneclient_token, onedata_user = await self.create_onedata_token(
             access_token, self.oneclient_token_name, caveats
