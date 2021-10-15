@@ -26,3 +26,5 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           # Fail on errors
           DISABLE_ERRORS: false
+          # JSCPD is failing in the symlink, so avoiding it
+          VALIDATE_JSCPD: false
