@@ -5,7 +5,7 @@ import base64
 import datetime
 import json
 import os
-from urllib.parse import unquote, urlencode
+from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree
 
 import jwt
@@ -109,7 +109,7 @@ class D4ScienceLoginHandler(BaseHandler):
             root = ElementTree.fromstring(resp.body.decode("utf8", "replace"))
             self.log.debug("root %s", root)
             for child in root.findall(
-                "Resource/Profile/AccessPoint/" "Interface/Endpoint"
+                "Resource/Profile/AccessPoint/Interface/Endpoint"
             ):
                 entry_name = child.attrib["EntryName"]
                 self.log.debug("entry_name %s", entry_name)
@@ -128,7 +128,15 @@ class D4ScienceLoginHandler(BaseHandler):
         user = await self.login_user(data)
         if user:
             self._jupyterhub_user = user
-            self.redirect(self.get_next_url(user), permanent=False)
+            # we need to remove gcube-token from the url query to avoid
+            # the spawner not showing the the options form
+            # this code is basically taken from Stack Overflow
+            # https://stackoverflow.com/a/7734686
+            next_url = urlparse(self.get_next_url(user))
+            query = parse_qs(next_url.query, keep_blank_values=True)
+            query.pop("gcube-token", None)
+            next_url = next_url._replace(query=urlencode(query, True))
+            self.redirect(urlunparse(next_url), permanent=False)
 
 
 class D4ScienceAuthenticator(Authenticator):
@@ -304,7 +312,7 @@ class D4ScienceSpawner(KubeSpawner):
         ] + args
 
     def auth_state_hook(self, spawner, auth_state):
-        permissions = auth_state["permissions"]
+        permissions = auth_state.get("permissions", None)
         # this will filter according to permissions
         # Assuming that there are no permissions coming from D4Science,
         # the everything is allowed
