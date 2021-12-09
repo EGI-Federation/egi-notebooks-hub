@@ -135,7 +135,7 @@ class D4ScienceLoginHandler(BaseHandler):
             # https://stackoverflow.com/a/7734686
             next_url = urlparse(self.get_next_url(user))
             query = parse_qs(next_url.query, keep_blank_values=True)
-            query.pop('gcube-token', None)
+            query.pop("gcube-token", None)
             next_url = next_url._replace(query=urlencode(query, True))
             self.redirect(urlunparse(next_url), permanent=False)
 
