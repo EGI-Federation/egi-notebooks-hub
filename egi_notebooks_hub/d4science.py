@@ -6,7 +6,6 @@ import datetime
 import json
 import os
 from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
-
 from xml.etree import ElementTree
 
 import jwt
