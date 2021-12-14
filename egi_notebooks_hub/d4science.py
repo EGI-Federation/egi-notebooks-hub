@@ -308,7 +308,7 @@ class D4ScienceSpawner(KubeSpawner):
             "--SingleUserNotebookApp.tornado_settings=%s" % tornado_settings,
             "--FileCheckpoints.checkpoint_dir='/home/jovyan/.notebookCheckpoints'",
             "--FileContentsManager.use_atomic_writing=False",
-            "--NotebookApp.ResourceUseDisplay.track_cpu_percent=True",
+            "--ResourceUseDisplay.track_cpu_percent=True",
         ] + args
 
     def auth_state_hook(self, spawner, auth_state):
