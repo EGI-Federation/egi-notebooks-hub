@@ -134,3 +134,19 @@ class EGISpawner(KubeSpawner):
         if id_token:
             data["id_token"] = base64.b64encode(id_token.encode()).decode()
         self._update_token_secret(data)
+
+    def auth_state_hook(self, spawner, auth_state):
+        vo_claims = []
+        claim_groups_key = getattr(spawner.authenticator, "claim_groups_key", None)
+        if claim_groups_key:
+            vo_claims = auth_state.get("oauth_user", {}).get(claim_groups_key, [])
+        if spawner.profile_list:
+            new_profile_list = []
+            for profile in spawner.profile_list:
+                profile_vos = profile.get("vo_claims", [])
+                if not profile_vos:
+                    new_profile_list.append(profile)
+                else:
+                    if any(i in vo_claims for i in profile_vos):
+                        new_profile_list.append(profile)
+            spawner.profile_list = new_profile_list
