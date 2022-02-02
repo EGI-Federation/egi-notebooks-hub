@@ -309,6 +309,7 @@ class D4ScienceSpawner(KubeSpawner):
             "--FileCheckpoints.checkpoint_dir='/home/jovyan/.notebookCheckpoints'",
             "--FileContentsManager.use_atomic_writing=False",
             "--ResourceUseDisplay.track_cpu_percent=True",
+            "--NotebookApp.iopub_data_rate_limit=100000000",
         ] + args
 
     def auth_state_hook(self, spawner, auth_state):
