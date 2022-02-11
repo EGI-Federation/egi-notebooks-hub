@@ -45,7 +45,7 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
     map_users = Bool(False, config=True, help="""perform mapping""")
 
     onedata_failsafe = Bool(
-        True, config=True, help="""do not fail of onedata is not responsive"""
+        True, config=True, help="""do not fail if onedata is not responsive"""
     )
 
     oneclient_token_name = Unicode(
