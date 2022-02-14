@@ -19,6 +19,7 @@ from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
 from traitlets import Unicode
+import xmltodict
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
@@ -36,6 +37,10 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
 )
 D4SCIENCE_OIDC_URL = os.environ.get(
     "D4SCIENCE_OIDC_URL", "https://accounts.d4science.org/auth/realms/d4science/"
+)
+D4SCIENCE_INFOSYS_URL = os.environ.get(
+    "D4SCIENCE_INFOSYS_URL",
+    "https://registry.d4science.org/icproxy/gcube/service/GenericResource/JupyterHub/ServerOptions",
 )
 
 
@@ -175,6 +180,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         config=True,
         help="""The OIDC URL for D4science""",
     )
+    d4science_infosys_url = Unicode(
+        D4SCIENCE_INFOSYS_URL,
+        config=True,
+        help="""The URL for the Information System of D4science""",
+    )
+
     _pubkeys = None
 
     async def get_iam_public_keys(self):
@@ -243,6 +254,25 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         )
         return token, decoded_token
 
+    async def get_resources(self, permissions, access_token):
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest(
+            self.d4science_infosys_url,
+            method="GET",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+            },
+        )
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Unable to get the resources for user: %s", e)
+            raise web.HTTPError(403)
+        self.log.debug("Got resources description...")
+        # Assume that this will fly
+        return xmltodict.parse(resp.body)
+
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
@@ -261,13 +291,14 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             context, self.client_id, access_token, extra_params
         )
         ws_token, _ = await self.get_uma_token(context, context, access_token)
-        # TODO: add extra checks?
         permissions = decoded_token["authorization"]["permissions"]
+        resources = await self.get_resources(permissions, access_token)
         user_data["auth_state"].update(
             {
                 "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
+                "resources": resources,
             }
         )
         return user_data
@@ -295,6 +326,11 @@ class D4ScienceSpawner(KubeSpawner):
         help="""the D4science storage image to use""",
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.allowed_profiles = []
+        self.server_options = []
+
     def get_args(self):
         args = super().get_args()
         tornado_settings = {
@@ -313,19 +349,51 @@ class D4ScienceSpawner(KubeSpawner):
         ] + args
 
     def auth_state_hook(self, spawner, auth_state):
-        permissions = auth_state.get("permissions", None)
-        # this will filter according to permissions
-        # Assuming that there are no permissions coming from D4Science,
-        # the everything is allowed
-        if spawner.profile_list and permissions:
-            allowed_profiles = [claim["rsname"] for claim in permissions]
-            self.log.debug("allowed profiles: %s", allowed_profiles)
-            spawner.profile_list = list(
-                filter(
-                    lambda x: x.get("profile_type", None) in allowed_profiles,
-                    self.profile_list,
-                )
+        # just get from the authenticator
+        permissions = auth_state.get("permissions", [])
+        self.allowed_profiles = [claim["rsname"] for claim in permissions]
+        resources = auth_state.get("resources", {})
+        self.log.debug("RESOURCES: %s", resources)
+        self.log.debug("PERMISSIONS: %s", permissions)
+        try:
+            opts = resources["genericResources"]["Resource"]["Profile"]["Body"][
+                "ServerOption"
+            ]
+            self.server_options = {o["AuthId"]: o for o in opts}
+        except KeyError:
+            self.log("WTF")
+            self.server_options = {}
+        self.log.debug("opts: %s", self.server_options)
+        self.log.debug("allowed: %s", self.allowed_profiles)
+
+    def profile_list(self, spawner):
+        # returns the list of profiles built according to the permissions
+        # and resource definition that the authenticator obtained initially
+        if not (self.allowed_profiles and self.server_options):
+            return []
+
+        profiles = []
+        for allowed in self.allowed_profiles:
+            p = self.server_options.get(allowed, None)
+            if not p:
+                continue
+            override = {}
+            if "ImageId" in p:
+                override["image"] = p.get("ImageId", None)
+            if "Cut" in p:
+                if "Cores" in p["Cut"]:
+                    override["cpu_limit"] = float(p["Cut"]["Cores"])
+                if "Memory" in p["Cut"]:
+                    override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
+            profiles.append(
+                {
+                    "display_name": p.get("Info", {}).get("Name", ""),
+                    "slug": p.get("AuthId"),
+                    "description": p.get("Info", {}).get("Description", ""),
+                    "kubespawner_override": override,
+                }
             )
+        return profiles
 
     async def pre_spawn_hook(self, spawner):
         gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
