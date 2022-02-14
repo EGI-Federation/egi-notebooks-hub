@@ -254,7 +254,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         )
         return token, decoded_token
 
-    async def get_resources(self, permissions, access_token):
+    async def get_resources(self, access_token):
         http_client = AsyncHTTPClient()
         req = HTTPRequest(
             self.d4science_infosys_url,
@@ -268,6 +268,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         except HTTPError as e:
             # whatever, get out
             self.log.warning("Unable to get the resources for user: %s", e)
+            self.log.debug(req)
             raise web.HTTPError(403)
         self.log.debug("Got resources description...")
         # Assume that this will fly
@@ -292,7 +293,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         )
         ws_token, _ = await self.get_uma_token(context, context, access_token)
         permissions = decoded_token["authorization"]["permissions"]
-        resources = await self.get_resources(permissions, access_token)
+        self.log.debug("Permissions: %s", permissions)
+        self.log.debug("WS TOKENS: %s", ws_token)
+        self.log.debug("TOKEN: %s", token)
+        self.log.debug("ACCESS TOKEN: %s", access_token)
+        resources = await self.get_resources(ws_token)
+        self.log.debug("Resources: %s", resources)
         user_data["auth_state"].update(
             {
                 "context_token": ws_token,
@@ -384,7 +390,8 @@ class D4ScienceSpawner(KubeSpawner):
                 if "Cores" in p["Cut"]:
                     override["cpu_limit"] = float(p["Cut"]["Cores"])
                 if "Memory" in p["Cut"]:
-                    override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
+                    override["mem_limit"] = "%(#text)sG" % p["Cut"]["Memory"]
+                    # override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
             profiles.append(
                 {
                     "display_name": p.get("Info", {}).get("Name", ""),
