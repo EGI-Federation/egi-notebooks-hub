@@ -44,6 +44,10 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
 
     map_users = Bool(False, config=True, help="""perform mapping""")
 
+    onedata_failsafe = Bool(
+        True, config=True, help="""do not fail if onedata is not responsive"""
+    )
+
     oneclient_token_name = Unicode(
         "oneclient.notebooks.egi.eu",
         config=True,
@@ -79,6 +83,8 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
         except HTTPError as e:
             if e.code != 404:
                 self.log.info("Something failed! %s", e)
+                if self.onedata_failsafe:
+                    return onedata_token, onedata_user
                 raise e
         if not onedata_token:
             # we don't have a token, create one
@@ -99,6 +105,8 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
                 onedata_token = datahub_response["token"]
             except HTTPError as e:
                 self.log.info("Something failed! %s", e)
+                if self.onedata_failsafe:
+                    return onedata_token, onedata_user
                 raise e
             # Finally get the user information
             req = HTTPRequest(
@@ -112,6 +120,8 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
                 onedata_user = datahub_response["userId"]
             except HTTPError as e:
                 self.log.info("Something failed! %s", e)
+                if self.onedata_failsafe:
+                    return onedata_token, onedata_user
                 raise e
         return onedata_token, onedata_user
 
@@ -149,7 +159,7 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
         if not auth_state:
             # auth_state not enabled
             return
-        if self.map_users:
+        if self.map_users and auth_state.get("onedata_user", None):
             if self.onepanel_url:
                 map_url = self.onepanel_url
             else:
