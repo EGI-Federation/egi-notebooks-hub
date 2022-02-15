@@ -9,6 +9,7 @@ from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree
 
 import jwt
+import xmltodict
 from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
@@ -18,8 +19,7 @@ from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
-from traitlets import Unicode
-import xmltodict
+from traitlets import Dict, Unicode
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
@@ -40,7 +40,8 @@ D4SCIENCE_OIDC_URL = os.environ.get(
 )
 D4SCIENCE_INFOSYS_URL = os.environ.get(
     "D4SCIENCE_INFOSYS_URL",
-    "https://registry.d4science.org/icproxy/gcube/service/GenericResource/JupyterHub/ServerOptions",
+    ("https://registry.d4science.org/icproxy/gcube/"
+     "service/GenericResource/JupyterHub/ServerOptions"),
 )
 
 
@@ -331,11 +332,25 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""the D4science storage image to use""",
     )
+    volume_mappings = Dict({}, config=True,
+        help="""Mapping of extra volumes from the information system to k8s volumes
+                Dicts should have an entry for each of the extra volumes as follows:
+                {
+                    'name-of-extra-volume': {
+                        'mount_path': '/home/jovyan/dataspace',
+                        'volume': { k8s object defining the volume},
+                    }
+                }
+            """,
+    )
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.allowed_profiles = []
         self.server_options = []
+        self._orig_volumes = self.volumes
+        self._orig_volume_mounts = self.volume_mounts
 
     def get_args(self):
         args = super().get_args()
@@ -355,22 +370,22 @@ class D4ScienceSpawner(KubeSpawner):
         ] + args
 
     def auth_state_hook(self, spawner, auth_state):
+        if not auth_state:
+            return
         # just get from the authenticator
         permissions = auth_state.get("permissions", [])
         self.allowed_profiles = [claim["rsname"] for claim in permissions]
         resources = auth_state.get("resources", {})
-        self.log.debug("RESOURCES: %s", resources)
-        self.log.debug("PERMISSIONS: %s", permissions)
         try:
             opts = resources["genericResources"]["Resource"]["Profile"]["Body"][
                 "ServerOption"
             ]
             self.server_options = {o["AuthId"]: o for o in opts}
         except KeyError:
-            self.log("WTF")
+            self.log.debug("Unexpected resource response from D4Science")
             self.server_options = {}
-        self.log.debug("opts: %s", self.server_options)
         self.log.debug("allowed: %s", self.allowed_profiles)
+        self.log.debug("opts: %s", self.server_options)
 
     def profile_list(self, spawner):
         # returns the list of profiles built according to the permissions
@@ -383,15 +398,24 @@ class D4ScienceSpawner(KubeSpawner):
             p = self.server_options.get(allowed, None)
             if not p:
                 continue
-            override = {}
+            override = {
+                "volumes": self._orig_volumes.copy(),
+                "volume_mounts": self._orig_volume_mounts.copy(),
+            }
             if "ImageId" in p:
                 override["image"] = p.get("ImageId", None)
             if "Cut" in p:
                 if "Cores" in p["Cut"]:
                     override["cpu_limit"] = float(p["Cut"]["Cores"])
                 if "Memory" in p["Cut"]:
-                    override["mem_limit"] = "%(#text)sG" % p["Cut"]["Memory"]
-                    # override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
+                    override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
+            extra_vol = p.get("ExtraVolume", None)
+            self.log.debug("OVER: %s", override)
+            if extra_vol in self.volume_mappings:
+                vol = {"name": extra_vol}
+                vol.update(self.volume_mappings[extra_vol]["volume"])
+                override["volumes"].insert(0, vol)
+                override["volume_mounts"].insert(0, {"name": extra_vol, "mountPath": self.volume_mappings[extra_vol]["mount_path"]})
             profiles.append(
                 {
                     "display_name": p.get("Info", {}).get("Name", ""),
@@ -403,6 +427,7 @@ class D4ScienceSpawner(KubeSpawner):
         return profiles
 
     async def pre_spawn_hook(self, spawner):
+        # add volumes as defined in the D4Science info sys
         gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
         context = spawner.environment.get("GCUBE_CONTEXT", "")
         if context:
