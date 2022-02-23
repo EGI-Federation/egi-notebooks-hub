@@ -248,6 +248,10 @@ class OnedataSpawner(EGISpawner):
         True, config=True, help="""Only mount those spaces local to the provider"""
     )
 
+    oneclient_extra_args = List(
+        [], config=True, help="""Extra arguments for the oneclient"""
+    )
+
     mount_point = Unicode(
         "/mnt/oneclient",
         config=True,
@@ -350,6 +354,8 @@ class OnedataSpawner(EGISpawner):
             for mapping in self.oneprovider_storage_mapping:
                 cmd.append("--override")
                 cmd.append("%(storage_id)s:mountPoint:%(mount_point)s" % mapping)
+        if self.oneclient_extra_args:
+            cmd.extend(self.oneclient_extra_args)
         cmd.append(self.mount_point)
         volume_mounts = [
             {"mountPath": f"{self.mount_point}:shared", "name": "oneclient"},
