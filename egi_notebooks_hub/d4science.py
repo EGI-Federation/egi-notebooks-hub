@@ -40,8 +40,10 @@ D4SCIENCE_OIDC_URL = os.environ.get(
 )
 D4SCIENCE_INFOSYS_URL = os.environ.get(
     "D4SCIENCE_INFOSYS_URL",
-    ("https://registry.d4science.org/icproxy/gcube/"
-     "service/GenericResource/JupyterHub/ServerOptions"),
+    (
+        "https://registry.d4science.org/icproxy/gcube/"
+        "service/GenericResource/JupyterHub/ServerOptions"
+    ),
 )
 
 
@@ -332,7 +334,9 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""the D4science storage image to use""",
     )
-    volume_mappings = Dict({}, config=True,
+    volume_mappings = Dict(
+        {},
+        config=True,
         help="""Mapping of extra volumes from the information system to k8s volumes
                 Dicts should have an entry for each of the extra volumes as follows:
                 {
@@ -343,7 +347,6 @@ class D4ScienceSpawner(KubeSpawner):
                 }
             """,
     )
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -415,7 +418,13 @@ class D4ScienceSpawner(KubeSpawner):
                 vol = {"name": extra_vol}
                 vol.update(self.volume_mappings[extra_vol]["volume"])
                 override["volumes"].insert(0, vol)
-                override["volume_mounts"].insert(0, {"name": extra_vol, "mountPath": self.volume_mappings[extra_vol]["mount_path"]})
+                override["volume_mounts"].insert(
+                    0,
+                    {
+                        "name": extra_vol,
+                        "mountPath": self.volume_mappings[extra_vol]["mount_path"],
+                    },
+                )
             profiles.append(
                 {
                     "display_name": p.get("Info", {}).get("Name", ""),
