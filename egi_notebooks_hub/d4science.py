@@ -387,8 +387,31 @@ class D4ScienceSpawner(KubeSpawner):
         except KeyError:
             self.log.debug("Unexpected resource response from D4Science")
             self.server_options = {}
+        try:
+            vols = resources["genericResources"]["Resource"]["Profile"]["Body"][
+                "VolumeOption"
+            ]
+            for v in vols:
+                vol_name = v["Name"]
+                if vol_name in self.volume_mappings:
+                    vol = {"name": vol_name}
+                    vol.update(self.volume_mappings[vol_name]["volume"])
+                    self.volumes = self._orig_volumes.copy()
+                    self.volumes.append(vol)
+                    self.volume_mounts = self._orig_volume_mounts.copy()
+                    self.volume_mounts.append(
+                        {
+                            "name": vol_name,
+                            "mountPath": self.volume_mappings[vol_name]["mount_path"],
+                            "readOnly": v.get("Permission", None) == "Read-only",
+                        },
+                    )
+        except KeyError:
+            self.log.warn("No volume options available")
         self.log.debug("allowed: %s", self.allowed_profiles)
         self.log.debug("opts: %s", self.server_options)
+        self.log.debug("volumes: %s", self.volumes)
+        self.log.debug("volume_mounts: %s", self.volume_mounts)
 
     def profile_list(self, spawner):
         # returns the list of profiles built according to the permissions
@@ -401,10 +424,7 @@ class D4ScienceSpawner(KubeSpawner):
             p = self.server_options.get(allowed, None)
             if not p:
                 continue
-            override = {
-                "volumes": self._orig_volumes.copy(),
-                "volume_mounts": self._orig_volume_mounts.copy(),
-            }
+            override = {}
             if "ImageId" in p:
                 override["image"] = p.get("ImageId", None)
             if "Cut" in p:
@@ -412,19 +432,6 @@ class D4ScienceSpawner(KubeSpawner):
                     override["cpu_limit"] = float(p["Cut"]["Cores"])
                 if "Memory" in p["Cut"]:
                     override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
-            extra_vol = p.get("ExtraVolume", None)
-            self.log.debug("OVER: %s", override)
-            if extra_vol in self.volume_mappings:
-                vol = {"name": extra_vol}
-                vol.update(self.volume_mappings[extra_vol]["volume"])
-                override["volumes"].insert(0, vol)
-                override["volume_mounts"].insert(
-                    0,
-                    {
-                        "name": extra_vol,
-                        "mountPath": self.volume_mappings[extra_vol]["mount_path"],
-                    },
-                )
             profiles.append(
                 {
                     "display_name": p.get("Info", {}).get("Name", ""),
