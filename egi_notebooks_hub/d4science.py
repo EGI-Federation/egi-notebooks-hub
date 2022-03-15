@@ -26,10 +26,13 @@ D4SCIENCE_SOCIAL_URL = os.environ.get(
     "https://api.d4science.org/social-networking-library-ws/rest/",
 )
 D4SCIENCE_PROFILE = "2/people/profile"
+D4SCIENCE_REGISTRY_BASE_URL = os.environ.get(
+    "D4SCIENCE_REGISTRY_BASE_URL",
+    "https://registry.d4science.org/icproxy/gcube/service",
+)
 D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_URL",
-    "https://registry.d4science.org/icproxy/gcube/"
-    "service/ServiceEndpoint/DataAnalysis/DataMiner",
+    D4SCIENCE_REGISTRY_BASE_URL + "/ServiceEndpoint/DataAnalysis/DataMiner",
 )
 D4SCIENCE_DISCOVER_WPS = os.environ.get(
     "D4SCIENCE_DISCOVER_WPS",
@@ -40,10 +43,7 @@ D4SCIENCE_OIDC_URL = os.environ.get(
 )
 D4SCIENCE_INFOSYS_URL = os.environ.get(
     "D4SCIENCE_INFOSYS_URL",
-    (
-        "https://registry.d4science.org/icproxy/gcube/"
-        "service/GenericResource/JupyterHub/ServerOptions"
-    ),
+    D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub/ServerOptions",
 )
 
 
