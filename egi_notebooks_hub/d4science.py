@@ -43,7 +43,7 @@ D4SCIENCE_OIDC_URL = os.environ.get(
 )
 D4SCIENCE_INFOSYS_URL = os.environ.get(
     "D4SCIENCE_INFOSYS_URL",
-    D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub/ServerOptions",
+    D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub",
 )
 
 
@@ -372,6 +372,9 @@ class D4ScienceSpawner(KubeSpawner):
             "--NotebookApp.iopub_data_rate_limit=100000000",
         ] + args
 
+    def get_volume_name(self, name):
+        return name.strip().lower().replace(" ", "-")
+
     def auth_state_hook(self, spawner, auth_state):
         if not auth_state:
             return
@@ -379,37 +382,38 @@ class D4ScienceSpawner(KubeSpawner):
         permissions = auth_state.get("permissions", [])
         self.allowed_profiles = [claim["rsname"] for claim in permissions]
         resources = auth_state.get("resources", {})
+        self.server_options = {}
+        volume_options = {}
         try:
-            opts = resources["genericResources"]["Resource"]["Profile"]["Body"][
-                "ServerOption"
-            ]
-            self.server_options = {o["AuthId"]: o for o in opts}
+            for opt in resources["genericResources"]["Resource"]:
+                p = opt.get("Profile", {}).get("Body", {})
+                if p.get("ServerOption", None):
+                    self.server_options[p["ServerOption"]["AuthId"]] = p["ServerOption"]
+                elif p.get("VolumeOption", None):
+                    volume_options[p["VolumeOption"]["Name"]] = p["VolumeOption"][
+                        "Permission"
+                    ]
         except KeyError:
             self.log.debug("Unexpected resource response from D4Science")
-            self.server_options = {}
-        try:
-            vols = resources["genericResources"]["Resource"]["Profile"]["Body"][
-                "VolumeOption"
-            ]
-            for v in vols:
-                vol_name = v["Name"]
-                if vol_name in self.volume_mappings:
-                    vol = {"name": vol_name}
-                    vol.update(self.volume_mappings[vol_name]["volume"])
-                    self.volumes = self._orig_volumes.copy()
-                    self.volumes.append(vol)
-                    self.volume_mounts = self._orig_volume_mounts.copy()
-                    self.volume_mounts.append(
-                        {
-                            "name": vol_name,
-                            "mountPath": self.volume_mappings[vol_name]["mount_path"],
-                            "readOnly": v.get("Permission", None) == "Read-only",
-                        },
-                    )
-        except KeyError:
-            self.log.warn("No volume options available")
+
+        self.volumes = self._orig_volumes.copy()
+        self.volume_mounts = self._orig_volume_mounts.copy()
+        for name, permission in volume_options.items():
+            if name in self.volume_mappings:
+                vol_name = self.get_volume_name(name)
+                vol = {"name": (vol_name)}
+                vol.update(self.volume_mappings[name]["volume"])
+                self.volumes.append(vol)
+                self.volume_mounts.append(
+                    {
+                        "name": vol_name,
+                        "mountPath": self.volume_mappings[name]["mount_path"],
+                        "readOnly": permission == "Read-only",
+                    },
+                )
         self.log.debug("allowed: %s", self.allowed_profiles)
         self.log.debug("opts: %s", self.server_options)
+        self.log.debug("volume_options %s", volume_options)
         self.log.debug("volumes: %s", self.volumes)
         self.log.debug("volume_mounts: %s", self.volume_mounts)
 
