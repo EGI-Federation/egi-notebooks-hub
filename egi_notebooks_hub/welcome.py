@@ -10,13 +10,18 @@ class WelcomeHandler(BaseHandler):
     """Render the welcome home page.
 
     For using it, define the following config:
+
+    from egi_notebooks_hub.welcome import WelcomeHandler
     c.JupyterHub.default_url = "/welcome"
     c.JupyterHub.extra_handlers = [
          (r'/welcome', WelcomeHandler),
     ]
-    and set auto_login for the authenticator
     c.authenticator.auto_login = True
+
+
     """
+
+    default_url = None  # Avoid redirect loop
 
     async def get(self):
         user = self.current_user
