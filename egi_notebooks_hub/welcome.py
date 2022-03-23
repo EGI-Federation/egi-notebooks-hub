@@ -16,7 +16,7 @@ class WelcomeHandler(BaseHandler):
     c.JupyterHub.extra_handlers = [
          (r'/welcome', WelcomeHandler),
     ]
-    c.authenticator.auto_login = True
+    c.Authenticator.auto_login = True
 
 
     """
