@@ -1,0 +1,19 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1] - 2022-03-23
+- Initial tagged release, includes several features:
+  - EGIAuthenticator, simplifies the use of Check-in with JupyterHub
+  - EGI Spawner, simplifies the use kubespawner with Check-in identities
+  - onedata authenticator and spawner, that extend the EGI authenticator
+    and spawner to interact with onedata (mount spaces)
+  - D4Science authenticator and spawner for integration with the D4Science
+    platform
+  - Welcome page for showing an intro page to users
+  - Custom templates for login and error pages
