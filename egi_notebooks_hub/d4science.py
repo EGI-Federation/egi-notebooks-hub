@@ -295,6 +295,12 @@ class D4ScienceSpawner(KubeSpawner):
         help="""the D4science storage image to use""",
     )
 
+    ophidia_image = Unicode(
+        "",
+        config=True,
+        help="""the Ophidia image to use""",
+    }
+ 
     def get_args(self):
         args = super().get_args()
         tornado_settings = {
@@ -361,3 +367,13 @@ class D4ScienceSpawner(KubeSpawner):
                     },
                 }
             ]
+            if self.ophidia_image != "":
+              ophidia = {
+                "name": "ophidia",
+                "image": self.ophidia_image,
+                "volumeMounts": [
+                  {"mountPath": "/root/workspace", "name": "workspace"},
+                  {"mountPath": "/root/dataspace", "name": "dataspace-shared"}
+                ]
+              }
+              spawner.extra_containers.append(ophidia)
