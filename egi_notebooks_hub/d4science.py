@@ -30,7 +30,10 @@ D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "https://registry.d4science.org/icproxy/gcube/"
     "service/ServiceEndpoint/DataAnalysis/DataMiner",
 )
-D4SCIENCE_DISCOVER_WPS = os.environ.get("D4SCIENCE_DISCOVER_WPS", "false",)
+D4SCIENCE_DISCOVER_WPS = os.environ.get(
+    "D4SCIENCE_DISCOVER_WPS",
+    "false",
+)
 D4SCIENCE_OIDC_URL = os.environ.get(
     "D4SCIENCE_OIDC_URL", "https://accounts.d4science.org/auth/realms/d4science/"
 )
@@ -168,7 +171,9 @@ class D4ScienceContextHandler(OAuthLoginHandler):
 class D4ScienceOauthenticator(GenericOAuthenticator):
     login_handler = D4ScienceContextHandler
     d4science_oidc_url = Unicode(
-        D4SCIENCE_OIDC_URL, config=True, help="""The OIDC URL for D4science""",
+        D4SCIENCE_OIDC_URL,
+        config=True,
+        help="""The OIDC URL for D4science""",
     )
     _pubkeys = None
 
@@ -231,7 +236,10 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         kid = jwt.get_unverified_header(token)["kid"]
         key = (await self.get_iam_public_keys())[kid]
         decoded_token = jwt.decode(
-            token, key=key, audience=audience, algorithms=["RS256"],
+            token, 
+            key=key, 
+            audience=audience, 
+            algorithms=["RS256"],
         )
         return token, decoded_token
 
@@ -256,7 +264,11 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         # TODO: add extra checks?
         permissions = decoded_token["authorization"]["permissions"]
         user_data["auth_state"].update(
-            {"context_token": ws_token, "permissions": permissions, "context": context,}
+            {
+                "context_token": ws_token, 
+                "permissions": permissions, 
+                "context": context, 
+            }
         )
         return user_data
 
@@ -283,7 +295,11 @@ class D4ScienceSpawner(KubeSpawner):
         help="""the D4science storage image to use""",
     )
 
-    ophidia_image = Unicode("", config=True, help="""the Ophidia image to use""",)
+    ophidia_image = Unicode(
+        "", 
+        config=True, 
+        help="""the Ophidia image to use""",
+    )
 
     def get_args(self):
         args = super().get_args()
@@ -356,7 +372,10 @@ class D4ScienceSpawner(KubeSpawner):
                     "name": "ophidia",
                     "image": self.ophidia_image,
                     "volumeMounts": [
-                        {"mountPath": "/home/jovyan/dataspace", "name": "dataspace-shared"},
+                        {
+                            "mountPath": "/home/jovyan/dataspace",
+                            "name": "dataspace-shared",
+                        },
                     ],
                 }
                 spawner.extra_containers.append(ophidia)
