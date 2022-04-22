@@ -356,8 +356,7 @@ class D4ScienceSpawner(KubeSpawner):
                     "name": "ophidia",
                     "image": self.ophidia_image,
                     "volumeMounts": [
-                        {"mountPath": "/root/workspace", "name": "workspace"},
-                        {"mountPath": "/root/dataspace", "name": "dataspace-shared"},
+                        {"mountPath": "/home/jovyan/dataspace", "name": "dataspace-shared"},
                     ],
                 }
                 spawner.extra_containers.append(ophidia)
