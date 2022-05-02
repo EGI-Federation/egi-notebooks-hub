@@ -5,7 +5,7 @@ import base64
 import datetime
 import json
 import os
-from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, quote_plus, unquote, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree
 
 import jwt
@@ -280,7 +280,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
-        context = getattr(self, "d4science_context", None)
+        context = quote_plus(getattr(self, "d4science_context", None))
         self.log.debug("Context is %s", context)
         if not context:
             self.log.error("Unable to get the user context")
@@ -297,9 +297,6 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         ws_token, _ = await self.get_uma_token(context, context, access_token)
         permissions = decoded_token["authorization"]["permissions"]
         self.log.debug("Permissions: %s", permissions)
-        self.log.debug("WS TOKENS: %s", ws_token)
-        self.log.debug("TOKEN: %s", token)
-        self.log.debug("ACCESS TOKEN: %s", access_token)
         resources = await self.get_resources(ws_token)
         self.log.debug("Resources: %s", resources)
         user_data["auth_state"].update(
@@ -416,6 +413,7 @@ class D4ScienceSpawner(KubeSpawner):
         self.log.debug("volume_options %s", volume_options)
         self.log.debug("volumes: %s", self.volumes)
         self.log.debug("volume_mounts: %s", self.volume_mounts)
+        self.log.debug("volume_mappings: %s", self.volume_mappings)
 
     def profile_list(self, spawner):
         # returns the list of profiles built according to the permissions
@@ -429,21 +427,29 @@ class D4ScienceSpawner(KubeSpawner):
             if not p:
                 continue
             override = {}
+            name = p.get("Info", {}).get("Name", "")
             if "ImageId" in p:
                 override["image"] = p.get("ImageId", None)
             if "Cut" in p:
+                cut_info = []
                 if "Cores" in p["Cut"]:
                     override["cpu_limit"] = float(p["Cut"]["Cores"])
+                    cut_info.append(f"{p['Cut']['Cores']} Cores")
                 if "Memory" in p["Cut"]:
                     override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
-            profiles.append(
-                {
-                    "display_name": p.get("Info", {}).get("Name", ""),
-                    "slug": p.get("AuthId"),
-                    "description": p.get("Info", {}).get("Description", ""),
-                    "kubespawner_override": override,
-                }
-            )
+                    cut_info.append(f"{override['mem_limit']} RAM")
+                name += " - %s" % " / ".join(cut_info)
+            profile = {
+                "display_name": name,
+                "description": p.get("Info", {}).get("Description", ""),
+                "slug": p.get("AuthId"),
+                "kubespawner_override": override,
+                "default": p.get("@default", {}) == "true",
+            }
+            if profile["default"]:
+                profiles.insert(0, profile)
+            else:
+                profiles.append(profile)
         return profiles
 
     async def pre_spawn_hook(self, spawner):
