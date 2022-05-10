@@ -262,6 +262,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             audience=audience,
             algorithms=["RS256"],
         )
+        self.log.debug("Decoded token: %s", decoded_token)
         return token, decoded_token
 
     async def get_resources(self, access_token):
@@ -389,7 +390,10 @@ class D4ScienceSpawner(KubeSpawner):
         self.server_options = {}
         volume_options = {}
         try:
-            for opt in resources["genericResources"]["Resource"]:
+            resource_list = resources["genericResources"]["Resource"]
+            if not isinstance(resource_list, list):
+                resource_list = [resource_list]
+            for opt in resource_list:
                 p = opt.get("Profile", {}).get("Body", {})
                 if p.get("ServerOption", None):
                     self.server_options[p["ServerOption"]["AuthId"]] = p["ServerOption"]
