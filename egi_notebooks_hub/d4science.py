@@ -48,8 +48,8 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
 D4SCIENCE_OIDC_URL = os.environ.get(
     "D4SCIENCE_OIDC_URL", "https://accounts.d4science.org/auth/realms/d4science/"
 )
-D4SCIENCE_INFOSYS_URL = os.environ.get(
-    "D4SCIENCE_INFOSYS_URL",
+JUPYTERHUB_INFOSYS_URL = os.environ.get(
+    "JUPYTERHUB_INFOSYS_URL",
     D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub",
 )
 
@@ -190,10 +190,10 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         config=True,
         help="""The OIDC URL for D4science""",
     )
-    d4science_infosys_url = Unicode(
-        D4SCIENCE_INFOSYS_URL,
+    jupyterhub_infosys_url = Unicode(
+        JUPYTERHUB_INFOSYS_URL,
         config=True,
-        help="""The URL for the Information System of D4science""",
+        help="""The URL for getting JupyterHub profiles from the Information System of D4science""",
     )
 
     _pubkeys = None
@@ -268,7 +268,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
     async def get_resources(self, access_token):
         http_client = AsyncHTTPClient()
         req = HTTPRequest(
-            self.d4science_infosys_url,
+            self.jupyterhub_infosys_url,
             method="GET",
             headers={
                 "Authorization": f"Bearer {access_token}",
@@ -453,7 +453,7 @@ class D4ScienceSpawner(KubeSpawner):
             profile = {
                 "display_name": name,
                 "description": p.get("Info", {}).get("Description", ""),
-                "slug": p.get("AuthId"),
+                "slug": p.get("AuthId", ""),
                 "kubespawner_override": override,
                 "default": p.get("@default", {}) == "true",
             }
