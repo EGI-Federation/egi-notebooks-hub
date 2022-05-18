@@ -193,7 +193,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
     jupyterhub_infosys_url = Unicode(
         JUPYTERHUB_INFOSYS_URL,
         config=True,
-        help="""The URL for getting JupyterHub profiles from the Information System of D4science""",
+        help="""The URL for getting JupyterHub profiles from the
+                Information System of D4science""",
     )
 
     _pubkeys = None
