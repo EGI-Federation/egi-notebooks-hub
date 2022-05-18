@@ -5,10 +5,18 @@ import base64
 import datetime
 import json
 import os
-from urllib.parse import parse_qs, unquote, urlencode, urlparse, urlunparse
+from urllib.parse import (
+    parse_qs,
+    quote_plus,
+    unquote,
+    urlencode,
+    urlparse,
+    urlunparse,
+)
 from xml.etree import ElementTree
 
 import jwt
+import xmltodict
 from jupyterhub.auth import Authenticator
 from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
@@ -18,17 +26,20 @@ from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
-from traitlets import Unicode
+from traitlets import Dict, Unicode
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
     "https://api.d4science.org/social-networking-library-ws/rest/",
 )
 D4SCIENCE_PROFILE = "2/people/profile"
+D4SCIENCE_REGISTRY_BASE_URL = os.environ.get(
+    "D4SCIENCE_REGISTRY_BASE_URL",
+    "https://registry.d4science.org/icproxy/gcube/service",
+)
 D4SCIENCE_DM_REGISTRY_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_URL",
-    "https://registry.d4science.org/icproxy/gcube/"
-    "service/ServiceEndpoint/DataAnalysis/DataMiner",
+    D4SCIENCE_REGISTRY_BASE_URL + "/ServiceEndpoint/DataAnalysis/DataMiner",
 )
 D4SCIENCE_DISCOVER_WPS = os.environ.get(
     "D4SCIENCE_DISCOVER_WPS",
@@ -36,6 +47,10 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
 )
 D4SCIENCE_OIDC_URL = os.environ.get(
     "D4SCIENCE_OIDC_URL", "https://accounts.d4science.org/auth/realms/d4science/"
+)
+JUPYTERHUB_INFOSYS_URL = os.environ.get(
+    "JUPYTERHUB_INFOSYS_URL",
+    D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub",
 )
 
 
@@ -175,6 +190,13 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         config=True,
         help="""The OIDC URL for D4science""",
     )
+    jupyterhub_infosys_url = Unicode(
+        JUPYTERHUB_INFOSYS_URL,
+        config=True,
+        help="""The URL for getting JupyterHub profiles from the
+                Information System of D4science""",
+    )
+
     _pubkeys = None
 
     async def get_iam_public_keys(self):
@@ -241,12 +263,33 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             audience=audience,
             algorithms=["RS256"],
         )
+        self.log.debug("Decoded token: %s", decoded_token)
         return token, decoded_token
+
+    async def get_resources(self, access_token):
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest(
+            self.jupyterhub_infosys_url,
+            method="GET",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+            },
+        )
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Unable to get the resources for user: %s", e)
+            self.log.debug(req)
+            raise web.HTTPError(403)
+        self.log.debug("Got resources description...")
+        # Assume that this will fly
+        return xmltodict.parse(resp.body)
 
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
-        context = getattr(self, "d4science_context", None)
+        context = quote_plus(getattr(self, "d4science_context", None))
         self.log.debug("Context is %s", context)
         if not context:
             self.log.error("Unable to get the user context")
@@ -261,13 +304,16 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             context, self.client_id, access_token, extra_params
         )
         ws_token, _ = await self.get_uma_token(context, context, access_token)
-        # TODO: add extra checks?
         permissions = decoded_token["authorization"]["permissions"]
+        self.log.debug("Permissions: %s", permissions)
+        resources = await self.get_resources(ws_token)
+        self.log.debug("Resources: %s", resources)
         user_data["auth_state"].update(
             {
                 "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
+                "resources": resources,
             }
         )
         return user_data
@@ -294,6 +340,26 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""the D4science storage image to use""",
     )
+    volume_mappings = Dict(
+        {},
+        config=True,
+        help="""Mapping of extra volumes from the information system to k8s volumes
+                Dicts should have an entry for each of the extra volumes as follows:
+                {
+                    'name-of-extra-volume': {
+                        'mount_path': '/home/jovyan/dataspace',
+                        'volume': { k8s object defining the volume},
+                    }
+                }
+            """,
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.allowed_profiles = []
+        self.server_options = []
+        self._orig_volumes = self.volumes
+        self._orig_volume_mounts = self.volume_mounts
 
     def get_args(self):
         args = super().get_args()
@@ -312,22 +378,94 @@ class D4ScienceSpawner(KubeSpawner):
             "--NotebookApp.iopub_data_rate_limit=100000000",
         ] + args
 
+    def get_volume_name(self, name):
+        return name.strip().lower().replace(" ", "-")
+
     def auth_state_hook(self, spawner, auth_state):
-        permissions = auth_state.get("permissions", None)
-        # this will filter according to permissions
-        # Assuming that there are no permissions coming from D4Science,
-        # the everything is allowed
-        if spawner.profile_list and permissions:
-            allowed_profiles = [claim["rsname"] for claim in permissions]
-            self.log.debug("allowed profiles: %s", allowed_profiles)
-            spawner.profile_list = list(
-                filter(
-                    lambda x: x.get("profile_type", None) in allowed_profiles,
-                    self.profile_list,
+        if not auth_state:
+            return
+        # just get from the authenticator
+        permissions = auth_state.get("permissions", [])
+        self.allowed_profiles = [claim["rsname"] for claim in permissions]
+        resources = auth_state.get("resources", {})
+        self.server_options = {}
+        volume_options = {}
+        try:
+            resource_list = resources["genericResources"]["Resource"]
+            if not isinstance(resource_list, list):
+                resource_list = [resource_list]
+            for opt in resource_list:
+                p = opt.get("Profile", {}).get("Body", {})
+                if p.get("ServerOption", None):
+                    self.server_options[p["ServerOption"]["AuthId"]] = p["ServerOption"]
+                elif p.get("VolumeOption", None):
+                    volume_options[p["VolumeOption"]["Name"]] = p["VolumeOption"][
+                        "Permission"
+                    ]
+        except KeyError:
+            self.log.debug("Unexpected resource response from D4Science")
+
+        self.volumes = self._orig_volumes.copy()
+        self.volume_mounts = self._orig_volume_mounts.copy()
+        for name, permission in volume_options.items():
+            if name in self.volume_mappings:
+                vol_name = self.get_volume_name(name)
+                vol = {"name": (vol_name)}
+                vol.update(self.volume_mappings[name]["volume"])
+                self.volumes.append(vol)
+                self.volume_mounts.append(
+                    {
+                        "name": vol_name,
+                        "mountPath": self.volume_mappings[name]["mount_path"],
+                        "readOnly": permission == "Read-only",
+                    },
                 )
-            )
+        self.log.debug("allowed: %s", self.allowed_profiles)
+        self.log.debug("opts: %s", self.server_options)
+        self.log.debug("volume_options %s", volume_options)
+        self.log.debug("volumes: %s", self.volumes)
+        self.log.debug("volume_mounts: %s", self.volume_mounts)
+        self.log.debug("volume_mappings: %s", self.volume_mappings)
+
+    def profile_list(self, spawner):
+        # returns the list of profiles built according to the permissions
+        # and resource definition that the authenticator obtained initially
+        if not (self.allowed_profiles and self.server_options):
+            return []
+
+        profiles = []
+        for allowed in self.allowed_profiles:
+            p = self.server_options.get(allowed, None)
+            if not p:
+                continue
+            override = {}
+            name = p.get("Info", {}).get("Name", "")
+            if "ImageId" in p:
+                override["image"] = p.get("ImageId", None)
+            if "Cut" in p:
+                cut_info = []
+                if "Cores" in p["Cut"]:
+                    override["cpu_limit"] = float(p["Cut"]["Cores"])
+                    cut_info.append(f"{p['Cut']['Cores']} Cores")
+                if "Memory" in p["Cut"]:
+                    override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
+                    cut_info.append(f"{override['mem_limit']} RAM")
+                name += " - %s" % " / ".join(cut_info)
+            profile = {
+                "display_name": name,
+                "description": p.get("Info", {}).get("Description", ""),
+                "slug": p.get("AuthId", ""),
+                "kubespawner_override": override,
+                "default": p.get("@default", {}) == "true",
+            }
+            if profile["default"]:
+                profiles.insert(0, profile)
+            else:
+                profiles.append(profile)
+        return profiles
 
     async def pre_spawn_hook(self, spawner):
+        # add volumes as defined in the D4Science info sys
         gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
         context = spawner.environment.get("GCUBE_CONTEXT", "")
         if context:
