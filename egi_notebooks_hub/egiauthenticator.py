@@ -80,6 +80,34 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
+    async def authenticate(self, handler, data=None):
+        user_info = await super().authenticate(handler, data)
+        if user_info is None or self.claim_groups_key is None:
+            return user_info
+        auth_state = user_info.get("auth_state", {})
+        oauth_user = auth_state.get("oauth_user", {})
+        if not oauth_user:
+            self.log.warning("Missing OAuth info")
+            return user_info
+
+        # get groups by "claim_group_key"
+        groups = []
+        if callable(self.claim_groups_key):
+            groups = self.claim_groups_key(oauth_user)
+        else:
+            groups = oauth_user.get(self.claim_groups_key, [])
+        self.log.info("Groups: %s", groups)
+        auth_state["groups"] = groups
+
+        # first group as the primary, priority is governed by ordering in
+        # Authenticator.allowed_groups
+        first_group = next((v for v in self.allowed_groups if v in groups), None)
+        self.log.info("Primary group: %s", first_group)
+        if first_group:
+            auth_state["primary_group"] = first_group
+
+        return user_info
+
     # Refresh auth data for user
     async def refresh_user(self, user, handler=None):
         auth_state = await user.get_auth_state()
