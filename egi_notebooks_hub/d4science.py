@@ -356,7 +356,7 @@ class D4ScienceSpawner(KubeSpawner):
     extra_profiles = List(
         [],
         config=True,
-        help="""Extra profiles to add to user options independenlty of the configuration
+        help="""Extra profiles to add to user options independently of the configuration
                 from the D4Science Information System. The profiles should be a list of
                 dictionaries as defined in the Kubespanwer
                 https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html#kubespawner.KubeSpawner.profile_list
