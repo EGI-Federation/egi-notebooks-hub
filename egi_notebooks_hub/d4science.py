@@ -26,7 +26,7 @@ from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from tornado.httputil import url_concat
-from traitlets import Dict, Unicode
+from traitlets import Dict, List, Unicode
 
 D4SCIENCE_SOCIAL_URL = os.environ.get(
     "D4SCIENCE_SOCIAL_URL",
@@ -353,6 +353,15 @@ class D4ScienceSpawner(KubeSpawner):
                 }
             """,
     )
+    extra_profiles = List(
+        [],
+        config=True,
+        help="""Extra profiles to add to user options independenlty of the configuration
+                from the D4Science Information System. The profiles should be a list of
+                dictionaries as defined in the Kubespanwer
+                https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html#kubespawner.KubeSpawner.profile_list
+            """,
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -462,6 +471,8 @@ class D4ScienceSpawner(KubeSpawner):
                 profiles.insert(0, profile)
             else:
                 profiles.append(profile)
+        if self.extra_profiles:
+            profiles.extend(self.extra_profiles)
         return profiles
 
     async def pre_spawn_hook(self, spawner):
