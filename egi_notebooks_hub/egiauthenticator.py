@@ -29,15 +29,15 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     @default("authorize_url")
     def _authorize_url_default(self):
-        return "https://%s/oidc/authorize" % self.checkin_host
+        return "https://%s/auth/realms/egi/protocol/openid-connect/auth" % self.checkin_host
 
     @default("token_url")
     def _token_url_default(self):
-        return "https://%s/oidc/token" % self.checkin_host
+        return "https://%s/auth/realms/egi/protocol/openid-connect/token" % self.checkin_host
 
     @default("userdata_url")
     def _userdata_url_default(self):
-        return "https://%s/oidc/userinfo" % self.checkin_host
+        return "https://%s/auth/realms/egi/protocol/openid-connect/userinfo" % self.checkin_host
 
     client_id_env = "EGICHECKIN_CLIENT_ID"
     client_secret_env = "EGICHECKIN_CLIENT_SECRET"
