@@ -5,14 +5,7 @@ import base64
 import datetime
 import json
 import os
-from urllib.parse import (
-    parse_qs,
-    quote_plus,
-    unquote,
-    urlencode,
-    urlparse,
-    urlunparse,
-)
+from urllib.parse import parse_qs, quote_plus, unquote, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree
 
 import jwt
