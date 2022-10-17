@@ -473,7 +473,7 @@ class D4ScienceSpawner(KubeSpawner):
                 profiles.append(profile)
         if self.extra_profiles:
             profiles.extend(self.extra_profiles)
-        sorted_profiles = sorted(profiles, key=lambda x: x['display_name'])
+        sorted_profiles = sorted(profiles, key=lambda x: x["display_name"])
         return sorted_profiles
 
     async def pre_spawn_hook(self, spawner):
