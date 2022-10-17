@@ -5,14 +5,7 @@ import base64
 import datetime
 import json
 import os
-from urllib.parse import (
-    parse_qs,
-    quote_plus,
-    unquote,
-    urlencode,
-    urlparse,
-    urlunparse,
-)
+from urllib.parse import parse_qs, quote_plus, unquote, urlencode, urlparse, urlunparse
 from xml.etree import ElementTree
 
 import jwt
@@ -473,7 +466,8 @@ class D4ScienceSpawner(KubeSpawner):
                 profiles.append(profile)
         if self.extra_profiles:
             profiles.extend(self.extra_profiles)
-        return profiles
+        sorted_profiles = sorted(profiles, key=lambda x: x["display_name"])
+        return sorted_profiles
 
     async def pre_spawn_hook(self, spawner):
         # add volumes as defined in the D4Science info sys
