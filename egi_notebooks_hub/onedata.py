@@ -381,7 +381,7 @@ class OnedataSpawner(EGISpawner):
                 "volumeMounts": volume_mounts,
                 "lifecycle": {
                     "preStop": {
-                        "exec": {"command": ["fusermount", "-u", self.mount_point]}
+                        "exec": {"command": ["fusermount", "-uz", self.mount_point]}
                     },
                 },
             }
