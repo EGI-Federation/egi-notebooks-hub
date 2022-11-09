@@ -44,7 +44,7 @@ body {
 
 {% block logo %}
 <span id="jupyterhub-logo" class="pull-left">
-    <a href="{{logo_url or base_url}}"><img src='{{ static_url('images/egi-logo.svg') }}' alt='EGI Notebooks' class='egi-logo' title='Home'/></a>
+  <a href="{{logo_url or base_url}}"><img src="{{ static_url('images/egi-logo.svg') }}" alt="EGI Notebooks" class="egi-logo" title="Home"></a>
 </span>
 {% endblock %}
 
