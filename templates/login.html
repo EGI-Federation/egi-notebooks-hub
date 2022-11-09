@@ -4,8 +4,16 @@
   {% set announcement = announcement_login %}
 {% endif %}
 
-{% block main %}
+{% block nav_bar_right_items %}
+<li>
+  <span id="user-guide">
+  <a role="button" class="navbar-btn btn-sm btn btn-egi" href="https://docs.egi.eu/users/notebooks/">
+      <i aria-hidden="true" class="fa fa-book"></i> User Guide</a>
+  </span>
+</li>
+{% endblock %}
 
+{% block main %}
 {% block login %}
 <div id="login-main" class="container">
 <div class="jumbotron">

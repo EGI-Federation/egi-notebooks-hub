@@ -35,6 +35,11 @@ body {
 .egi-logo {
     height: 60px;
     margin-top: 10px;
+    margin-right: 20px;
+}
+
+.navbar {
+   min-height: 70px;
 }
 </style>
 {% endblock %}
@@ -46,14 +51,4 @@ body {
 <span id="jupyterhub-logo" class="pull-left">
   <a href="{{logo_url or base_url}}"><img src="{{ static_url('images/egi-logo.svg') }}" alt="EGI Notebooks" class="egi-logo" title="Home"></a>
 </span>
-{% endblock %}
-
-{% block nav_bar_right_items %}
-<li>
-  <span id="user-guide">
-  <a role="button" class="navbar-btn btn-sm btn btn-egi" href="https://docs.egi.eu/users/notebooks/">
-      <i aria-hidden="true" class="fa fa-book"></i> User Guide</a>
-  </span>
-</li>
-
 {% endblock %}
