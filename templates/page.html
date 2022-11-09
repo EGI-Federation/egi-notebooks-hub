@@ -1,3 +1,59 @@
+<!-- htmlhint doctype-first:false -->
 {% extends "templates/page.html" %}
 
+{% block stylesheet %}
+{{ super() }}
+<style>
+.jumbotron {
+  background-color: transparent;
+}
+.btn-egi {
+  background-color: #0067b1;
+  color: #fff;
+}
+.btn-egi:hover {
+  color: #999999;
+}
+.spacer-lg { margin:0; padding:0; height:100px; }
+.spacer-sm { margin:0; padding:0; height:50px; }
+
+/* Footer */
+html {
+  position: relative;
+  min-height: 100%;
+}
+body {
+  margin-bottom: 60px; /* Margin bottom by footer height */
+}
+.footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 60px; /* Set the fixed height of the footer here */
+}
+
+.egi-logo {
+    height: 60px;
+    margin-top: 10px;
+}
+</style>
+{% endblock %}
+
+
 {% block title %}EGI Notebooks{% endblock %}
+
+{% block logo %}
+<span id="jupyterhub-logo" class="pull-left">
+    <a href="{{logo_url or base_url}}"><img src='{{ static_url('images/egi-logo.svg') }}' alt='EGI Notebooks' class='egi-logo' title='Home'/></a>
+</span>
+{% endblock %}
+
+{% block nav_bar_right_items %}
+<li>
+  <span id="user-guide">
+  <a role="button" class="navbar-btn btn-sm btn btn-egi" href="https://docs.egi.eu/users/notebooks/">
+      <i aria-hidden="true" class="fa fa-book"></i> User Guide</a>
+  </span>
+</li>
+
+{% endblock %}
