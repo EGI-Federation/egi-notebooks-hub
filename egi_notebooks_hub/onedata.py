@@ -330,7 +330,7 @@ class OnedataSpawner(EGISpawner):
         return resp_json.get("spaces", [])
 
     async def pre_spawn_hook(self, spawner):
-        super().pre_spawn_hook(spawner)
+        await super().pre_spawn_hook(spawner)
         host = spawner.environment.get(self.oneprovider_env, "")
         token = spawner.environment.get(self.token_env, "")
         onezone_url = spawner.environment.get(self.onezone_env, "")
