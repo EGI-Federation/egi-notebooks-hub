@@ -125,6 +125,8 @@ class EGISpawner(KubeSpawner):
         await self._update_secret(data)
 
     def auth_state_hook(self, spawner, auth_state):
+        if not auth_state:
+            return
         groups = auth_state.get("groups", [])
         if spawner.profile_list:
             new_profile_list = []
