@@ -143,8 +143,7 @@ class EGISpawner(KubeSpawner):
                 "primary_group"
             ]
 
-    async def pre_spawn_start(self, user, spawner):
-        await super(EGISpawner, self).pre_spawn_start(user, spawner)
+    async def pre_spawn_hook(self, spawner):
         # deal here with the pvc names as there is no async option
         # in the get_pvc_manifest
         pvcs = await self.api.list_namespaced_persistent_volume_claim(
