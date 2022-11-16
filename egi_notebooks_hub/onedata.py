@@ -126,7 +126,7 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
         return onedata_token, onedata_user
 
     async def authenticate(self, handler, data=None):
-        user_data = await super(OnedataAuthenticator, self).authenticate(handler, data)
+        user_data = await super().authenticate(handler, data)
         if not user_data:
             return user_data
         access_token = user_data.get("auth_state", {}).get("access_token", None)
@@ -154,7 +154,7 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
-        await super(OnedataAuthenticator, self).pre_spawn_start(user, spawner)
+        await super().pre_spawn_start(user, spawner)
         auth_state = await user.get_auth_state()
         if not auth_state:
             # auth_state not enabled
@@ -330,6 +330,7 @@ class OnedataSpawner(EGISpawner):
         return resp_json.get("spaces", [])
 
     async def pre_spawn_hook(self, spawner):
+        super().pre_spawn_hook(spawner)
         host = spawner.environment.get(self.oneprovider_env, "")
         token = spawner.environment.get(self.token_env, "")
         onezone_url = spawner.environment.get(self.onezone_env, "")
