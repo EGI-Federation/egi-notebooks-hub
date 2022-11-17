@@ -124,7 +124,7 @@ class EGISpawner(KubeSpawner):
             data["id_token"] = base64.b64encode(id_token.encode()).decode()
         await self._update_secret(data)
 
-    def auth_state_hook(self, spawner, auth_state):
+    async def auth_state_hook(self, spawner, auth_state):
         if not auth_state:
             return
         groups = auth_state.get("groups", [])

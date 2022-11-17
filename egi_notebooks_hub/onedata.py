@@ -285,7 +285,7 @@ class OnedataSpawner(EGISpawner):
 
     extra_mounts = List([], config=True, help="""extra volume mounts in k8s""")
 
-    def auth_state_hook(self, spawner, auth_state):
+    async def auth_state_hook(self, spawner, auth_state):
         super().auth_state_hook(spawner, auth_state)
         # get onedata stuff ready to be used later on
         if auth_state is None:
