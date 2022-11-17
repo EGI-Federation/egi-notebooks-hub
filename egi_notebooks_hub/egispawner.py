@@ -167,4 +167,4 @@ class EGISpawner(KubeSpawner):
             vols.append(v)
         self.volumes = vols
         # ensure we have a secret
-        await self._update_secret(data)
+        await self._update_secret({})
