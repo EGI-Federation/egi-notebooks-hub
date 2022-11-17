@@ -166,3 +166,5 @@ class EGISpawner(KubeSpawner):
                 v["persistentVolumeClaim"]["claimName"] = self.pvc_name
             vols.append(v)
         self.volumes = vols
+        # ensure we have a secret
+        await self._update_secret(data)
