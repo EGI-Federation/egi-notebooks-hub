@@ -139,12 +139,14 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             "Accept": "application/json",
             "User-Agent": "JupyterHub",
         }
-        body = urlencode(dict(
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            grant_type="refresh_token",
-            refresh_token=auth_state["refresh_token"],
-            scope=" ".join(self.scope),
+        body = urlencode(
+            dict(
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                grant_type="refresh_token",
+                refresh_token=auth_state["refresh_token"],
+                scope=" ".join(self.scope),
+            )
         )
         req = HTTPRequest(
             self.token_url,
