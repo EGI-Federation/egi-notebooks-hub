@@ -154,7 +154,6 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
-        await super().pre_spawn_start(user, spawner)
         auth_state = await user.get_auth_state()
         if not auth_state:
             # auth_state not enabled
