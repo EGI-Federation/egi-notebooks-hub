@@ -96,7 +96,11 @@ class EGISpawner(KubeSpawner):
             pass
         secret_data.update(new_data)
         # remove empty data
-        data = {k: base64.b64encode(v.encode()).decode() for k, v in secret_data.items() if v}
+        data = {
+            k: base64.b64encode(v.encode()).decode()
+            for k, v in secret_data.items()
+            if v
+        }
         secret = self._get_secret_manifest(data)
         try:
             await self.api.replace_namespaced_secret(
@@ -119,16 +123,19 @@ class EGISpawner(KubeSpawner):
 
     async def set_access_token(self, access_token, id_token=None):
         """updates the secret in k8s with the token of the user"""
-        await self._update_secret({
-            "access_token": access_token,
-            "id_token": id_token,
-        })
+        await self._update_secret(
+            {
+                "access_token": access_token,
+                "id_token": id_token,
+            }
+        )
 
     async def auth_state_hook(self, spawner, auth_state):
         if not auth_state:
             return
-        await spawner.set_access_token(auth_state.get("access_token", None),
-                                       auth_state.get("id_token", None))
+        await spawner.set_access_token(
+            auth_state.get("access_token", None), auth_state.get("id_token", None)
+        )
         groups = auth_state.get("groups", [])
         if spawner.profile_list:
             new_profile_list = []
