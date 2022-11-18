@@ -128,7 +128,7 @@ class EGISpawner(KubeSpawner):
         if not auth_state:
             return
         await spawner.set_access_token(auth_state.get("access_token", None),
-                                       refresh_info.get("id_token", None))
+                                       auth_state.get("id_token", None))
         groups = auth_state.get("groups", [])
         if spawner.profile_list:
             new_profile_list = []

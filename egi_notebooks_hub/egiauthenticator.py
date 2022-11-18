@@ -167,5 +167,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         auth_state["access_token"] = refresh_info["access_token"]
         if "refresh_token" in refresh_info:
             auth_state["refresh_token"] = refresh_info["refresh_token"]
+        if "id_token" in refresh_info:
+            auth_state["id_token"] = refresh_info["id_token"]
         self.log.debug("Refreshed token for user!")
         return {"auth_state": auth_state}
