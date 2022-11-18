@@ -83,7 +83,9 @@ class EGISpawner(KubeSpawner):
         return secret
 
     async def _update_secret(self, new_data):
-        """Updates the secret. Remove keys with a dict with None or "" as value for those keys"""
+        """Updates the secret.
+
+        Remove keys with a dict with None or "" as value for those keys"""
         secret_data = {}
         try:
             current_secret = await self.api.read_namespaced_secret(
