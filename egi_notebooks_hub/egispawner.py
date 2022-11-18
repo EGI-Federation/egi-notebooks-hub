@@ -82,18 +82,21 @@ class EGISpawner(KubeSpawner):
         secret = V1Secret(metadata=meta, type="Opaque", data=data)
         return secret
 
-    async def _update_secret(self, secret_data):
-        data = {}
+    async def _update_secret(self, new_data):
+        """Updates the secret. Remove keys with a dict with None or "" as value for those keys"""
+        secret_data = {}
         try:
             current_secret = await self.api.read_namespaced_secret(
                 self.token_secret_name, self.namespace
             )
             if current_secret and current_secret.data:
-                data = current_secret.data
+                secret_data = current_secret.data
         except ApiException:
             # no secret, no problem
             pass
-        data.update(secret_data)
+        secret_data.update(new_data)
+        # remove empty data
+        data = {k: v for k, v in secret_data.items() if v}
         secret = self._get_secret_manifest(data)
         try:
             await self.api.patch_namespaced_secret(
