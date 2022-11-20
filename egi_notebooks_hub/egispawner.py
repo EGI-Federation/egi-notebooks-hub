@@ -96,13 +96,13 @@ class EGISpawner(KubeSpawner):
         except ApiException:
             # no secret, no problem
             pass
-        secret_data.update(new_data)
-        # remove empty data
-        data = {
-            k: base64.b64encode(v.encode()).decode()
-            for k, v in secret_data.items()
-            if v
+        # encode coming data
+        new_encoded = {
+            k: base64.b64encode(v.encode()).decode() for k, v in new_data.items()
         }
+        secret_data.update(new_encoded)
+        # remove empty data
+        data = {k: v for k, v in secret_data.items() if v}
         secret = self._get_secret_manifest(data)
         try:
             await self.api.replace_namespaced_secret(
