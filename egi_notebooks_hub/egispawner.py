@@ -98,7 +98,9 @@ class EGISpawner(KubeSpawner):
             pass
         # encode coming data
         new_encoded = {
-            k: base64.b64encode(v.encode()).decode() for k, v in new_data.items()
+            k: base64.b64encode(v.encode()).decode()
+            for k, v in new_data.items()
+            if v is not None
         }
         secret_data.update(new_encoded)
         # remove empty data
