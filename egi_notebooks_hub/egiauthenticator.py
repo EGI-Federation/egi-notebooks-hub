@@ -7,10 +7,10 @@ Uses OpenID Connect with aai.egi.eu
 import json
 import os
 import time
+from urllib.parse import urlencode
 
 from oauthenticator.generic import GenericOAuthenticator
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
-from tornado.httputil import url_concat
 from traitlets import List, Unicode, default, validate
 
 
@@ -139,21 +139,22 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             "Accept": "application/json",
             "User-Agent": "JupyterHub",
         }
-        params = dict(
-            client_id=self.client_id,
-            client_secret=self.client_secret,
-            grant_type="refresh_token",
-            refresh_token=auth_state["refresh_token"],
-            scope=" ".join(self.scope),
+        body = urlencode(
+            dict(
+                client_id=self.client_id,
+                client_secret=self.client_secret,
+                grant_type="refresh_token",
+                refresh_token=auth_state["refresh_token"],
+                scope=" ".join(self.scope),
+            )
         )
-        url = url_concat(self.token_url, params)
         req = HTTPRequest(
-            url,
+            self.token_url,
             auth_username=self.client_id,
             auth_password=self.client_secret,
             headers=headers,
             method="POST",
-            body="",
+            body=body,
         )
         try:
             resp = await http_client.fetch(req)
@@ -164,15 +165,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         refresh_info["expiry_time"] = now + refresh_info["expires_in"]
         auth_state["refresh_info"] = refresh_info
         auth_state["access_token"] = refresh_info["access_token"]
-        auth_state["refresh_token"] = refresh_info["refresh_token"]
+        if "refresh_token" in refresh_info:
+            auth_state["refresh_token"] = refresh_info["refresh_token"]
+        if "id_token" in refresh_info:
+            auth_state["id_token"] = refresh_info["id_token"]
         self.log.debug("Refreshed token for user!")
-        if callable(getattr(user.spawner, "set_access_token", None)):
-            user.spawner.set_access_token(
-                auth_state["access_token"], refresh_info.get("id_token", None)
-            )
         return {"auth_state": auth_state}
-
-    async def pre_spawn_start(self, user, spawner):
-        auth_state = await user.get_auth_state()
-        if auth_state and callable(getattr(user.spawner, "set_access_token", None)):
-            user.spawner.set_access_token(auth_state["access_token"])

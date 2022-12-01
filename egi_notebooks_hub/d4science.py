@@ -383,7 +383,7 @@ class D4ScienceSpawner(KubeSpawner):
     def get_volume_name(self, name):
         return name.strip().lower().replace(" ", "-")
 
-    def auth_state_hook(self, spawner, auth_state):
+    async def auth_state_hook(self, spawner, auth_state):
         if not auth_state:
             return
         # just get from the authenticator

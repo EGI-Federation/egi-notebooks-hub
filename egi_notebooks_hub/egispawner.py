@@ -4,8 +4,8 @@
 import base64
 import uuid
 
-from kubernetes.client import V1ObjectMeta, V1Secret
-from kubernetes.client.rest import ApiException
+from kubernetes_asyncio.client import V1ObjectMeta, V1Secret
+from kubernetes_asyncio.client.rest import ApiException
 from kubespawner import KubeSpawner
 from traitlets import Unicode
 
@@ -65,29 +65,6 @@ class EGISpawner(KubeSpawner):
                 "readOnly": True,
             }
         )
-        self._create_token_secret()
-
-    def get_pvc_manifest(self):
-        """Tries to fix volumes of to avoid issues with too long user names"""
-        pvcs = self.api.list_namespaced_persistent_volume_claim(
-            namespace=self.namespace
-        )
-        for pvc in pvcs.items:
-            if (
-                pvc.metadata.annotations.get("hub.jupyter.org/username", "")
-                == self.user.name
-            ):
-                self.pvc_name = pvc.metadata.name
-                break
-        vols = []
-        # pylint: disable=access-member-before-definition
-        for v in self.volumes:
-            claim = v.get("persistentVolumeClaim", {})
-            if claim.get("claimName", "").startswith("claim-"):
-                v["persistentVolumeClaim"]["claimName"] = self.pvc_name
-            vols.append(v)
-        self.volumes = vols
-        return super().get_pvc_manifest()
 
     # overriding this one to avoid long usernames as labels
     def _build_common_labels(self, extra_labels):
@@ -105,37 +82,64 @@ class EGISpawner(KubeSpawner):
         secret = V1Secret(metadata=meta, type="Opaque", data=data)
         return secret
 
-    def _create_token_secret(self):
-        secret = self._get_secret_manifest({})
+    async def _update_secret(self, new_data):
+        """Updates the secret.
+
+        Remove keys with a dict with None or "" as value for those keys"""
+        secret_data = {}
         try:
-            self.api.create_namespaced_secret(namespace=self.namespace, body=secret)
-            self.log.info("Created access token secret %s", self.token_secret_name)
+            current_secret = await self.api.read_namespaced_secret(
+                self.token_secret_name, self.namespace
+            )
+            if current_secret and current_secret.data:
+                secret_data = current_secret.data
+        except ApiException:
+            # no secret, no problem
+            pass
+        # encode coming data
+        new_encoded = {
+            k: base64.b64encode(v.encode()).decode()
+            for k, v in new_data.items()
+            if v is not None
+        }
+        secret_data.update(new_encoded)
+        # remove empty data
+        data = {k: v for k, v in secret_data.items() if v}
+        secret = self._get_secret_manifest(data)
+        try:
+            await self.api.replace_namespaced_secret(
+                name=self.token_secret_name, namespace=self.namespace, body=secret
+            )
         except ApiException as e:
-            if e.status == 409:
-                self.log.info("Secret %s exists, not creating", self.token_secret_name)
+            # maybe it does not exist yet?
+            if e.status == 404:
+                try:
+                    self.log.info(
+                        "Creating access token secret %s", self.token_secret_name
+                    )
+                    await self.api.create_namespaced_secret(
+                        namespace=self.namespace, body=secret
+                    )
+                except ApiException:
+                    raise
             else:
                 raise
 
-    def _update_token_secret(self, data):
-        secret = self._get_secret_manifest(data)
-        try:
-            self.api.patch_namespaced_secret(
-                name=self.token_secret_name, namespace=self.namespace, body=secret
-            )
-        except ApiException:
-            raise
-
-    def set_access_token(self, access_token, id_token=None):
+    async def set_access_token(self, access_token, id_token=None):
         """updates the secret in k8s with the token of the user"""
-        data = {
-            "access_token": base64.b64encode(access_token.encode()).decode(),
-            "id_token": None,
-        }
-        if id_token:
-            data["id_token"] = base64.b64encode(id_token.encode()).decode()
-        self._update_token_secret(data)
+        await self._update_secret(
+            {
+                "access_token": access_token,
+                "id_token": id_token,
+            }
+        )
 
-    def auth_state_hook(self, spawner, auth_state):
+    async def auth_state_hook(self, spawner, auth_state):
+        if not auth_state:
+            return
+        await spawner.set_access_token(
+            auth_state.get("access_token", None), auth_state.get("id_token", None)
+        )
         groups = auth_state.get("groups", [])
         if spawner.profile_list:
             new_profile_list = []
@@ -153,3 +157,27 @@ class EGISpawner(KubeSpawner):
             spawner.extra_annotations["egi.eu/primary_group"] = auth_state[
                 "primary_group"
             ]
+
+    async def pre_spawn_hook(self, spawner):
+        # deal here with the pvc names as there is no async option
+        # in the get_pvc_manifest
+        pvcs = await self.api.list_namespaced_persistent_volume_claim(
+            namespace=self.namespace
+        )
+        for pvc in pvcs.items:
+            if (
+                pvc.metadata.annotations.get("hub.jupyter.org/username", "")
+                == self.user.name
+            ):
+                self.pvc_name = pvc.metadata.name
+                break
+        vols = []
+        # pylint: disable=access-member-before-definition
+        for v in self.volumes:
+            claim = v.get("persistentVolumeClaim", {})
+            if claim.get("claimName", "").startswith("claim-"):
+                v["persistentVolumeClaim"]["claimName"] = self.pvc_name
+            vols.append(v)
+        self.volumes = vols
+        # ensure we have a secret
+        await self._update_secret({})
