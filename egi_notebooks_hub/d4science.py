@@ -184,10 +184,10 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             return
         # GCUBE_TOKEN should be removed in the future
         spawner.environment["GCUBE_TOKEN"] = auth_state["context_token"]
-        spawner.environment["ACCESS_TOKEN"] = auth_state["context_token"]
+        spawner.environment["D4SCIENCE_TOKEN"] = auth_state["context_token"]
         # GCUBE_CONTEXT should be removed in the future
         spawner.environment["GCUBE_CONTEXT"] = unquote(auth_state["context"])
-        spawner.environment["CONTEXT"] = unquote(auth_state["context"])
+        spawner.environment["D4SCIENCE_CONTEXT"] = unquote(auth_state["context"])
 
 
 class D4ScienceSpawner(KubeSpawner):
@@ -339,7 +339,7 @@ class D4ScienceSpawner(KubeSpawner):
 
     async def pre_spawn_hook(self, spawner):
         # add volumes as defined in the D4Science info sys
-        access_token = spawner.environment.get("ACCESS_TOKEN", "")
+        token = spawner.environment.get("D4SCIENCE_TOKEN", "")
         context = spawner.environment.get("D4SCIENCE_CONTEXT", "")
         if context:
             # set the whole context as annotation (needed for accounting)
@@ -348,7 +348,7 @@ class D4ScienceSpawner(KubeSpawner):
             vre = context[context.rindex("/") + 1 :]
             spawner.log.debug("VRE: %s", vre)
             spawner.environment["VRE"] = vre
-        if access_token:
+        if token:
             spawner.extra_containers = [
                 {
                     "name": "workspace-sidecar",
@@ -360,7 +360,7 @@ class D4ScienceSpawner(KubeSpawner):
                     },
                     "env": [
                         {"name": "MNTPATH", "value": "/workspace"},
-                        {"name": "ACCESS_TOKEN", "value": access_token},
+                        {"name": "D4SCIENCE_TOKEN", "value": token},
                     ],
                     "volumeMounts": [
                         {"mountPath": "/workspace:shared", "name": "workspace"},
