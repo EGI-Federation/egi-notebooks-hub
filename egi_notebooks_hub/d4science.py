@@ -33,6 +33,7 @@ JUPYTERHUB_INFOSYS_URL = os.environ.get(
     D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub",
 )
 
+
 class D4ScienceContextHandler(OAuthLoginHandler):
     def get_state(self):
         context = self.get_argument("context", None)
@@ -176,14 +177,17 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
-        """Pass gcube-token to spawner via environment variable"""
+        """Pass relevant variables to spawner via environment variable"""
         auth_state = await user.get_auth_state()
         if not auth_state:
             # auth_state not enabled
             return
+        # GCUBE_TOKEN should be removed in the future
         spawner.environment["GCUBE_TOKEN"] = auth_state["context_token"]
-        # spawner.environment["DATAMINER_URL"] = auth_state["wps-endpoint"]
+        spawner.environment["ACCESS_TOKEN"] = auth_state["context_token"]
+        # GCUBE_CONTEXT should be removed in the future
         spawner.environment["GCUBE_CONTEXT"] = unquote(auth_state["context"])
+        spawner.environment["CONTEXT"] = unquote(auth_state["context"])
 
 
 class D4ScienceSpawner(KubeSpawner):
@@ -335,16 +339,16 @@ class D4ScienceSpawner(KubeSpawner):
 
     async def pre_spawn_hook(self, spawner):
         # add volumes as defined in the D4Science info sys
-        gcube_token = spawner.environment.get("GCUBE_TOKEN", "")
-        context = spawner.environment.get("GCUBE_CONTEXT", "")
+        access_token = spawner.environment.get("ACCESS_TOKEN", "")
+        context = spawner.environment.get("D4SCIENCE_CONTEXT", "")
         if context:
             # set the whole context as annotation (needed for accounting)
             spawner.extra_annotations["d4science_context"] = context
             # set only the VRE name in the environment (needed for NFS subpath)
             vre = context[context.rindex("/") + 1 :]
-            spawner.log.info("VRE: %s", vre)
+            spawner.log.debug("VRE: %s", vre)
             spawner.environment["VRE"] = vre
-        if gcube_token:
+        if access_token:
             spawner.extra_containers = [
                 {
                     "name": "workspace-sidecar",
@@ -356,7 +360,7 @@ class D4ScienceSpawner(KubeSpawner):
                     },
                     "env": [
                         {"name": "MNTPATH", "value": "/workspace"},
-                        {"name": "GCUBE_TOKEN", "value": gcube_token},
+                        {"name": "ACCESS_TOKEN", "value": access_token},
                     ],
                     "volumeMounts": [
                         {"mountPath": "/workspace:shared", "name": "workspace"},
