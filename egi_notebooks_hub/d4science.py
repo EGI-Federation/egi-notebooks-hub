@@ -2,23 +2,18 @@
 """
 
 import base64
-import datetime
 import json
 import os
-from urllib.parse import parse_qs, quote_plus, unquote, urlencode, urlparse, urlunparse
-from xml.etree import ElementTree
+from urllib.parse import quote_plus, unquote, urlencode
 
 import jwt
 import xmltodict
-from jupyterhub.auth import Authenticator
-from jupyterhub.handlers import BaseHandler
 from jupyterhub.utils import url_path_join
 from kubespawner import KubeSpawner
 from oauthenticator.generic import GenericOAuthenticator
 from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
-from tornado.httputil import url_concat
 from traitlets import Dict, List, Unicode
 
 D4SCIENCE_REGISTRY_BASE_URL = os.environ.get(
