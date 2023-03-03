@@ -16,6 +16,7 @@ from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Dict, List, Unicode
 
+
 D4SCIENCE_REGISTRY_BASE_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_BASE_URL",
     "https://registry.d4science.org/icproxy/gcube/service",
@@ -26,6 +27,14 @@ D4SCIENCE_OIDC_URL = os.environ.get(
 JUPYTERHUB_INFOSYS_URL = os.environ.get(
     "JUPYTERHUB_INFOSYS_URL",
     D4SCIENCE_REGISTRY_BASE_URL + "/GenericResource/JupyterHub",
+)
+DM_INFOSYS_URL = os.environ.get(
+    "DM_INFOSYS_URL",
+    D4SCIENCE_REGISTRY_BASE_URL + "/ServiceEndpoint/DataAnalysis/DataMiner",
+)
+D4SCIENCE_DISCOVER_WPS = os.environ.get(
+    "D4SCIENCE_DISCOVER_WPS",
+    "false",
 )
 
 
@@ -47,6 +56,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         JUPYTERHUB_INFOSYS_URL,
         config=True,
         help="""The URL for getting JupyterHub profiles from the
+                Information System of D4science""",
+    )
+    dm_infosys_url = Unicode(
+        DM_INFOSYS_URL,
+        config=True,
+        help="""The URL for getting DataMiner resources from the
                 Information System of D4science""",
     )
 
@@ -119,6 +134,38 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         self.log.debug("Decoded token: %s", decoded_token)
         return token, decoded_token
 
+    async def get_wps(self, access_token):
+        # discover WPS if enabled
+        wps_endpoint = {}
+        if D4SCIENCE_DISCOVER_WPS.lower() in ["true", "1"]:
+            http_client = AsyncHTTPClient()
+            req = HTTPRequest(
+                self.dm_infosys_url,
+                method="GET",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                },
+            )
+            try:
+                resp = await http_client.fetch(req)
+            except HTTPError as e:
+                self.log.warning("Unable to get the resources for user: %s", e)
+                self.log.debug(req)
+                # no need to fail here
+                return wps_endpoint
+            dm = xmltodict.parse(resp.body)
+            try:
+                for ap in dm["serviceEndpoints"]["Resource"]["Profile"]["AccessPoint"]:
+                    if ap["Interface"]["Endpoint"]["@EntryName"] == "Cluster":
+                        wps_endpoint = {
+                            "D4SCIENCE_WPS_URL": ap["Interface"]["Endpoint"]["#text"]
+                        }
+            except KeyError as e:
+                # unexpected xml, just keep going
+                self.log.warning("Unexpected XML: %s", e)
+                self.log.debug(dm)
+        return wps_endpoint
+
     async def get_resources(self, access_token):
         http_client = AsyncHTTPClient()
         req = HTTPRequest(
@@ -169,6 +216,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "resources": resources,
             }
         )
+        # get WPS endpoint in also
+        user_data["auth_state"].update(await self.get_wps(ws_token))
         return user_data
 
     async def pre_spawn_start(self, user, spawner):
@@ -183,6 +232,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         # GCUBE_CONTEXT should be removed in the future
         spawner.environment["GCUBE_CONTEXT"] = unquote(auth_state["context"])
         spawner.environment["D4SCIENCE_CONTEXT"] = unquote(auth_state["context"])
+        if "D4SCIENCE_WPS_URL" in auth_state:
+            spawner.environment["DATAMINER_URL"] = auth_state["D4SCIENCE_WPS_URL"]
 
 
 class D4ScienceSpawner(KubeSpawner):
