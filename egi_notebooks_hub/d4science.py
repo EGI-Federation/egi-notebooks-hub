@@ -16,7 +16,6 @@ from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Dict, List, Unicode
 
-
 D4SCIENCE_REGISTRY_BASE_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_BASE_URL",
     "https://registry.d4science.org/icproxy/gcube/service",
