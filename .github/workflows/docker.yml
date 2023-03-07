@@ -25,6 +25,7 @@ jobs:
           images: eginotebooks/hub
           tags: |
             type=sha
+            type=pep440,pattern={{version}}
             latest
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
