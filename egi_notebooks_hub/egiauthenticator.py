@@ -171,6 +171,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             auth_state["id_token"] = refresh_info["id_token"]
         self.log.debug("Refreshed token for user!")
         if callable(getattr(user.spawner, "set_access_token", None)):
-            await user.spawner.set_access_token(auth_state["access_token"],
-                                                refresh_info.get("id_token", None))
+            await user.spawner.set_access_token(
+                auth_state["access_token"], refresh_info.get("id_token", None)
+            )
         return {"auth_state": auth_state}
