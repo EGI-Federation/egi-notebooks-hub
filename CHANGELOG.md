@@ -12,6 +12,10 @@ and this project adheres to
 ### Added
 - More flexible templates for the hub
 
+### Fixed
+- Fixed the update of the secret with the renewed access token
+- Use "Privacy Notice" instead of "Privacy Policy"
+
 ## [0.1.0] - 2023-03-06
 
 First tagged release
