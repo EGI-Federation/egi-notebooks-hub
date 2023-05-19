@@ -268,6 +268,22 @@ class D4ScienceSpawner(KubeSpawner):
                 https://jupyterhub-kubespawner.readthedocs.io/en/latest/spawner.html#kubespawner.KubeSpawner.profile_list
             """,
     )
+    server_options_names = List(
+        ["ServerOption", "RStudioServerOption"],
+        config=True,
+        help="""Name of ServerOptions to consider from the D4Science Information
+                System. These can be then used for filtering with named servers""",
+    )
+    default_server_option_name = Unicode(
+        "ServerOption",
+        config=True,
+        help="""Name of default ServerOption (to be used if no named server is spawned)""",
+    )
+    server_name_prefix = Unicode(
+        "rname-",
+        config=True,
+        help="""Prefix for naming the servers (avoids using capital letters)""",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -312,7 +328,14 @@ class D4ScienceSpawner(KubeSpawner):
             for opt in resource_list:
                 p = opt.get("Profile", {}).get("Body", {})
                 if p.get("ServerOption", None):
-                    self.server_options[p["ServerOption"]["AuthId"]] = p["ServerOption"]
+                    name = opt.get("Profile", {}).get("Name", "")
+                    if name in self.server_options_names:
+                        self.server_options[p["ServerOption"]["AuthId"]] = p[
+                            "ServerOption"
+                        ]
+                        self.server_options[p["ServerOption"]["AuthId"]].update(
+                            {"server_option_name": name}
+                        )
                 elif p.get("VolumeOption", None):
                     volume_options[p["VolumeOption"]["Name"]] = p["VolumeOption"][
                         "Permission"
@@ -345,41 +368,53 @@ class D4ScienceSpawner(KubeSpawner):
     def profile_list(self, spawner):
         # returns the list of profiles built according to the permissions
         # and resource definition that the authenticator obtained initially
-        if not (self.allowed_profiles and self.server_options):
-            return []
-
         profiles = []
-        for allowed in self.allowed_profiles:
-            p = self.server_options.get(allowed, None)
-            if not p:
-                continue
-            override = {}
-            name = p.get("Info", {}).get("Name", "")
-            if "ImageId" in p:
-                override["image"] = p.get("ImageId", None)
-            if "Cut" in p:
-                cut_info = []
-                if "Cores" in p["Cut"]:
-                    override["cpu_limit"] = float(p["Cut"]["Cores"])
-                    cut_info.append(f"{p['Cut']['Cores']} Cores")
-                if "Memory" in p["Cut"]:
-                    override["mem_limit"] = "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
-                    cut_info.append(f"{override['mem_limit']} RAM")
-                name += " - %s" % " / ".join(cut_info)
-            profile = {
-                "display_name": name,
-                "description": p.get("Info", {}).get("Description", ""),
-                "slug": p.get("AuthId", ""),
-                "kubespawner_override": override,
-                "default": p.get("@default", {}) == "true",
-            }
-            if profile["default"]:
-                profiles.insert(0, profile)
-            else:
-                profiles.append(profile)
+
+        # Requires python 3.9!
+        server_option_name = (
+            spawner.name.removeprefix(self.server_name_prefix)
+            if spawner.name
+            else self.default_server_option_name
+        )
+
+        if self.allowed_profiles and self.server_options:
+            for allowed in self.allowed_profiles:
+                p = self.server_options.get(allowed, None)
+                if not p:
+                    continue
+                override = {}
+                name = p.get("Info", {}).get("Name", "")
+                if p.get("server_option_name", "") != server_option_name:
+                    self.log.debug("Discarding %s as it uses %s", name, p.get("server_option_name", ""))
+                    continue
+                if "ImageId" in p:
+                    override["image"] = p.get("ImageId", None)
+                if "Cut" in p:
+                    cut_info = []
+                    if "Cores" in p["Cut"]:
+                        override["cpu_limit"] = float(p["Cut"]["Cores"])
+                        cut_info.append(f"{p['Cut']['Cores']} Cores")
+                    if "Memory" in p["Cut"]:
+                        override["mem_limit"] = (
+                            "%(#text)s%(@unit)s" % p["Cut"]["Memory"]
+                        )
+                        cut_info.append(f"{override['mem_limit']} RAM")
+                    name += " - %s" % " / ".join(cut_info)
+                profile = {
+                    "display_name": name,
+                    "description": p.get("Info", {}).get("Description", ""),
+                    "slug": p.get("AuthId", ""),
+                    "kubespawner_override": override,
+                    "default": p.get("@default", {}) == "true",
+                }
+                if profile["default"]:
+                    profiles.insert(0, profile)
+                else:
+                    profiles.append(profile)
         if self.extra_profiles:
             profiles.extend(self.extra_profiles)
         sorted_profiles = sorted(profiles, key=lambda x: x["display_name"])
+        self.log.debug("Profiles: %s", sorted_profiles)
         return sorted_profiles
 
     async def pre_spawn_hook(self, spawner):
