@@ -385,7 +385,11 @@ class D4ScienceSpawner(KubeSpawner):
                 override = {}
                 name = p.get("Info", {}).get("Name", "")
                 if p.get("server_option_name", "") != server_option_name:
-                    self.log.debug("Discarding %s as it uses %s", name, p.get("server_option_name", ""))
+                    self.log.debug(
+                        "Discarding %s as it uses %s",
+                        name,
+                        p.get("server_option_name", ""),
+                    )
                     continue
                 if "ImageId" in p:
                     override["image"] = p.get("ImageId", None)
