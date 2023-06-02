@@ -277,12 +277,13 @@ class D4ScienceSpawner(KubeSpawner):
     default_server_option_name = Unicode(
         "ServerOption",
         config=True,
-        help="""Name of default ServerOption (to be used if no named server is spawned)""",
+        help="""Name of default ServerOption (to be used
+                if no named server is spawned)""",
     )
     server_name_prefix = Unicode(
         "rname-",
         config=True,
-        help="""Prefix for naming the servers (avoids using capital letters)""",
+        help="""Prefix for naming the servers""",
     )
 
     def __init__(self, *args, **kwargs):
