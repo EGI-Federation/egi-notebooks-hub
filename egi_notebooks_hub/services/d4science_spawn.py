@@ -6,12 +6,11 @@ import os
 import os.path
 from urllib.parse import urlparse
 
+from jupyterhub.services.auth import HubOAuthCallbackHandler, HubOAuthenticated
+from jupyterhub.utils import url_path_join
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 from tornado.web import Application, RequestHandler, authenticated
-
-from jupyterhub.services.auth import HubOAuthCallbackHandler, HubOAuthenticated
-from jupyterhub.utils import url_path_join
 
 
 class D4ScienceHandler(HubOAuthenticated, RequestHandler):
