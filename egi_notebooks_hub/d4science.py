@@ -205,6 +205,10 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         ws_token, _ = await self.get_uma_token(context, context, access_token)
         permissions = decoded_token["authorization"]["permissions"]
         self.log.debug("Permissions: %s", permissions)
+        roles = (
+            decoded_token.get("resource_access", {}).get(context, {}).get("roles", [])
+        )
+        self.log.debug("Roles: %s", roles)
         resources = await self.get_resources(ws_token)
         self.log.debug("Resources: %s", resources)
         user_data["auth_state"].update(
@@ -213,6 +217,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "permissions": permissions,
                 "context": context,
                 "resources": resources,
+                "roles": roles,
             }
         )
         # get WPS endpoint in also
@@ -285,6 +290,11 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Prefix for naming the servers""",
     )
+    data_manager_role = Unicode(
+        "Data-Manager",
+        config=True,
+        help="""Name of the data manager role in D4Science""",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -318,6 +328,8 @@ class D4ScienceSpawner(KubeSpawner):
             return
         # just get from the authenticator
         permissions = auth_state.get("permissions", [])
+        roles = auth_state.get("roles", [])
+        self.log.debug("Roles at hook: %s", roles)
         self.allowed_profiles = [claim["rsname"] for claim in permissions]
         resources = auth_state.get("resources", {})
         self.server_options = {}
@@ -352,11 +364,19 @@ class D4ScienceSpawner(KubeSpawner):
                 vol = {"name": (vol_name)}
                 vol.update(self.volume_mappings[name]["volume"])
                 self.volumes.append(vol)
+                read_write = (permission == "Read-Write") or (
+                    self.data_manager_role in roles
+                )
+                self.log.debug(
+                    "permission: %s, data-manager: %s",
+                    permission,
+                    self.data_manager_role in roles,
+                )
                 self.volume_mounts.append(
                     {
                         "name": vol_name,
                         "mountPath": self.volume_mappings[name]["mount_path"],
-                        "readOnly": permission == "Read-only",
+                        "readOnly": not read_write,
                     },
                 )
         self.log.debug("allowed: %s", self.allowed_profiles)
