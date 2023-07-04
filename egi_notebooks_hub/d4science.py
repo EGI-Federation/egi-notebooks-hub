@@ -202,11 +202,15 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         token, decoded_token = await self.get_uma_token(
             context, self.client_id, access_token, extra_params
         )
-        ws_token, _ = await self.get_uma_token(context, context, access_token)
+        ws_token, decoded_ws_token = await self.get_uma_token(
+            context, context, access_token
+        )
         permissions = decoded_token["authorization"]["permissions"]
         self.log.debug("Permissions: %s", permissions)
         roles = (
-            decoded_token.get("resource_access", {}).get(context, {}).get("roles", [])
+            decoded_ws_token.get("resource_access", {})
+            .get(context, {})
+            .get("roles", [])
         )
         self.log.debug("Roles: %s", roles)
         resources = await self.get_resources(ws_token)
