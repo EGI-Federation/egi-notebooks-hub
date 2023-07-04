@@ -418,6 +418,9 @@ class D4ScienceSpawner(KubeSpawner):
                     cut_info = []
                     if "Cores" in p["Cut"]:
                         override["cpu_limit"] = float(p["Cut"]["Cores"])
+                        override["cpu_guarantee"] = (
+                            1 if override["cpu_limit"] <= 4 else 2
+                        )
                         cut_info.append(f"{p['Cut']['Cores']} Cores")
                     if "Memory" in p["Cut"]:
                         override["mem_limit"] = (
