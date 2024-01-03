@@ -250,7 +250,8 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Frame ancestors for embedding the hub in d4science""",
     )
-    use_sidecar = Bool(True,
+    use_sidecar = Bool(
+        True,
         config=True,
         help="""Whether to use or not a sidecar for the workspace""",
     )
