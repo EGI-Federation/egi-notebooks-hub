@@ -38,10 +38,10 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
 
 
 class D4ScienceContextHandler(OAuthLoginHandler):
-    def get_state(self):
+    def get(self):
         context = self.get_argument("context", None)
         self.authenticator.d4science_context = context
-        return super().get_state()
+        return super().get()
 
 
 class D4ScienceOauthenticator(GenericOAuthenticator):
