@@ -14,7 +14,7 @@ from oauthenticator.generic import GenericOAuthenticator
 from oauthenticator.oauth2 import OAuthLoginHandler
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
-from traitlets import Dict, List, Unicode
+from traitlets import Bool, Dict, List, Unicode
 
 D4SCIENCE_REGISTRY_BASE_URL = os.environ.get(
     "D4SCIENCE_REGISTRY_BASE_URL",
@@ -250,6 +250,10 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Frame ancestors for embedding the hub in d4science""",
     )
+    use_sidecar = Bool(True,
+        config=True,
+        help="""Whether to use or not a sidecar for the workspace""",
+    )
     sidecar_image = Unicode(
         "eginotebooks/d4science-storage",
         config=True,
@@ -460,7 +464,7 @@ class D4ScienceSpawner(KubeSpawner):
             vre = context[context.rindex("/") + 1 :]
             spawner.log.debug("VRE: %s", vre)
             spawner.environment["VRE"] = vre
-        if token:
+        if token and self.use_sidecar:
             spawner.extra_containers = [
                 {
                     "name": "workspace-sidecar",
