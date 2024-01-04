@@ -250,6 +250,35 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Frame ancestors for embedding the hub in d4science""",
     )
+    use_ophidia = Bool(
+        True,
+        config=True,
+        help="""Whether to enable or not the ophidia setup""",
+    )
+    ophidia_image = Unicode(
+        "ophidiabigdata/ophidia-backend-hub:v1.1",
+        config=True,
+        help="""Ophidia image""",
+    )
+    ophidia_user = Unicode(
+        "oph-test",
+        config=True,
+        help="""Ophidia user""",
+    )
+    ophidia_passwd = Unicode(
+        "abcd",
+        config=True,
+        help="""Ophidia password""",
+    )
+    workspace_security_context = Dict(
+        {
+            "capabilities": {"add": ["SYS_ADMIN"]},
+            "privileged": True,
+            "runAsUser": 1000,
+        },
+        config=True,
+        help="""Container security context for mounting the workspace""",
+    )
     use_sidecar = Bool(
         True,
         config=True,
@@ -322,7 +351,7 @@ class D4ScienceSpawner(KubeSpawner):
         }
         # TODO: check if this keeps making sense
         return [
-            "--SingleUserNotebookApp.tornado_settings=%s" % tornado_settings,
+            "--ServerApp.tornado_settings=%s" % tornado_settings,
             "--FileCheckpoints.checkpoint_dir='/home/jovyan/.notebookCheckpoints'",
             "--FileContentsManager.use_atomic_writing=False",
             "--ResourceUseDisplay.track_cpu_percent=True",
@@ -454,9 +483,53 @@ class D4ScienceSpawner(KubeSpawner):
         self.log.debug("Profiles: %s", sorted_profiles)
         return sorted_profiles
 
-    async def pre_spawn_hook(self, spawner):
-        # add volumes as defined in the D4Science info sys
+    def _configure_ophidia(self, spawner):
+        if not self.use_ophidia:
+            return
+        chosen_profile = spawner.user_options.get("profile", "")
+        if "ophidia" in chosen_profile:
+            ophidia_mounts = [
+                m for m in spawner.volume_mounts if m["name"] != "workspace"
+            ]
+            ophidia = {
+                "name": "ophidia",
+                "image": self.ophidia_image,
+                "volumeMounts": ophidia_mounts,
+            }
+            spawner.extra_containers.append(ophidia)
+            spawner.environment["OPH_USER"] = self.ophidia_user
+            spawner.environment["OPH_PASSWD"] = self.ophidia_passwd
+            spawner.environment["OPH_SERVER_HOST"] = "127.0.0.1"
+            spawner.environment["HDF5_USE_FILE_LOCKING"] = "FALSE"
+
+    def _configure_workspace(self, spawner):
         token = spawner.environment.get("D4SCIENCE_TOKEN", "")
+        if not token:
+            self.log.debug("Not configuring workspace access, there is no token")
+            return
+        if self.use_sidecar:
+            sidecar = {
+                "name": "workspace-sidecar",
+                "image": self.sidecar_image,
+                "securityContext": self.workspace_security_context,
+                "env": [
+                    {"name": "MNTPATH", "value": "/workspace"},
+                    {"name": "D4SCIENCE_TOKEN", "value": token},
+                ],
+                "volumeMounts": [
+                    {"mountPath": "/workspace:shared", "name": "workspace"},
+                ],
+                "lifecycle": {
+                    "preStop": {
+                        "exec": {"command": ["fusermount", "-uz", "/workspace"]}
+                    },
+                },
+            }
+            spawner.extra_containers.append(sidecar)
+        else:
+            spawner.container_security_context = self.workspace_security_context
+
+    async def pre_spawn_hook(self, spawner):
         context = spawner.environment.get("D4SCIENCE_CONTEXT", "")
         if context:
             # set the whole context as annotation (needed for accounting)
@@ -465,27 +538,7 @@ class D4ScienceSpawner(KubeSpawner):
             vre = context[context.rindex("/") + 1 :]
             spawner.log.debug("VRE: %s", vre)
             spawner.environment["VRE"] = vre
-        if token and self.use_sidecar:
-            spawner.extra_containers = [
-                {
-                    "name": "workspace-sidecar",
-                    "image": self.sidecar_image,
-                    "securityContext": {
-                        "privileged": True,
-                        "capabilities": {"add": ["SYS_ADMIN"]},
-                        "runAsUser": 1000,
-                    },
-                    "env": [
-                        {"name": "MNTPATH", "value": "/workspace"},
-                        {"name": "D4SCIENCE_TOKEN", "value": token},
-                    ],
-                    "volumeMounts": [
-                        {"mountPath": "/workspace:shared", "name": "workspace"},
-                    ],
-                    "lifecycle": {
-                        "preStop": {
-                            "exec": {"command": ["fusermount", "-uz", "/workspace"]}
-                        },
-                    },
-                }
-            ]
+        # TODO(enolfc): check whether assigning to [] is safe
+        spawner.extra_containers = []
+        self._configure_workspace(spawner)
+        self._configure_ophidia(spawner)
