@@ -124,11 +124,13 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             self.log.debug("No auth state, assuming user is not managed with Check-in")
             return True
 
-        access_token = auth_state.get('access_token', None)
-        refresh_token = auth_state.get('refresh_token', None)
+        access_token = auth_state.get("access_token", None)
+        refresh_token = auth_state.get("refresh_token", None)
 
         if not access_token:
-            self.log.debug("No access token, assuming user is not managed with Check-in")
+            self.log.debug(
+                "No access token, assuming user is not managed with Check-in"
+            )
             return True
 
         now = time.time()
