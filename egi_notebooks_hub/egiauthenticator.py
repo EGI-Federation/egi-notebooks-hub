@@ -120,9 +120,16 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     # Refresh auth data for user
     async def refresh_user(self, user, handler=None):
         auth_state = await user.get_auth_state()
-        if not auth_state or "refresh_token" not in auth_state:
-            self.log.warning("Cannot refresh user info without refresh token")
-            return False
+        if not auth_state:
+            self.log.debug("No auth state, assuming user is not managed with Check-in")
+            return True
+
+        access_token = auth_state.get('access_token', None)
+        refresh_token = auth_state.get('refresh_token', None)
+
+        if not access_token:
+            self.log.debug("No access token, assuming user is not managed with Check-in")
+            return True
 
         now = time.time()
         refresh_info = auth_state.get("refresh_info", {})
@@ -131,6 +138,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         if time_left > self.auth_refresh_age:
             self.log.debug("Credentials still valid, time left: %f", time_left)
             return True
+
+        if not refresh_token:
+            self.log.debug("No refresh token, cannot refresh user")
+            return False
 
         # performing the refresh token call
         self.log.debug("Perform refresh call to Check-in")
@@ -144,7 +155,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 client_id=self.client_id,
                 client_secret=self.client_secret,
                 grant_type="refresh_token",
-                refresh_token=auth_state["refresh_token"],
+                refresh_token=refresh_token,
                 scope=" ".join(self.scope),
             )
         )
