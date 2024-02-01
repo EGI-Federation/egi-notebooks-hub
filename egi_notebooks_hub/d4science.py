@@ -188,11 +188,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
-        context = quote_plus(getattr(self, "d4science_context", None))
+        context = getattr(self, "d4science_context", None)
         self.log.debug("Context is %s", context)
         if not context:
             self.log.error("Unable to get the user context")
             raise web.HTTPError(403)
+        context = quote_plus(context)
         access_token = user_data["auth_state"]["access_token"]
         extra_params = {
             "claim_token": base64.b64encode(
