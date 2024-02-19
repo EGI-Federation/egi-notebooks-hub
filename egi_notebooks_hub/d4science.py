@@ -369,15 +369,8 @@ class D4ScienceSpawner(KubeSpawner):
 
     def get_args(self):
         args = super().get_args()
-        tornado_settings = {
-            "headers": {
-                "Content-Security-Policy": "frame-ancestors %s" % self.frame_ancestors
-            },
-            "cookie_options": {"samesite": "None", "secure": True},
-        }
         # TODO: check if this keeps making sense
         return [
-            "--ServerApp.tornado_settings=%s" % tornado_settings,
             "--FileCheckpoints.checkpoint_dir='/home/jovyan/.notebookCheckpoints'",
             "--FileContentsManager.use_atomic_writing=False",
             "--ResourceUseDisplay.track_cpu_percent=True",
