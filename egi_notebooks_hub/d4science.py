@@ -41,13 +41,20 @@ class D4ScienceContextHandler(OAuthLoginHandler):
     def get(self):
         context = self.get_argument("context", None)
         namespace = self.get_argument("namespace", None)
+        label = self.get_argument("label", None)
         self.authenticator.d4science_context = context
         self.authenticator.d4science_namespace = namespace
+        self.authenticator.d4science_label = label
         return super().get()
 
 
 class D4ScienceOauthenticator(GenericOAuthenticator):
     login_handler = D4ScienceContextHandler
+    # some options that will come from the context handler
+    d4science_context = None
+    d4science_namespace = None
+    d4science_label = None
+
     d4science_oidc_url = Unicode(
         D4SCIENCE_OIDC_URL,
         config=True,
@@ -65,6 +72,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         help="""The URL for getting DataMiner resources from the
                 Information System of D4science""",
     )
+    d4science_label_name = Unicode(
+        "d4science-namespace",
+        config=True,
+        help="""The name of the label to use when setting extra labels
+                coming from the authentication (i.e. label="blue-cloud"
+                as param)""")
 
     _pubkeys = None
 
@@ -187,18 +200,20 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         # Assume that this will fly
         return xmltodict.parse(resp.body)
 
+    def _get_d4science_attr(attr_name):
+        v = getattr(self, attr_name, None)
+        if v:
+            return quote_plus(v)
+        return None
+
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
-        context = getattr(self, "d4science_context", None)
+        context = self._get_d4science_attr("d4science_context")
         self.log.debug("Context is %s", context)
         if not context:
             self.log.error("Unable to get the user context")
             raise web.HTTPError(403)
-        context = quote_plus(context)
-        namespace = getattr(self, "d4science_namespace", None)
-        if namespace:
-            namespace = quote_plus(namespace)
         access_token = user_data["auth_state"]["access_token"]
         extra_params = {
             "claim_token": base64.b64encode(
@@ -226,7 +241,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
-                "namespace": namespace,
+                "namespace": self.get_d4science_attr("d4science_namespace"),
+                "label": self.get_d4science_attr("d4science_label"),
                 "resources": resources,
                 "roles": roles,
             }
@@ -244,6 +260,9 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         namespace = auth_state.get("namespace", None)
         if namespace:
             spawner.namespace = namespace
+        label = auth_state.get("label", None)
+        if label:
+            spawner.extra_labels[self.d4science_label_name] = label
         # GCUBE_TOKEN should be removed in the future
         spawner.environment["GCUBE_TOKEN"] = auth_state["context_token"]
         spawner.environment["D4SCIENCE_TOKEN"] = auth_state["context_token"]
