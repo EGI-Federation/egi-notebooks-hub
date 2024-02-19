@@ -40,7 +40,9 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
 class D4ScienceContextHandler(OAuthLoginHandler):
     def get(self):
         context = self.get_argument("context", None)
+        namespace = self.get_argument("namespace", None)
         self.authenticator.d4science_context = context
+        self.authenticator.d4science_namespace = namespace
         return super().get()
 
 
@@ -194,6 +196,9 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
             self.log.error("Unable to get the user context")
             raise web.HTTPError(403)
         context = quote_plus(context)
+        namespace = getattr(self, "d4science_namespace", None)
+        if namespace:
+            namespace = quote_plus(namespace)
         access_token = user_data["auth_state"]["access_token"]
         extra_params = {
             "claim_token": base64.b64encode(
@@ -221,6 +226,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
+                "namespace": namespace,
                 "resources": resources,
                 "roles": roles,
             }
@@ -235,6 +241,9 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         if not auth_state:
             # auth_state not enabled
             return
+        namespace = auth_state.get("namespace", None)
+        if namespace:
+            spawner.namespace = namespace
         # GCUBE_TOKEN should be removed in the future
         spawner.environment["GCUBE_TOKEN"] = auth_state["context_token"]
         spawner.environment["D4SCIENCE_TOKEN"] = auth_state["context_token"]
@@ -334,6 +343,10 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Name of the data manager role in D4Science""",
     )
+    context_namespaces = Bool(
+        False,
+        config=True,
+        help="""Whether context-specific namespaces will be used or not""")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -341,6 +354,10 @@ class D4ScienceSpawner(KubeSpawner):
         self.server_options = []
         self._orig_volumes = self.volumes
         self._orig_volume_mounts = self.volume_mounts
+
+    async def _ensure_namespace(self):
+        if not self.context_namespaces:
+            super()._ensure_namespace()
 
     def get_args(self):
         args = super().get_args()
