@@ -347,6 +347,11 @@ class D4ScienceSpawner(KubeSpawner):
         False,
         config=True,
         help="""Whether context-specific namespaces will be used or not""")
+    image_repo_override = Unicode(
+        "",
+        config=True,
+        help="""If provided, override image repository with this value""",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -354,6 +359,9 @@ class D4ScienceSpawner(KubeSpawner):
         self.server_options = []
         self._orig_volumes = self.volumes
         self._orig_volume_mounts = self.volume_mounts
+        if self.image_repo_override:
+            image = self.image.rsplit("/", 1)[-1]
+            self.image = f"{self.image_repo_override}/{image}"
 
     async def _ensure_namespace(self):
         if not self.context_namespaces:
@@ -469,7 +477,11 @@ class D4ScienceSpawner(KubeSpawner):
                     )
                     continue
                 if "ImageId" in p:
-                    override["image"] = p.get("ImageId", None)
+                    image = p.get("ImageId", "")
+                    if self.image_repo_override:
+                        image = image.rsplit("/", 1)[-1]
+                        image = f"{self.image_repo_override}/{image}"
+                    override["image"] = image
                 if "Cut" in p:
                     cut_info = []
                     if "Cores" in p["Cut"]:
