@@ -2,6 +2,7 @@
 
 It expects that the users is already authenticated.
 """
+
 import os
 import os.path
 from urllib.parse import urlparse

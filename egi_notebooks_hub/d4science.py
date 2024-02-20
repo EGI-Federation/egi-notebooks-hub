@@ -40,12 +40,21 @@ D4SCIENCE_DISCOVER_WPS = os.environ.get(
 class D4ScienceContextHandler(OAuthLoginHandler):
     def get(self):
         context = self.get_argument("context", None)
+        namespace = self.get_argument("namespace", None)
+        label = self.get_argument("label", None)
         self.authenticator.d4science_context = context
+        self.authenticator.d4science_namespace = namespace
+        self.authenticator.d4science_label = label
         return super().get()
 
 
 class D4ScienceOauthenticator(GenericOAuthenticator):
     login_handler = D4ScienceContextHandler
+    # some options that will come from the context handler
+    d4science_context = None
+    d4science_namespace = None
+    d4science_label = None
+
     d4science_oidc_url = Unicode(
         D4SCIENCE_OIDC_URL,
         config=True,
@@ -62,6 +71,13 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         config=True,
         help="""The URL for getting DataMiner resources from the
                 Information System of D4science""",
+    )
+    d4science_label_name = Unicode(
+        "d4science-namespace",
+        config=True,
+        help="""The name of the label to use when setting extra labels
+                coming from the authentication (i.e. label="blue-cloud"
+                as param)""",
     )
 
     _pubkeys = None
@@ -185,10 +201,16 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         # Assume that this will fly
         return xmltodict.parse(resp.body)
 
+    def _get_d4science_attr(self, attr_name):
+        v = getattr(self, attr_name, None)
+        if v:
+            return quote_plus(v)
+        return None
+
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
-        context = quote_plus(getattr(self, "d4science_context", None))
+        context = self._get_d4science_attr("d4science_context")
         self.log.debug("Context is %s", context)
         if not context:
             self.log.error("Unable to get the user context")
@@ -220,6 +242,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
+                "namespace": self._get_d4science_attr("d4science_namespace"),
+                "label": self._get_d4science_attr("d4science_label"),
                 "resources": resources,
                 "roles": roles,
             }
@@ -234,6 +258,12 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         if not auth_state:
             # auth_state not enabled
             return
+        namespace = auth_state.get("namespace", None)
+        if namespace:
+            spawner.namespace = namespace
+        label = auth_state.get("label", None)
+        if label:
+            spawner.extra_labels[self.d4science_label_name] = label
         # GCUBE_TOKEN should be removed in the future
         spawner.environment["GCUBE_TOKEN"] = auth_state["context_token"]
         spawner.environment["D4SCIENCE_TOKEN"] = auth_state["context_token"]
@@ -333,6 +363,16 @@ class D4ScienceSpawner(KubeSpawner):
         config=True,
         help="""Name of the data manager role in D4Science""",
     )
+    context_namespaces = Bool(
+        False,
+        config=True,
+        help="""Whether context-specific namespaces will be used or not""",
+    )
+    image_repo_override = Unicode(
+        "",
+        config=True,
+        help="""If provided, override image repository with this value""",
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -340,18 +380,19 @@ class D4ScienceSpawner(KubeSpawner):
         self.server_options = []
         self._orig_volumes = self.volumes
         self._orig_volume_mounts = self.volume_mounts
+        if self.image_repo_override:
+            # pylint: disable-next=access-member-before-definition
+            image = self.image.rsplit("/", 1)[-1]
+            self.image = f"{self.image_repo_override}/{image}"
+
+    async def _ensure_namespace(self):
+        if not self.context_namespaces:
+            super()._ensure_namespace()
 
     def get_args(self):
         args = super().get_args()
-        tornado_settings = {
-            "headers": {
-                "Content-Security-Policy": "frame-ancestors %s" % self.frame_ancestors
-            },
-            "cookie_options": {"samesite": "None", "secure": True},
-        }
         # TODO: check if this keeps making sense
         return [
-            "--ServerApp.tornado_settings=%s" % tornado_settings,
             "--FileCheckpoints.checkpoint_dir='/home/jovyan/.notebookCheckpoints'",
             "--FileContentsManager.use_atomic_writing=False",
             "--ResourceUseDisplay.track_cpu_percent=True",
@@ -451,7 +492,11 @@ class D4ScienceSpawner(KubeSpawner):
                     )
                     continue
                 if "ImageId" in p:
-                    override["image"] = p.get("ImageId", None)
+                    image = p.get("ImageId", "")
+                    if self.image_repo_override:
+                        image = image.rsplit("/", 1)[-1]
+                        image = f"{self.image_repo_override}/{image}"
+                    override["image"] = image
                 if "Cut" in p:
                     cut_info = []
                     if "Cores" in p["Cut"]:

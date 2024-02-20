@@ -3,7 +3,6 @@
 Uses OpenID Connect with aai.egi.eu
 """
 
-
 import json
 import os
 import time
