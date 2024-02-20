@@ -242,8 +242,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
                 "context_token": ws_token,
                 "permissions": permissions,
                 "context": context,
-                "namespace": self.get_d4science_attr("d4science_namespace"),
-                "label": self.get_d4science_attr("d4science_label"),
+                "namespace": self._get_d4science_attr("d4science_namespace"),
+                "label": self._get_d4science_attr("d4science_label"),
                 "resources": resources,
                 "roles": roles,
             }
