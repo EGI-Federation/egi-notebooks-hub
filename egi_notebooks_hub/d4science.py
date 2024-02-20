@@ -381,6 +381,7 @@ class D4ScienceSpawner(KubeSpawner):
         self._orig_volumes = self.volumes
         self._orig_volume_mounts = self.volume_mounts
         if self.image_repo_override:
+            # pylint: disable-next=access-member-before-definition
             image = self.image.rsplit("/", 1)[-1]
             self.image = f"{self.image_repo_override}/{image}"
 
