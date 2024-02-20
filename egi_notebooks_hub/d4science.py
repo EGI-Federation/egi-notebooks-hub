@@ -201,7 +201,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         # Assume that this will fly
         return xmltodict.parse(resp.body)
 
-    def _get_d4science_attr(attr_name):
+    def _get_d4science_attr(self, attr_name):
         v = getattr(self, attr_name, None)
         if v:
             return quote_plus(v)
