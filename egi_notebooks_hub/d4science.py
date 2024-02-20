@@ -77,7 +77,8 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         config=True,
         help="""The name of the label to use when setting extra labels
                 coming from the authentication (i.e. label="blue-cloud"
-                as param)""")
+                as param)""",
+    )
 
     _pubkeys = None
 
@@ -365,7 +366,8 @@ class D4ScienceSpawner(KubeSpawner):
     context_namespaces = Bool(
         False,
         config=True,
-        help="""Whether context-specific namespaces will be used or not""")
+        help="""Whether context-specific namespaces will be used or not""",
+    )
     image_repo_override = Unicode(
         "",
         config=True,
