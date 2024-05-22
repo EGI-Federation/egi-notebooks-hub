@@ -3,7 +3,6 @@
 Uses OpenID Connect with aai.egi.eu
 """
 
-
 import json
 import os
 import time
@@ -12,12 +11,50 @@ from urllib.parse import urlencode
 import jwt
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
+from tornado.httpclient import (
+    AsyncHTTPClient,
+    HTTPClientError,
+    HTTPError,
+    HTTPRequest,
+)
 from traitlets import List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
-   def get(self):
+    _pubkeys = None
+
+    async def _get_public_keys(self):
+        if self._pubkeys:
+            return self._pubkeys
+        self.log.debug(
+            "Getting OIDC discovery info at %s",
+            self.authenticator.openid_configuration_url,
+        )
+        http_client = AsyncHTTPClient()
+        req = HTTPRequest(self.authenticator.openid_configuration_url, method="GET")
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Discovery endpoint not working? %s", e)
+            raise web.HTTPError(403)
+        jwks_uri = json.loads(resp.body.decode("utf8", "replace"))["jwks_uri"]
+        self.log.debug("Getting JWKS info at %s", jwks_uri)
+        req = HTTPRequest(jwks_uri, method="GET")
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPError as e:
+            # whatever, get out
+            self.log.warning("Unable to get jwks info: %s", e)
+            raise web.HTTPError(403)
+        self._pubkeys = {}
+        jwks_keys = json.loads(resp.body.decode("utf8", "replace"))["keys"]
+        for jwk in jwks_keys:
+            kid = jwk["kid"]
+            self._pubkeys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
+        return self._pubkeys
+
+    async def get(self):
         auth_header = self.request.headers.get("Authorization", "")
         if auth_header:
             try:
@@ -32,14 +69,15 @@ class JWTHandler(BaseHandler):
             self.log.debug("No authorization header")
             raise HTTPError(401)
         kid = jwt.get_unverified_header(token)["kid"]
-        key = "" # (await self.get_iam_public_keys())[kid]
+        # probably this should be done just once for all users
+        key = (await self._get_public_keys())[kid]
         # what if this fails?
         audience = ""
         decoded_token = jwt.decode(
             token,
             key=key,
-            audience=audience,
-            algorithms=list(jwt.ALGORITHMS.SUPPORTED)
+            audience=None,
+            algorithms=["RS256"],
         )
         # extract user info from decoded token
         # set authentication?
@@ -80,6 +118,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             % self.checkin_host
         )
 
+    openid_configuration_url = Unicode(
+        config=True, help="""The OpenID configuration URL"""
+    )
+
+    @default("openid_configuration_url")
+    def _openid_configuration_url_default(self):
+        return (
+            "https://%s/auth/realms/egi/.well-known/openid-configuration"
+            % self.checkin_host
+        )
+
     client_id_env = "EGICHECKIN_CLIENT_ID"
     client_secret_env = "EGICHECKIN_CLIENT_SECRET"
 
@@ -109,10 +158,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return ["openid"] + proposal.value
         return proposal.value
 
-    #  User name in Check-in comes in sub, but we are defaulting to
+    # User name in Check-in comes in sub, but we are defaulting to
     # preferred_username as sub is too long to be used as id for
     # volumes
-    username_key = Unicode(
+    username_claim = Unicode(
         "preferred_username",
         config=True,
         help="""
@@ -120,7 +169,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         too long.
         """,
     )
-
 
     async def authenticate(self, handler, data=None):
         user_info = await super().authenticate(handler, data)
@@ -203,7 +251,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             body=body,
         )
         try:
-            resp = await http_client.fetch(req)
+            resp = http_client.fetch(req)
         except HTTPClientError as e:
             self.log.warning("Unable to refresh token, maybe expired: %s", e)
             return False
