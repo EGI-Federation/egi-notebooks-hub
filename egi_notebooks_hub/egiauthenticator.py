@@ -9,13 +9,45 @@ import os
 import time
 from urllib.parse import urlencode
 
+import jwt
+from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
 from traitlets import List, Unicode, default, validate
+
+
+class JWTHandler(BaseHandler):
+   def get(self):
+        auth_header = self.request.headers.get("Authorization", "")
+        if auth_header:
+            try:
+                bearer, token = auth_header.split()
+                if bearer.lower() != "bearer":
+                    self.log.debug("Unexpected authorization header format")
+                    raise HTTPError(401)
+            except ValueError:
+                self.log.debug("Unexpected authorization header format")
+                raise HTTPError(401)
+        else:
+            self.log.debug("No authorization header")
+            raise HTTPError(401)
+        kid = jwt.get_unverified_header(token)["kid"]
+        key = "" # (await self.get_iam_public_keys())[kid]
+        # what if this fails?
+        audience = ""
+        decoded_token = jwt.decode(
+            token,
+            key=key,
+            audience=audience,
+            algorithms=list(jwt.ALGORITHMS.SUPPORTED)
+        )
+        # extract user info from decoded token
+        # set authentication?
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
+    jwt_handler = JWTHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
@@ -88,6 +120,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         too long.
         """,
     )
+
 
     async def authenticate(self, handler, data=None):
         user_info = await super().authenticate(handler, data)
@@ -188,3 +221,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 auth_state["access_token"], refresh_info.get("id_token", None)
             )
         return {"auth_state": auth_state}
+
+    def get_handlers(self, app):
+        handlers = super().get_handlers(app)
+        handlers.append(
+            (r"/jwt_login", self.jwt_handler),
+        )
+        return handlers
