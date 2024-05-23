@@ -11,12 +11,8 @@ from urllib.parse import urlencode
 import jwt
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
-from tornado.httpclient import (
-    AsyncHTTPClient,
-    HTTPClientError,
-    HTTPError,
-    HTTPRequest,
-)
+from tornado import web
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
 from traitlets import List, Unicode, default, validate
 
 
@@ -70,9 +66,8 @@ class JWTHandler(BaseHandler):
             raise HTTPError(401)
         kid = jwt.get_unverified_header(token)["kid"]
         # probably this should be done just once for all users
+        # so this is not the right place
         key = (await self._get_public_keys())[kid]
-        # what if this fails?
-        audience = ""
         decoded_token = jwt.decode(
             token,
             key=key,
@@ -81,6 +76,11 @@ class JWTHandler(BaseHandler):
         )
         # extract user info from decoded token
         # set authentication?
+        user = await self.login_user(decoded_token)
+        if user is None:
+            raise web.HTTPError(403, self.authenticator.custom_403_message)
+        # what does the user expects to see here? a hub token?
+        self.redirect(self.get_next_url(user))
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
@@ -170,8 +170,19 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
+    def jwt_authenticate(self, handler, data=None):
+        self.log.debug("AUTHENTICATE IS BEING CALLED!")
+        self.log.debug(data)
+        return None
+
     async def authenticate(self, handler, data=None):
-        user_info = await super().authenticate(handler, data)
+        # "regular" authentication does not have any data, assume that if
+        # receive something in there, we are dealing with jwt, still if
+        # not successful keep trying the usual way
+        if data:
+            user_info = self.jwt_authenticate(handler, data)
+            if not user_info:
+                user_info = await super().authenticate(handler, data)
         if user_info is None or self.claim_groups_key is None:
             return user_info
         auth_state = user_info.get("auth_state", {})
