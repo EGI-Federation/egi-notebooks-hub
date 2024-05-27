@@ -173,7 +173,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def jwt_authenticate(self, handler, data=None):
         self.log.debug("AUTHENTICATE IS BEING CALLED!")
         self.log.debug(data)
-        return None
+        return {}
 
     async def authenticate(self, handler, data=None):
         # "regular" authentication does not have any data, assume that if
