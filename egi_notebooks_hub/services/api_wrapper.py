@@ -10,11 +10,6 @@ API_URL = "http://localhost:8000/hub/api"
 PREFIX = "services/jwt"
 
 
-async def request(client):
-    response = await client.get(URL)
-    return response.text
-
-
 # this could be way more generic and moved to a base function and then
 # a thin wrapper for get/put/post/etc...
 @app.get("/{svc_path:path}")
