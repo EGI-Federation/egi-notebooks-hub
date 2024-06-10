@@ -185,9 +185,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     )
 
     async def jwt_authenticate(self, handler, data=None):
-        self.log.debug("AUTHENTICATE IS BEING CALLED!")
-        user_info = await self.token_to_user(data)
-        self.log.debug(user_info)
+        try:
+            user_info = await self.token_to_user(data)
+        except HTTPClientError:
+            raise web.HTTPError(403)
         # this code below comes is from oauthenticator authenticate
         # we cannot directly call that method as we don't obtain the access
         # token with the code grant but they pass it to us directly
