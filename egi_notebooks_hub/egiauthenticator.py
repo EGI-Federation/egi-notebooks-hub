@@ -64,23 +64,37 @@ class JWTHandler(BaseHandler):
         else:
             self.log.debug("No authorization header")
             raise HTTPError(401)
-        kid = jwt.get_unverified_header(token)["kid"]
-        # probably this should be done just once for all users
-        # so this is not the right place
-        key = (await self._get_public_keys())[kid]
-        decoded_token = jwt.decode(
-            token,
-            key=key,
-            audience=None,
-            algorithms=["RS256"],
-        )
-        # extract user info from decoded token
-        # set authentication?
-        user = await self.login_user(decoded_token)
+        # build a token info dict
+        # what about the refresh token?
+        token_info = {
+            "access_token": token,
+            "token_type": "bearer",
+        }
+        user = await self.login_user(token_info)
         if user is None:
             raise web.HTTPError(403, self.authenticator.custom_403_message)
+
+        api_token = user.new_api_token(
+            note="JWT created token",
+            # TODO: this should be tuned
+            # expires_in=body.get('expires_in', None),
+            # roles=token_roles,
+            # scopes=token_scopes,
+        )
         # what does the user expects to see here? a hub token?
-        self.redirect(self.get_next_url(user))
+        # Return a hub token, same duration as incoming token?
+        self.finish({"token": api_token, "user": user.name})
+        # offline validation - not needed?
+        # kid = jwt.get_unverified_header(token)["kid"]
+        # probably this should be done just once for all users
+        # so this is not the right place
+        # key = (await self._get_public_keys())[kid]
+        # decoded_token = jwt.decode(
+        #    token,
+        #    key=key,
+        #    audience=None,
+        #    algorithms=["RS256"],
+        # )
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
@@ -170,19 +184,43 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
-    def jwt_authenticate(self, handler, data=None):
+    async def jwt_authenticate(self, handler, data=None):
         self.log.debug("AUTHENTICATE IS BEING CALLED!")
-        self.log.debug(data)
-        return {}
+        user_info = await self.token_to_user(data)
+        self.log.debug(user_info)
+        # this code below comes is from oauthenticator authenticate
+        # we cannot directly call that method as we don't obtain the access
+        # token with the code grant but they pass it to us directly
+        username = self.user_info_to_username(user_info)
+        username = self.normalize_username(username)
+
+        # check if there any refresh_token in the token_info dict
+        refresh_token = data.get("refresh_token", None)
+        if self.enable_auth_state and not refresh_token:
+            self.log.debug(
+                "Refresh token was empty, will try to pull refresh_token from previous auth_state"
+            )
+            refresh_token = await self.get_prev_refresh_token(handler, username)
+            if refresh_token:
+                data["refresh_token"] = refresh_token
+        # build the auth model to be read if authentication goes right
+        auth_model = {
+            "name": username,
+            "admin": True if username in self.admin_users else None,
+            "auth_state": self.build_auth_state_dict(data, user_info),
+        }
+        # update the auth_model with info to later authorize the user in
+        # check_allowed, such as admin status and group memberships
+        return await self.update_auth_model(auth_model)
 
     async def authenticate(self, handler, data=None):
         # "regular" authentication does not have any data, assume that if
         # receive something in there, we are dealing with jwt, still if
         # not successful keep trying the usual way
         if data:
-            user_info = self.jwt_authenticate(handler, data)
-            if not user_info:
-                user_info = await super().authenticate(handler, data)
+            user_info = await self.jwt_authenticate(handler, data)
+        else:
+            user_info = await super().authenticate(handler, data)
         if user_info is None or self.claim_groups_key is None:
             return user_info
         auth_state = user_info.get("auth_state", {})
