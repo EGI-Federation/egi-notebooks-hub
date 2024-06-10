@@ -198,7 +198,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         refresh_token = data.get("refresh_token", None)
         if self.enable_auth_state and not refresh_token:
             self.log.debug(
-                "Refresh token was empty, will try to pull refresh_token from previous auth_state"
+                "Refresh token was empty, will try to pull refresh_token from "
+                "previous auth_state"
             )
             refresh_token = await self.get_prev_refresh_token(handler, username)
             if refresh_token:

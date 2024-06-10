@@ -1,7 +1,5 @@
-from typing import Union
-
-from fastapi import FastAPI, Request
 import httpx
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 
@@ -33,8 +31,6 @@ async def api_wrapper(request: Request, svc_path: str):
                 user_token = r.json()
     # assume we have the user_token here
     api_path = svc_path.removeprefix(PREFIX)
-    print(svc_path)
-    print(api_path)
     async with httpx.AsyncClient() as client:
         # which headers do we need to preserve?
         headers = {"Authorization": f"token {user_token['token']}"}
