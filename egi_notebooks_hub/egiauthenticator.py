@@ -17,8 +17,6 @@ from traitlets import List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
-    async def get_refresh_token(self):
-
     async def get(self):
         auth_header = self.request.headers.get("Authorization", "")
         if auth_header:
