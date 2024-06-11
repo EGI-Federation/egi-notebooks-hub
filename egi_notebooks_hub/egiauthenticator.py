@@ -17,38 +17,7 @@ from traitlets import List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
-    _pubkeys = None
-
-    async def _get_public_keys(self):
-        if self._pubkeys:
-            return self._pubkeys
-        self.log.debug(
-            "Getting OIDC discovery info at %s",
-            self.authenticator.openid_configuration_url,
-        )
-        http_client = AsyncHTTPClient()
-        req = HTTPRequest(self.authenticator.openid_configuration_url, method="GET")
-        try:
-            resp = await http_client.fetch(req)
-        except HTTPError as e:
-            # whatever, get out
-            self.log.warning("Discovery endpoint not working? %s", e)
-            raise web.HTTPError(403)
-        jwks_uri = json.loads(resp.body.decode("utf8", "replace"))["jwks_uri"]
-        self.log.debug("Getting JWKS info at %s", jwks_uri)
-        req = HTTPRequest(jwks_uri, method="GET")
-        try:
-            resp = await http_client.fetch(req)
-        except HTTPError as e:
-            # whatever, get out
-            self.log.warning("Unable to get jwks info: %s", e)
-            raise web.HTTPError(403)
-        self._pubkeys = {}
-        jwks_keys = json.loads(resp.body.decode("utf8", "replace"))["keys"]
-        for jwk in jwks_keys:
-            kid = jwk["kid"]
-            self._pubkeys[kid] = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(jwk))
-        return self._pubkeys
+    async def get_refresh_token(self):
 
     async def get(self):
         auth_header = self.request.headers.get("Authorization", "")
@@ -64,8 +33,6 @@ class JWTHandler(BaseHandler):
         else:
             self.log.debug("No authorization header")
             raise HTTPError(401)
-        # build a token info dict
-        # what about the refresh token?
         token_info = {
             "access_token": token,
             "token_type": "bearer",
@@ -73,28 +40,29 @@ class JWTHandler(BaseHandler):
         user = await self.login_user(token_info)
         if user is None:
             raise web.HTTPError(403, self.authenticator.custom_403_message)
+        auth_state = await user.get_auth_state()
+        if auth_state and "refresh_token" not in auth_state:
+            # TODO: decide how to deal with the refresh token
+            self.log.debug("Refresh token is not there...")
 
+        # extract from the jwt token (without verification!)
+        decoded_token = jwt.decode(token, options={"verify_signature": False})
+        # default: 1h token
+        expires_in = 3600
+        if "exp" in decoded_token and "iat" in decoded_token:
+            expires_in = decoded_token["exp"] - decoded_token["iat"]
+
+        # Possible optimisation here: instead of creating a new token every time,
+        # go through user.api_tokens and get one from there
         api_token = user.new_api_token(
-            note="JWT created token",
-            # TODO: this should be tuned
-            # expires_in=body.get('expires_in', None),
+            note="JWT auth token",
+            expires_in=expires_in,
+            # TODO: this may be tuned, but should be a post
+            #       call with a body specifying the roles and scopes
             # roles=token_roles,
             # scopes=token_scopes,
         )
-        # what does the user expects to see here? a hub token?
-        # Return a hub token, same duration as incoming token?
         self.finish({"token": api_token, "user": user.name})
-        # offline validation - not needed?
-        # kid = jwt.get_unverified_header(token)["kid"]
-        # probably this should be done just once for all users
-        # so this is not the right place
-        # key = (await self._get_public_keys())[kid]
-        # decoded_token = jwt.decode(
-        #    token,
-        #    key=key,
-        #    audience=None,
-        #    algorithms=["RS256"],
-        # )
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
