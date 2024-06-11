@@ -33,9 +33,10 @@ async def api_wrapper(request: Request, svc_path: str):
                     user_token = r.json()
                     token_header[AUTH_HEADER] = f"token {user_token['token']}"
             except httpx.HTTPStatusError as exc:
-                raise HTTPException(
-                    status_code=exc.response.status_code, detail=exc.response.text
-                )
+                if exc.response.status_code != 403:
+                    raise HTTPException(
+                        status_code=exc.response.status_code, detail=exc.response.text
+                    )
     content = await request.body()
     api_path = svc_path.removeprefix(PREFIX)
     async with httpx.AsyncClient() as client:
@@ -49,5 +50,7 @@ async def api_wrapper(request: Request, svc_path: str):
             r = await method(API_URL + api_path, content=content, headers=headers)
         else:
             r = await method(API_URL + api_path, headers=headers)
-        # is this a correct assumption?
-        return r.json()
+        try:
+            return r.json()
+        except ValueError:
+            return r.content
