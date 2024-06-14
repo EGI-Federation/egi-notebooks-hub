@@ -2,3 +2,4 @@ jupyterhub>=4.0.2
 oauthenticator>=16.1.0
 jupyterhub-kubespawner>=6.1.0
 xmltodict
+fastapi

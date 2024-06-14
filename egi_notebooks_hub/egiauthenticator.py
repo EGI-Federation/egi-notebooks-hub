@@ -3,19 +3,69 @@
 Uses OpenID Connect with aai.egi.eu
 """
 
-
 import json
 import os
 import time
 from urllib.parse import urlencode
 
+import jwt
+from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
+from tornado import web
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
 from traitlets import List, Unicode, default, validate
+
+
+class JWTHandler(BaseHandler):
+    async def get(self):
+        auth_header = self.request.headers.get("Authorization", "")
+        if auth_header:
+            try:
+                bearer, token = auth_header.split()
+                if bearer.lower() != "bearer":
+                    self.log.debug("Unexpected authorization header format")
+                    raise HTTPError(401)
+            except ValueError:
+                self.log.debug("Unexpected authorization header format")
+                raise HTTPError(401)
+        else:
+            self.log.debug("No authorization header")
+            raise HTTPError(401)
+        token_info = {
+            "access_token": token,
+            "token_type": "bearer",
+        }
+        user = await self.login_user(token_info)
+        if user is None:
+            raise web.HTTPError(403, self.authenticator.custom_403_message)
+        auth_state = await user.get_auth_state()
+        if auth_state and "refresh_token" not in auth_state:
+            # TODO: decide how to deal with the refresh token
+            self.log.debug("Refresh token is not there...")
+
+        # extract from the jwt token (without verification!)
+        decoded_token = jwt.decode(token, options={"verify_signature": False})
+        # default: 1h token
+        expires_in = 3600
+        if "exp" in decoded_token and "iat" in decoded_token:
+            expires_in = decoded_token["exp"] - decoded_token["iat"]
+
+        # Possible optimisation here: instead of creating a new token every time,
+        # go through user.api_tokens and get one from there
+        api_token = user.new_api_token(
+            note="JWT auth token",
+            expires_in=expires_in,
+            # TODO: this may be tuned, but should be a post
+            #       call with a body specifying the roles and scopes
+            # roles=token_roles,
+            # scopes=token_scopes,
+        )
+        self.finish({"token": api_token, "user": user.name})
 
 
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
+    jwt_handler = JWTHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
@@ -48,6 +98,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             % self.checkin_host
         )
 
+    openid_configuration_url = Unicode(
+        config=True, help="""The OpenID configuration URL"""
+    )
+
+    @default("openid_configuration_url")
+    def _openid_configuration_url_default(self):
+        return (
+            "https://%s/auth/realms/egi/.well-known/openid-configuration"
+            % self.checkin_host
+        )
+
     client_id_env = "EGICHECKIN_CLIENT_ID"
     client_secret_env = "EGICHECKIN_CLIENT_SECRET"
 
@@ -77,10 +138,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return ["openid"] + proposal.value
         return proposal.value
 
-    #  User name in Check-in comes in sub, but we are defaulting to
+    # User name in Check-in comes in sub, but we are defaulting to
     # preferred_username as sub is too long to be used as id for
     # volumes
-    username_key = Unicode(
+    username_claim = Unicode(
         "preferred_username",
         config=True,
         help="""
@@ -89,8 +150,45 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
+    async def jwt_authenticate(self, handler, data=None):
+        try:
+            user_info = await self.token_to_user(data)
+        except HTTPClientError:
+            raise web.HTTPError(403)
+        # this code below comes is from oauthenticator authenticate
+        # we cannot directly call that method as we don't obtain the access
+        # token with the code grant but they pass it to us directly
+        username = self.user_info_to_username(user_info)
+        username = self.normalize_username(username)
+
+        # check if there any refresh_token in the token_info dict
+        refresh_token = data.get("refresh_token", None)
+        if self.enable_auth_state and not refresh_token:
+            self.log.debug(
+                "Refresh token was empty, will try to pull refresh_token from "
+                "previous auth_state"
+            )
+            refresh_token = await self.get_prev_refresh_token(handler, username)
+            if refresh_token:
+                data["refresh_token"] = refresh_token
+        # build the auth model to be read if authentication goes right
+        auth_model = {
+            "name": username,
+            "admin": True if username in self.admin_users else None,
+            "auth_state": self.build_auth_state_dict(data, user_info),
+        }
+        # update the auth_model with info to later authorize the user in
+        # check_allowed, such as admin status and group memberships
+        return await self.update_auth_model(auth_model)
+
     async def authenticate(self, handler, data=None):
-        user_info = await super().authenticate(handler, data)
+        # "regular" authentication does not have any data, assume that if
+        # receive something in there, we are dealing with jwt, still if
+        # not successful keep trying the usual way
+        if data:
+            user_info = await self.jwt_authenticate(handler, data)
+        else:
+            user_info = await super().authenticate(handler, data)
         if user_info is None or self.claim_groups_key is None:
             return user_info
         auth_state = user_info.get("auth_state", {})
@@ -170,7 +268,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             body=body,
         )
         try:
-            resp = await http_client.fetch(req)
+            resp = http_client.fetch(req)
         except HTTPClientError as e:
             self.log.warning("Unable to refresh token, maybe expired: %s", e)
             return False
@@ -188,3 +286,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 auth_state["access_token"], refresh_info.get("id_token", None)
             )
         return {"auth_state": auth_state}
+
+    def get_handlers(self, app):
+        handlers = super().get_handlers(app)
+        handlers.append(
+            (r"/jwt_login", self.jwt_handler),
+        )
+        return handlers
