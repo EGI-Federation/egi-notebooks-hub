@@ -297,6 +297,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
 class EOSCNodeAuthenticator(EGICheckinAuthenticator):
     """Adaptation of the EGI Check-in Authenticator to the EOSC EU Node authorization needs"""
+
     personal_project_re = Unicode(
         r"^urn:geant:eosc-federation.eu:group:pp:Personal%20Project%20Name-(.*)$",
         config=True,
