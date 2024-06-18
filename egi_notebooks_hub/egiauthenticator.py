@@ -150,6 +150,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         too long.
         """,
     )
+    # reasonable defaults for Check-in
+    manage_groups = True
 
     async def jwt_authenticate(self, handler, data=None):
         try:
@@ -182,12 +184,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         # check_allowed, such as admin status and group memberships
         return await self.update_auth_model(auth_model)
 
-    def get_primary_group(self, auth_state):
-        groups = self.get_user_groups(auth_state)
+    def get_primary_group(self, oauth_user):
+        # this has changed from one authenticator version to another
+        groups = self.get_user_groups(oauth_user)
         # first group as the primary, priority is governed by ordering in
         # Authenticator.allowed_groups
         first_group = next((v for v in self.allowed_groups if v in groups), None)
-        self.log.info("Primary group: %s", first_group)
         return first_group
 
     async def authenticate(self, handler, data=None):
@@ -201,12 +203,13 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         if user_info is None or self.claim_groups_key is None:
             return user_info
         auth_state = user_info.get("auth_state", {})
-        oauth_user = auth_state.get("oauth_user", {})
+        oauth_user = auth_state.get(self.user_auth_state_key, {})
         if not oauth_user:
             self.log.warning("Missing OAuth info")
             return user_info
 
-        first_group = self.get_primary_group(auth_state)
+        first_group = self.get_primary_group(oauth_user)
+        self.log.info("Primary group: %s", first_group)
         if first_group:
             auth_state["primary_group"] = first_group
 
@@ -294,26 +297,22 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
 class EOSCNodeAuthenticator(EGICheckinAuthenticator):
     """Adaptation of the EGI Check-in Authenticator to the EOSC EU Node authorization needs"""
-
-    personal_project = Unicode(
-        "^urn:geant:eosc-federation.eu:group:pp:Personal%20Project%20Name-\(.*\)$",
+    personal_project_re = Unicode(
+        r"^urn:geant:eosc-federation.eu:group:pp:Personal%20Project%20Name-(.*)$",
         config=True,
-        help="""Regular expression to match the personal groups""",
+        help="""Regular expression to match the personal groups.
+                If the regular expression contains a group and matches, it will be used as
+                the name of the Personal project group""",
     )
 
-    def get_primary_group(self, auth_state):
-        groups = self.get_user_groups(auth_state)
+    def get_primary_group(self, oauth_user):
         # first group is the personal project, which is different for every user
         # if not available call super()
-        first_group = next(
-            (
-                g
-                for g in self.get_user_groups(auth_state)
-                if re.match(self.personal_project, g)
-            ),
-            None,
-        )
-        if first_group:
-            return first_group
-        else:
-            return super().get_primary_group(auth_state)
+        for g in self.get_user_groups(oauth_user):
+            m = re.match(self.personal_project_re, g)
+            if m:
+                if m.groups():
+                    return m.groups()[0]
+                else:
+                    return g
+        return super().get_primary_group(oauth_user)
