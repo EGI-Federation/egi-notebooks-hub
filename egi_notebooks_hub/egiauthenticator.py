@@ -185,7 +185,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         return await self.update_auth_model(auth_model)
 
     def get_primary_group(self, oauth_user):
-        # this has changed from one authenticator version to another
         groups = self.get_user_groups(oauth_user)
         # first group as the primary, priority is governed by ordering in
         # Authenticator.allowed_groups
