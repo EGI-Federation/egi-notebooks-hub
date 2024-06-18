@@ -5,6 +5,7 @@ Uses OpenID Connect with aai.egi.eu
 
 import json
 import os
+import re
 import time
 from urllib.parse import urlencode
 
@@ -181,6 +182,14 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         # check_allowed, such as admin status and group memberships
         return await self.update_auth_model(auth_model)
 
+    def get_primary_group(self, auth_state):
+        groups = self.get_user_groups(auth_state)
+        # first group as the primary, priority is governed by ordering in
+        # Authenticator.allowed_groups
+        first_group = next((v for v in self.allowed_groups if v in groups), None)
+        self.log.info("Primary group: %s", first_group)
+        return first_group
+
     async def authenticate(self, handler, data=None):
         # "regular" authentication does not have any data, assume that if
         # receive something in there, we are dealing with jwt, still if
@@ -197,19 +206,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             self.log.warning("Missing OAuth info")
             return user_info
 
-        # get groups by "claim_group_key"
-        groups = []
-        if callable(self.claim_groups_key):
-            groups = self.claim_groups_key(oauth_user)
-        else:
-            groups = oauth_user.get(self.claim_groups_key, [])
-        self.log.info("Groups: %s", groups)
-        auth_state["groups"] = groups
-
-        # first group as the primary, priority is governed by ordering in
-        # Authenticator.allowed_groups
-        first_group = next((v for v in self.allowed_groups if v in groups), None)
-        self.log.info("Primary group: %s", first_group)
+        first_group = self.get_primary_group(auth_state)
         if first_group:
             auth_state["primary_group"] = first_group
 
@@ -293,3 +290,30 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             (r"/jwt_login", self.jwt_handler),
         )
         return handlers
+
+
+class EOSCNodeAuthenticator(EGICheckinAuthenticator):
+    """Adaptation of the EGI Check-in Authenticator to the EOSC EU Node authorization needs"""
+
+    personal_project = Unicode(
+        "^urn:geant:eosc-federation.eu:group:pp:Personal%20Project%20Name-\(.*\)$",
+        config=True,
+        help="""Regular expression to match the personal groups""",
+    )
+
+    def get_primary_group(self, auth_state):
+        groups = self.get_user_groups(auth_state)
+        # first group is the personal project, which is different for every user
+        # if not available call super()
+        first_group = next(
+            (
+                g
+                for g in self.get_user_groups(auth_state)
+                if re.match(self.personal_project, g)
+            ),
+            None,
+        )
+        if first_group:
+            return first_group
+        else:
+            return super().get_primary_group(auth_state)
