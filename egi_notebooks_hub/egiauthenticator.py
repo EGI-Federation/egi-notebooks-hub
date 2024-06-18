@@ -296,14 +296,15 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
 
 class EOSCNodeAuthenticator(EGICheckinAuthenticator):
-    """Adaptation of the EGI Check-in Authenticator to the EOSC EU Node authorization needs"""
+    """Adaptation of the EGI Check-in Authenticator to the
+       EOSC EU Node authorization needs"""
 
     personal_project_re = Unicode(
         r"^urn:geant:eosc-federation.eu:group:pp:Personal%20Project%20Name-(.*)$",
         config=True,
         help="""Regular expression to match the personal groups.
-                If the regular expression contains a group and matches, it will be used as
-                the name of the Personal project group""",
+                If the regular expression contains a group and matches, it will be
+                used as the name of the Personal project group""",
     )
 
     def get_primary_group(self, oauth_user):
