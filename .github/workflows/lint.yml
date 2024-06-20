@@ -3,6 +3,8 @@ name: Lint
 
 on: [pull_request, push]
 
+permissions: read-all
+
 jobs:
   super-lint:
     name: Lint with Super-Linter
