@@ -215,6 +215,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
         if not context:
             self.log.error("Unable to get the user context")
             raise web.HTTPError(403)
+        context = quote_plus(context)
         access_token = user_data["auth_state"]["access_token"]
         extra_params = {
             "claim_token": base64.b64encode(
