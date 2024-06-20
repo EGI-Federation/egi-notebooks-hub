@@ -1,55 +1,69 @@
+import os.path
+
 import httpx
 from fastapi import FastAPI, HTTPException, Request
+from pydantic_settings import BaseSettings
 
+
+class Settings(BaseSettings):
+    auth_header: str = "authorization"
+    token_type: str = "bearer"
+    jupyterhub_service_prefix: str = "/services/jwt"
+    jupyterhub_api_url: str = "http://localhost:8000/hub/api"
+    jwt_login_suffix: str = "/jwt_login"
+
+
+settings = Settings()
 app = FastAPI()
-
-AUTH_HEADER = "authorization"
-TOKEN_TYPE = "bearer"
-URL = "http://localhost:8000/hub/jwt_login"
-API_URL = "http://localhost:8000/hub/api"
-PREFIX = "services/jwt"
 
 
 # wrapping all the HTTP actions in a single function
-@app.get("/{svc_path:path}")
-@app.put("/{svc_path:path}")
-@app.post("/{svc_path:path}")
-@app.delete("/{svc_path:path}")
-@app.options("/{svc_path:path}")
-@app.head("/{svc_path:path}")
-@app.patch("/{svc_path:path}")
-@app.trace("/{svc_path:path}")
+@app.get("{svc_path:path}")
+@app.put("{svc_path:path}")
+@app.post("{svc_path:path}")
+@app.delete("{svc_path:path}")
+@app.options("{svc_path:path}")
+@app.head("{svc_path:path}")
+@app.patch("{svc_path:path}")
+@app.trace("{svc_path:path}")
 async def api_wrapper(request: Request, svc_path: str):
     token_header = {}
-    if AUTH_HEADER in request.headers:
-        f = request.headers[AUTH_HEADER].split()
-        if len(f) == 2 and f[0].lower() == TOKEN_TYPE:
+    # we are guessing the login URL as we don't have the HUB URL directly on env
+    # should this be explicitly configured?
+    login_url = (
+        settings.jupyterhub_api_url.removesuffix("/api") + settings.jwt_login_suffix
+    )
+    if settings.auth_header in request.headers:
+        f = request.headers[settings.auth_header].split()
+        if len(f) == 2 and f[0].lower() == settings.token_type:
             try:
                 async with httpx.AsyncClient() as client:
-                    r = await client.get(
-                        URL, headers={AUTH_HEADER: request.headers[AUTH_HEADER]}
-                    )
+                    headers = {
+                        settings.auth_header: request.headers[settings.auth_header]
+                    }
+                    r = await client.get(login_url, headers=headers)
                     r.raise_for_status()
                     user_token = r.json()
-                    token_header[AUTH_HEADER] = f"token {user_token['token']}"
+                    token_header[settings.auth_header] = f"token {user_token['token']}"
             except httpx.HTTPStatusError as exc:
                 if exc.response.status_code != 403:
                     raise HTTPException(
                         status_code=exc.response.status_code, detail=exc.response.text
                     )
     content = await request.body()
-    api_path = svc_path.removeprefix(PREFIX)
+    api_path = svc_path.removeprefix(settings.jupyterhub_service_prefix)
     async with httpx.AsyncClient() as client:
         # which headers do we need to preserve?
         headers = dict(request.headers)
-        if AUTH_HEADER in headers:
-            del headers[AUTH_HEADER]
+        if settings.auth_header in headers:
+            del headers[settings.auth_header]
         headers.update(token_header)
         method = getattr(client, request.method.lower())
+        target_url = os.path.join(settings.jupyterhub_api_url, api_path)
         if content:
-            r = await method(API_URL + api_path, content=content, headers=headers)
+            r = await method(target_url, content=content, headers=headers)
         else:
-            r = await method(API_URL + api_path, headers=headers)
+            r = await method(target_url, headers=headers)
         try:
             return r.json()
         except ValueError:
