@@ -1,3 +1,4 @@
+import logging
 import os.path
 
 import httpx
@@ -15,6 +16,10 @@ class Settings(BaseSettings):
 
 settings = Settings()
 app = FastAPI()
+logger = logging.getLogger("uvicorn.error")
+
+logger.info(f"Targetting {settings.jupyterhub_api_url} as API URL")
+logger.info(f"Service listening under {settings.jupyterhub_service_prefix}")
 
 
 # wrapping all the HTTP actions in a single function
@@ -28,6 +33,7 @@ app = FastAPI()
 @app.trace("{svc_path:path}")
 async def api_wrapper(request: Request, svc_path: str):
     token_header = {}
+    logger.debug(f"API Call to {svc_path}")
     # we are guessing the login URL as we don't have the HUB URL directly on env
     # should this be explicitly configured?
     login_url = (
@@ -46,6 +52,7 @@ async def api_wrapper(request: Request, svc_path: str):
                     user_token = r.json()
                     token_header[settings.auth_header] = f"token {user_token['token']}"
             except httpx.HTTPStatusError as exc:
+                logger.debug("Failed auth, may still work!")
                 if exc.response.status_code != 403:
                     raise HTTPException(
                         status_code=exc.response.status_code, detail=exc.response.text
@@ -59,7 +66,10 @@ async def api_wrapper(request: Request, svc_path: str):
             del headers[settings.auth_header]
         headers.update(token_header)
         method = getattr(client, request.method.lower())
-        target_url = os.path.join(settings.jupyterhub_api_url, api_path)
+        target_url = os.path.join(
+            settings.jupyterhub_api_url, api_path.removeprefix("/")
+        )
+        logger.info(f"Target API call: {target_url}")
         if content:
             r = await method(target_url, content=content, headers=headers)
         else:
