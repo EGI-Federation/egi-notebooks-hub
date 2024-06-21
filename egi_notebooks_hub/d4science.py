@@ -210,7 +210,7 @@ class D4ScienceOauthenticator(GenericOAuthenticator):
     async def authenticate(self, handler, data=None):
         # first get authorized upstream
         user_data = await super().authenticate(handler, data)
-        context = self._get_d4science_attr("d4science_context"
+        context = self._get_d4science_attr("d4science_context")
         self.log.debug("Context is %s", context)
         if not context:
             self.log.error("Unable to get the user context")
