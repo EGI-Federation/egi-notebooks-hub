@@ -268,7 +268,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             body=body,
         )
         try:
-            resp = http_client.fetch(req)
+            resp = await http_client.fetch(req)
         except HTTPClientError as e:
             self.log.warning("Unable to refresh token, maybe expired: %s", e)
             return False
