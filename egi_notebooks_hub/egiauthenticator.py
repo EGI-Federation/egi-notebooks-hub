@@ -19,6 +19,7 @@ from traitlets import List, Unicode, default, validate
 
 class JWTHandler(BaseHandler):
     async def exchange_for_refresh_token(self, access_token):
+        self.log.debug("Exchanging access token for refresh")
         http_client = AsyncHTTPClient()
         headers = {
             "Accept": "application/json",
@@ -29,13 +30,16 @@ class JWTHandler(BaseHandler):
                 grant_type="urn:ietf:params:oauth:grant-type:token-exchange",
                 requested_token_type="urn:ietf:params:oauth:token-type:refresh_token",
                 subject_token=access_token,
-                scope=" ".join(self.scope),
+                # beware that this requires the "offline_access" or similar
+                # to be included, otherwise the refresh token will not be
+                # released. Also the access token must have this scope.
+                scope=" ".join(self.authenticator.scope),
             )
         )
         req = HTTPRequest(
             self.authenticator.token_url,
             auth_username=self.authenticator.client_id,
-            auth_password=self.authenricator.client_secret,
+            auth_password=self.authenticator.client_secret,
             headers=headers,
             method="POST",
             body=body,
@@ -45,7 +49,8 @@ class JWTHandler(BaseHandler):
         except HTTPClientError as e:
             self.log.warning(f"Unable to get refresh token: {e}")
             return None
-        return resp.json().get("refresh_token", None)
+        token_info = json.loads(resp.body.decode("utf8", "replace"))
+        return token_info.get("refresh_token", None)
 
     async def get(self):
         auth_header = self.request.headers.get("Authorization", "")
@@ -69,11 +74,11 @@ class JWTHandler(BaseHandler):
         if user is None:
             raise web.HTTPError(403, self.authenticator.custom_403_message)
         auth_state = await user.get_auth_state()
-        if auth_state and "refresh_token" not in auth_state:
-            # TODO: decide how to deal with the refresh token
-            self.log.debug("Refresh token is not available, requesting")
+        if auth_state and not auth_state.get("refresh_token", None):
+            self.log.debug("Refresh token is not available")
             refresh_token = await self.exchange_for_refresh_token(token)
             if refresh_token:
+                self.log.debug("Got refresh token from exchange")
                 auth_state["refresh_token"] = refresh_token
 
         # extract from the jwt token (without verification!)
