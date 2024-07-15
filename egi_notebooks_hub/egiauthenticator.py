@@ -18,6 +18,35 @@ from traitlets import List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
+    async def exchange_for_refresh_token(self, access_token):
+        http_client = AsyncHTTPClient()
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "JupyterHub",
+        }
+        body = urlencode(
+            dict(
+                grant_type="urn:ietf:params:oauth:grant-type:token-exchange",
+                requested_token_type="urn:ietf:params:oauth:token-type:refresh_token",
+                subject_token=access_token,
+                scope=" ".join(self.scope),
+            )
+        )
+        req = HTTPRequest(
+            self.authenticator.token_url,
+            auth_username=self.authenticator.client_id,
+            auth_password=self.authenricator.client_secret,
+            headers=headers,
+            method="POST",
+            body=body,
+        )
+        try:
+            resp = await http_client.fetch(req)
+        except HTTPClientError as e:
+            self.log.warning(f"Unable to get refresh token: {e}")
+            return None
+        return resp.json().get("refresh_token", None)
+
     async def get(self):
         auth_header = self.request.headers.get("Authorization", "")
         if auth_header:
@@ -42,7 +71,10 @@ class JWTHandler(BaseHandler):
         auth_state = await user.get_auth_state()
         if auth_state and "refresh_token" not in auth_state:
             # TODO: decide how to deal with the refresh token
-            self.log.debug("Refresh token is not there...")
+            self.log.debug("Refresh token is not available, requesting")
+            refresh_token = await self.exchange_for_refresh_token(token)
+            if refresh_token:
+                auth_state["refresh_token"] = refresh_token
 
         # extract from the jwt token (without verification!)
         decoded_token = jwt.decode(token, options={"verify_signature": False})
