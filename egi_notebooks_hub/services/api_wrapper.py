@@ -58,7 +58,11 @@ async def api_wrapper(request: Request, svc_path: str):
                         status_code=exc.response.status_code, detail=exc.response.text
                     )
     content = await request.body()
-    api_path = svc_path.removeprefix(settings.jupyterhub_service_prefix)
+    api_path = (
+        svc_path.removeprefix(settings.jupyterhub_service_prefix.rstrip("/"))
+        if svc_path
+        else ""
+    )
     async with httpx.AsyncClient() as client:
         # which headers do we need to preserve?
         headers = dict(request.headers)
