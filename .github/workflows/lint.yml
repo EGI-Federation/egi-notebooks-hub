@@ -30,5 +30,6 @@ jobs:
           DISABLE_ERRORS: false
           # JSCPD is failing in the symlink, so avoiding it
           VALIDATE_JSCPD: false
-          # NO way we can deal with this pylint
+          # Pylint is too picky about everything, not ready
+          # for this yet here
           VALIDATE_PYTHON_PYLINT: false
