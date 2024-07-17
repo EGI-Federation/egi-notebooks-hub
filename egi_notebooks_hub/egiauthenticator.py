@@ -49,7 +49,8 @@ class JWTHandler(BaseHandler):
             resp = await http_client.fetch(req)
         except HTTPClientError as e:
             self.log.warning(f"Unable to get refresh token: {e}")
-            self.log.debug(resp.body)
+            if e.response:
+                self.log.debug(e.response.body)
             return None
         token_info = json.loads(resp.body.decode("utf8", "replace"))
         return token_info.get("refresh_token", None)
