@@ -29,6 +29,7 @@ class JWTHandler(BaseHandler):
             dict(
                 grant_type="urn:ietf:params:oauth:grant-type:token-exchange",
                 requested_token_type="urn:ietf:params:oauth:token-type:refresh_token",
+                subject_token_type="urn:ietf:params:oauth:token-type:access_token",
                 subject_token=access_token,
                 # beware that this requires the "offline_access" or similar
                 # to be included, otherwise the refresh token will not be
