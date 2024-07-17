@@ -54,7 +54,10 @@ class JWTHandler(BaseHandler):
                 self.log.debug(e.response.body)
             return None
         token_info = json.loads(resp.body.decode("utf8", "replace"))
-        return token_info.get("refresh_token", None)
+        if "refresh_token" in token_info:
+            return token_info.get("refresh_token")
+        # EOSC AAI returns the token into "access_token" field, so be it
+        return token_info.get("access_token", None)
 
     async def _get_previous_hub_token(self, user, jwt_token):
         if not user:
