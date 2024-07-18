@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 import jwt
 import jwt.exceptions
 from jupyterhub.handlers import BaseHandler
+from jupyterhub import orm
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
@@ -65,21 +66,13 @@ class JWTHandler(BaseHandler):
         auth_state = await user.get_auth_state()
         if auth_state and auth_state.get("access_token", None) == jwt_token:
             self.log.debug("JWT previously validated, reusing API token if available")
-            return auth_state.get("jwt_api_token", None)
+            api_token = auth_state.get("jwt_api_token", None)
+            return api_token
 
     def _get_token(self):
-        auth_header = self.request.headers.get("Authorization", "")
-        if auth_header:
-            try:
-                bearer, jwt_token = auth_header.split()
-                if bearer.lower() != "bearer":
-                    self.log.debug("Unexpected authorization header format")
-                    raise HTTPError(401)
-            except ValueError:
-                self.log.debug("Unexpected authorization header format")
-                raise HTTPError(401)
-        else:
-            self.log.debug("No authorization header")
+        jwt_token = self.get_auth_token()
+        if not jwt_token:
+            self.log.debug("No token found in header")
             raise HTTPError(401)
         try:
             decoded_token = jwt.decode(
