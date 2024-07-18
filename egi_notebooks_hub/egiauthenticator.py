@@ -11,8 +11,8 @@ from urllib.parse import urlencode
 
 import jwt
 import jwt.exceptions
-from jupyterhub.handlers import BaseHandler
 from jupyterhub import orm
+from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
