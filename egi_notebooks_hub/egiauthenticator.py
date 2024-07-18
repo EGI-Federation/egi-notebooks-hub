@@ -372,7 +372,7 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
     login_service = "EOSC AAI"
 
     personal_project_re = Unicode(
-        r"^urn:geant:eosc-federation.eu:group:pp:Personal%20Project%20Name-(.*)$",
+        r"^urn:geant:eosc-federation.eu:group:(pp-.*)$",
         config=True,
         help="""Regular expression to match the personal groups.
                 If the regular expression contains a group and matches, it will be
