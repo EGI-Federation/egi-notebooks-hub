@@ -65,8 +65,13 @@ class JWTHandler(BaseHandler):
             return None
         auth_state = await user.get_auth_state()
         if auth_state and auth_state.get("access_token", None) == jwt_token:
-            self.log.debug("JWT previously validated, reusing API token if available")
             api_token = auth_state.get("jwt_api_token", None)
+            if api_token is None:
+                return None
+            orm_token = orm.APIToken.find(self.db, api_token)
+            if not orm_token or orm_token.expires_in <= 0:
+                return None
+            self.log.debug("Reusing previously available API token for this JWT")
             return api_token
 
     def _get_token(self):
