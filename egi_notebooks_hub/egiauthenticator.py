@@ -221,8 +221,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         too long.
         """,
     )
-    # reasonable defaults for Check-in
-    manage_groups = True
+
+    @default("manage_groups")
+    def _manage_groups_default(self):
+        return True
 
     async def jwt_authenticate(self, handler, data=None):
         try:
