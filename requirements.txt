@@ -4,3 +4,4 @@ jupyterhub-kubespawner>=6.1.0
 xmltodict
 fastapi
 pydantic-settings
+pbr
