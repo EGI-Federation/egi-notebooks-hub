@@ -396,4 +396,4 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
                     return m.groups()[0]
                 else:
                     return g
-        return super().get_primary_group(oauth_user)
+        return super().get_primary_group(user_info)
