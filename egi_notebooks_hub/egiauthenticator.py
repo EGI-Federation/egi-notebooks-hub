@@ -257,8 +257,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         # check_allowed, such as admin status and group memberships
         return await self.update_auth_model(auth_model)
 
-    def get_primary_group(self, oauth_user):
-        groups = self.get_user_groups(oauth_user)
+    def get_primary_group(self, user_info):
+        groups = user_info.get("groups", [])
         # first group as the primary, priority is governed by ordering in
         # Authenticator.allowed_groups
         first_group = next((v for v in self.allowed_groups if v in groups), None)
@@ -280,7 +280,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             self.log.warning("Missing OAuth info")
             return user_info
 
-        first_group = self.get_primary_group(oauth_user)
+        first_group = self.get_primary_group(user_info)
         self.log.info("Primary group: %s", first_group)
         if first_group:
             auth_state["primary_group"] = first_group
@@ -357,7 +357,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             await user.spawner.set_access_token(
                 auth_state["access_token"], refresh_info.get("id_token", None)
             )
-        return {"auth_state": auth_state}
+        auth_model = {
+            "name": user.name,
+            "admin": True if user.name in self.admin_users else None,
+            "auth_state": auth_state,
+        }
+        return await self.update_auth_model(auth_model)
 
     def get_handlers(self, app):
         handlers = super().get_handlers(app)
@@ -381,10 +386,10 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
                 used as the name of the Personal project group""",
     )
 
-    def get_primary_group(self, oauth_user):
+    def get_primary_group(self, user_info):
         # first group is the personal project, which is different for every user
         # if not available call super()
-        for g in self.get_user_groups(oauth_user):
+        for g in user_info.get("groups", []):
             m = re.match(self.personal_project_re, g)
             if m:
                 if m.groups():
