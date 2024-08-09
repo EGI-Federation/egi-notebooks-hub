@@ -45,6 +45,9 @@ class EGISpawner(KubeSpawner):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # change to a method so we can filter
+        self._profile_config = self.profile_list
+        self.profile_list = self._profile_filter
         self.pvc_name = uuid.uuid4().hex
         self.token_secret_name = self._expand_user_properties(
             self.token_secret_name_template
@@ -140,18 +143,6 @@ class EGISpawner(KubeSpawner):
         await spawner.set_access_token(
             auth_state.get("access_token", None), auth_state.get("id_token", None)
         )
-        groups = auth_state.get("groups", [])
-        if spawner.profile_list:
-            new_profile_list = []
-            for profile in spawner.profile_list:
-                profile_vos = profile.get("vo_claims", [])
-                if not profile_vos:
-                    new_profile_list.append(profile)
-                else:
-                    if any(i in groups for i in profile_vos):
-                        new_profile_list.append(profile)
-            spawner.profile_list = new_profile_list
-
         primary_group = auth_state.get("primary_group", None)
         if primary_group:
             spawner.extra_annotations["egi.eu/primary_group"] = auth_state[
@@ -181,3 +172,16 @@ class EGISpawner(KubeSpawner):
         self.volumes = vols
         # ensure we have a secret
         await self._update_secret({})
+
+    def _profile_filter(self, spawner):
+        profile_list = []
+        if spawner._profile_config:
+            groups = [g.name for g in spawner.user.groups]
+            for profile in spawner._profile_config:
+                profile_vos = profile.get("vo_claims", [])
+                if not profile_vos:
+                    profile_list.append(profile)
+                else:
+                    if any(i in groups for i in profile_vos):
+                        profile_list.append(profile)
+        return profile_list
