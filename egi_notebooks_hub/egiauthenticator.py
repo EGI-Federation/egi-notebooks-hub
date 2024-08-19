@@ -8,6 +8,7 @@ import os
 import re
 import time
 from urllib.parse import urlencode
+import uuid
 
 import jwt
 import jwt.exceptions
@@ -227,6 +228,15 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     @default("manage_groups")
     def _manage_groups_default(self):
         return True
+
+    def user_info_to_username(self, user_info):
+        try:
+            return super().user_info_to_username(user_info)
+        except ValueError as e:
+            # let's treat this as an anonymous user with a unique name
+            # This won't help in caching the tokens though, as there
+            # is no way to understand whether the user is the same or not
+            return str(uuid.uuid4())
 
     async def jwt_authenticate(self, handler, data=None):
         try:
