@@ -388,7 +388,7 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
 
     def get_primary_group(self, user_info):
         # first group is the personal project, which is different for every user
-        # if not available call super()
+        # if not available return None
         for g in user_info.get("groups", []):
             m = re.match(self.personal_project_re, g)
             if m:
@@ -396,4 +396,4 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
                     return m.groups()[0]
                 else:
                     return g
-        return super().get_primary_group(user_info)
+        return None
