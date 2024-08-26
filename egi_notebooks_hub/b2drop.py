@@ -50,7 +50,7 @@ class B2DropSpawner(OnedataSpawner):
         else:
             profile_form_template = env.get_template("b2drop-form.html")
         return profile_form_template.render(
-            profile_list=self._profile_list,
+            profile_list=profile_list,
             b2drop_ready=self.b2drop_ready,
             b2drop_user=self.b2drop_user,
             b2drop_pwd=self.b2drop_pwd,

@@ -56,21 +56,20 @@
     </div>
   </label>
   {%- endfor %}
-  <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true">
-    <div class="panel panel-default">
-      <div class="panel-heading" role="tab" id="headingOne">
-        <h4 class="panel-title">
-          <a class="collabpsed" role="button" data-toggle="collapse" data-parent="#accordion"
-            href="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-            B2DROP connection
-          </a>
+  <div class="accordion" id="accordion-b2drop">
+    <div class="accordion-item">
+      <h4 class="accordion-header">
+        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+		data-bs-target="#collapse-b2drop" aria-expanded="false"
+		aria-controls="collapse-b2drop">
+          <span class="px-2">B2DROP connection</span>
           {%if b2drop_ready %}
-            <span class="label label-success">Already configured!</span>
+          <span class="label label-success">Already configured!</span>
           {% endif %}
-        </h4>
-      </div>
-      <div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
-        <div class="panel-body">
+        </button>
+      </h4>
+      <div id="collapse-b2drop" class="accordion-collapse collapse" data-bs-parent="#accordion-b2drop">
+        <div class="accordion-body">
           <div class="form-group">
             <label for="b2drop-user" class="form-label">B2DROP app Username</label>
             <input type="text" class="form-control" name="b2drop-user" id="b2drop-user"
@@ -79,13 +78,13 @@
               Create new app password at
               <a href="https://b2drop.eudat.eu/settings/user/security">
                 B2DROP security configuration</a>
-            </div>
-          </div>
+            </div> FORM TEXT
+          </div> FORM GROUP
           <div class="form-group">
             <label for="b2drop-pwd" class="form-label">B2DROP app Password</label>
             <input type="password" class="form-control" name="b2drop-pwd" id="b2drop-pwd"
               value="{{ b2drop_pwd }}"/>
-          </div>
+          </div> FORM GROUP
           <div class="form-group">
             <input type="checkbox" id="b2drop-remember" name="b2drop-remember"
               {%if b2drop_ready %}checked{% endif %}/>
@@ -98,6 +97,7 @@
     </div>
   </div>
 </div>
+
 <script>
   $(".js-profile-option-select, .js-profile-option-label").click(function () {
     // we need this bit of JS to select the profile when a <select> inside is clicked.
