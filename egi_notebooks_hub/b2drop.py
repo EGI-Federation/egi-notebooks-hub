@@ -4,16 +4,8 @@ B2Drop extension on top of onedataspawner
 
 import base64
 
-from jinja2 import (
-    BaseLoader,
-    ChoiceLoader,
-    Environment,
-    FileSystemLoader,
-    PackageLoader,
-)
-
 from egi_notebooks_hub.onedata import OnedataSpawner
-
+from jinja2 import ChoiceLoader, Environment, FileSystemLoader, PackageLoader
 from kubernetes_asyncio.client.rest import ApiException
 
 
