@@ -21,6 +21,7 @@ from traitlets import List, Unicode, default, validate
 
 class JWTHandler(BaseHandler):
     """Handler for authentication with JWT tokens"""
+
     async def exchange_for_refresh_token(self, access_token):
         self.log.debug("Exchanging access token for refresh")
         http_client = AsyncHTTPClient()
