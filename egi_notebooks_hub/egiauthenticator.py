@@ -237,7 +237,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         username = self.user_info_to_username(user_info)
         username = self.normalize_username(username)
 
-        # check if there any refresh_token in the token_info dict
+        # check if there is any refresh_token in the token_info dict
         refresh_token = data.get("refresh_token", None)
         if self.enable_auth_state and not refresh_token:
             self.log.debug(
@@ -303,6 +303,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             )
             return True
 
+        try:
+            if jwt.decode(
+                access_token,
+                options=dict(verify_signature=False, verify_exp=True),
+            ):
+                # access token is good, no need to keep going
+                self.log.debug("Access token is still good, no refresh needed")
+                return True
+        except jwt.exceptions.InvalidTokenError as e:
+            self.log.debug(f"Invalid access token, will try to refresh: {e}")
+
         now = time.time()
         refresh_info = auth_state.get("refresh_info", {})
         # if the token is still valid, avoid refreshing
@@ -343,6 +354,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             resp = await http_client.fetch(req)
         except HTTPClientError as e:
             self.log.warning("Unable to refresh token, maybe expired: %s", e)
+            if e.response:
+                self.log.warning("Response from server: %s", e.response.body)
+            # clear here the existing auth state so it's no longer valid
+            await user.save_auth_state(None)
             return False
         refresh_info = json.loads(resp.body.decode("utf8", "replace"))
         refresh_info["expiry_time"] = now + refresh_info["expires_in"]
