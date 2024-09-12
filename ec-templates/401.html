@@ -1,6 +1,6 @@
 <!-- htmlhint doctype-first:false -->
-{% extends "error.html" %} {% block main %}
-
+{% extends "error.html" %}
+{% block main %}
 <div class="error">
   <h1>Unauthorized!</h1>
   <p>
@@ -17,12 +17,17 @@
   </p>
   <p>
     See
-    <a href="https://docs.egi.eu/users/dev-env/notebooks/#notebooks-for-researchers/">
-      Documentation related to EGI Notebooks</a> about granting access. You can also
-    <a href="https://marketplace.eosc-portal.eu/services/egi-notebooks">place an
-      order in EOSC portal</a>
-    for the Notebooks service if you are interested in your own community deployment.
+    <a
+      href="https://docs.egi.eu/users/dev-env/notebooks/#notebooks-for-researchers/"
+    >
+      Documentation related to EGI Notebooks</a
+    >
+    about granting access. You can also
+    <a href="https://marketplace.eosc-portal.eu/services/egi-notebooks"
+      >place an order in EOSC portal</a
+    >
+    for the Notebooks service if you are interested in your own community
+    deployment.
   </p>
 </div>
-
 {% endblock %}

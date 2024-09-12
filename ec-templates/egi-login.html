@@ -1,6 +1,8 @@
-<!-- htmlhint doctype-first:false -->
-{% extends "page.html" %} {% if announcement_login %} {% set announcement =
-announcement_login %} {% endif %} 
+<!-- htmlhint doctype-first:false,id-class-value:false -->
+{% extends "page.html" %}
+{% if announcement_login %}
+  {% set announcement = announcement_login %}
+{% endif %}
 
 {% block main %}
 <div id="main-page-content" class="ecl-u-mb-l">
