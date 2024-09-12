@@ -1,0 +1,20 @@
+<!-- htmlhint doctype-first:false -->
+{% extends "page.html" %}
+
+{% block meta %}
+<meta http-equiv="refresh" content="0; url=/">
+{% endblock %}
+
+{% if announcement_logout %}
+  {% set announcement = announcement_logout %}
+{% endif %}
+
+{% block main %}
+
+<div id="logout-main" class="container">
+  <p>
+    Successfully logged out.
+  </p>
+</div>
+
+{% endblock %}
