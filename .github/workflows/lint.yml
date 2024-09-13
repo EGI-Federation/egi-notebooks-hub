@@ -33,3 +33,7 @@ jobs:
           # Pylint is too picky about everything, not ready
           # for this yet here
           VALIDATE_PYTHON_PYLINT: false
+          # this messes with jinja templates
+          VALIDATE_HTML_PRETTIER: false
+          # We don't want to lint EC files
+          FILTER_REGEX_EXCLUDE: ".*/ecl-.*\\.(css|js)"

@@ -1,0 +1,433 @@
+<!-- htmlhint doctype-first:false,id-class-value:false -->
+{% extends "templates/page.html" %}
+{% set service_name = service_name|default('Notebooks') %}
+
+{% block stylesheet %}
+{{ super() }}
+<link
+  rel="stylesheet"
+  href="{{ static_url('css/ecl-ec-default.css') }}"
+  media="screen"
+/>
+<link
+  rel="stylesheet"
+  href="{{ static_url('css/ecl-reset.css') }}"
+  media="screen"
+/>
+<link
+  rel="stylesheet"
+  href="{{ static_url('css/ecl-ec.css') }}"
+  media="screen"
+/>
+<link
+  rel="stylesheet"
+  href="{{ static_url('css/ecl-ec-utilities.css') }}"
+  media="screen"
+/>
+<link
+  rel="stylesheet"
+  href="{{ static_url('css/ecl-ec-print.css') }}"
+  media="print"
+/>
+<link
+  rel="stylesheet"
+  href="{{ static_url('css/ecl-ec-default-print.css') }}"
+  media="print"
+/>
+{% endblock stylesheet %}
+{% block script %}
+{{ super() }}
+<script src="{{ static_url('js/ecl-ec.js') }}"></script>
+<script>
+  ECL.autoInit();
+</script>
+{% endblock script %}
+
+{% block title %}European Open Science Cloud - EU Node Interactive Notebooks{% endblock title %}
+
+{% block nav_bar %}
+<header
+  class="ecl-site-header ecl-site-header-with-logo-l ecl-site-header--has-mega-menu"
+  data-ecl-auto-init="SiteHeader"
+>
+  <div class="ecl-site-header__inner">
+    <div class="ecl-site-header__background">
+      <div class="ecl-site-header__header">
+        <div class="ecl-site-header__container ecl-container">
+          <div class="ecl-site-header__top" data-ecl-site-header-top>
+            <a
+              href="https://commission.europa.eu/index_en"
+              class="ecl-link ecl-link--standalone ecl-site-header__logo-link"
+            >
+              <picture class="ecl-picture ecl-site-header__picture">
+                <source
+                  srcset="{{ static_url('images/logo-ec--en.svg') }}"
+                  media="(min-width: 996px)"
+                />
+                <img
+                  class="ecl-site-header__logo-image ecl-site-header__logo-image--l"
+                  src="{{ static_url('images/logo-ec--en.svg') }}"
+                  alt="European Commission"
+                />
+              </picture>
+            </a>
+
+            <div class="ecl-site-header__action">
+              {% if user %}
+              <div class="ecl-site-header__login-container">
+                <a
+                  class="ecl-button ecl-button--tertiary ecl-site-header__login-toggle"
+                  aria-controls="login-box-id"
+                  data-ecl-login-toggle
+                  aria-expanded="false"
+                  ><svg
+                    class="ecl-icon ecl-icon--s ecl-site-header__icon"
+                    focusable="false"
+                    aria-hidden="false"
+                    role="img"
+                  >
+                    <title>Logged in</title>
+                    <use
+                      xlink:href="{{ static_url('images/icons.svg') }}#logged-in"
+                    ></use></svg
+                  >Logged in</a
+                >
+                <div
+                  id="login-box-id"
+                  class="ecl-site-header__login-box"
+                  data-ecl-login-box
+                >
+                  <p class="ecl-site-header__login-description">
+                    Logged in as {{ user.name }}
+                  </p>
+                  <hr class="ecl-site-header__login-separator" />
+                  <a
+                    href="{{ logout_url }}"
+                    class="ecl-link ecl-link--standalone"
+                    >Log out</a
+                  >
+                </div>
+              </div>
+              {% else %}
+              <div class="ecl-site-header__login-container">
+                <a
+                  class="ecl-button ecl-button--tertiary ecl-site-header__login-toggle"
+                  href="{{ authenticator_login_url }}"
+                  data-ecl-login-toggle
+                  ><svg
+                    class="ecl-icon ecl-icon--s ecl-site-header__icon"
+                    focusable="false"
+                    aria-hidden="false"
+                    role="img"
+                  >
+                    <title>Log in</title>
+                    <use
+                      xlink:href="{{ static_url('images/icons.svg') }}#log-in"
+                    ></use></svg
+                  >Log in</a
+                >
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ecl-site-header__banner">
+      <div class="ecl-container">
+        <div class="ecl-site-header__site-name">
+          European Open Science Cloud - EU Node Interactive Notebooks
+        </div>
+      </div>
+    </div>
+  </div>
+  <nav
+    class="ecl-mega-menu"
+    data-ecl-mega-menu
+    data-ecl-auto-init="MegaMenu"
+    data-ecl-mega-menu-label-open="Menu"
+    data-ecl-mega-menu-label-close="Close"
+    aria-expanded="false"
+    role="navigation"
+    id="demo"
+    aria-label="Main navigation"
+  >
+    <div class="ecl-mega-menu__overlay"></div>
+    <div class="ecl-container ecl-mega-menu__container">
+      <button
+        class="ecl-button ecl-button--tertiary ecl-mega-menu__open ecl-button--icon-only"
+        type="button"
+        data-ecl-mega-menu-open
+        aria-expanded="false"
+      >
+        <span class="ecl-button__container"
+          ><svg
+            class="ecl-icon ecl-icon--m ecl-button__icon"
+            focusable="false"
+            aria-hidden="true"
+            data-ecl-icon
+          >
+            <use
+              xlink:href="{{ static_url('images/icons.svg') }}#hamburger"
+            ></use></svg
+          ><svg
+            class="ecl-icon ecl-icon--m ecl-button__icon"
+            focusable="false"
+            aria-hidden="true"
+            data-ecl-icon
+          >
+            <use
+              xlink:href="{{ static_url('images/icons.svg') }}#close"
+            ></use></svg
+          ><span class="ecl-button__label" data-ecl-label="true"
+            >Menu</span
+          ></span
+        >
+      </button>
+      <section class="ecl-mega-menu__inner" data-ecl-mega-menu-inner>
+        <header class="ecl-mega-menu__inner-header">
+          <button
+            class="ecl-button ecl-button--tertiary ecl-mega-menu__back"
+            type="submit"
+            data-ecl-mega-menu-back
+          >
+            <span class="ecl-button__container"
+              ><svg
+                class="ecl-icon ecl-icon--xs ecl-icon--rotate-270 ecl-button__icon"
+                focusable="false"
+                aria-hidden="true"
+                data-ecl-icon
+              >
+                <use
+                  xlink:href="{{ static_url('images/icons.svg') }}#corner-arrow"
+                ></use></svg
+              ><span class="ecl-button__label" data-ecl-label="true"
+                >Back</span
+              ></span
+            >
+          </button>
+        </header>
+        <ul class="ecl-mega-menu__list">
+          <li
+            class="ecl-mega-menu__item"
+            data-ecl-mega-menu-item
+            id="ecl-mega-menu-item-home-0"
+          >
+            <a
+              href="{{ base_url }}home"
+              class="ecl-link ecl-link--standalone ecl-mega-menu__link"
+              data-ecl-mega-menu-link
+              id="ecl-mega-menu-item-home-0-link"
+              >Home</a
+            >
+          </li>
+          {% if user %}
+          <li
+            class="ecl-mega-menu__item"
+            data-ecl-mega-menu-item
+            id="ecl-mega-menu-item-token-0"
+          >
+            <a
+              href="{{ base_url }}token"
+              class="ecl-link ecl-link--standalone ecl-mega-menu__link"
+              data-ecl-mega-menu-link
+              id="ecl-mega-menu-item-token-0-link"
+              >Token</a
+            >
+          </li>
+          {% if 'admin-ui' in parsed_scopes %} {% endif %}
+          <li
+            class="ecl-mega-menu__item"
+            data-ecl-mega-menu-item
+            id="ecl-mega-menu-item-admin-0"
+          >
+            <a
+              href="{{ base_url }}admin"
+              class="ecl-link ecl-link--standalone ecl-mega-menu__link"
+              data-ecl-mega-menu-link
+              id="ecl-mega-menu-item-admin-0-link"
+              >Admin</a
+            >
+          </li>
+          {% endif %}
+        </ul>
+      </section>
+    </div>
+  </nav>
+</header>
+{% endblock nav_bar %}
+
+{% block footer %}
+<footer class="ecl-site-footer">
+  <div class="ecl-container ecl-site-footer__container">
+    <div class="ecl-site-footer__row">
+      <div class="ecl-site-footer__column">
+        <div
+          class="ecl-site-footer__section ecl-site-footer__section--site-info"
+        >
+          <div class="ecl-site-footer__title">
+            <a
+              href="{{ base_url }}"
+              class="ecl-link ecl-link--standalone ecl-site-footer__title-link"
+            >
+              European Open Science Cloud - EU Node Interactive Notebooks</a
+            >
+          </div>
+          <div class="ecl-site-footer__description">
+            This site is managed by:<br />Directorate-General for Communications
+            Networks, Content and Technology
+          </div>
+          <ul class="ecl-site-footer__list">
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/accessibility-statement"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Accessibility</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="ecl-site-footer__column">
+        <div class="ecl-site-footer__section">
+          <div class="ecl-site-footer__title">Contact us</div>
+          <ul class="ecl-site-footer__list">
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/support/helpdesk"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Contact our Helpdesk</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/support/frequently-asked-questions"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >FAQs</a
+              >
+            </li>
+          </ul>
+        </div>
+        <div class="ecl-site-footer__section">
+          <div class="ecl-site-footer__title">Policy statement</div>
+          <ul class="ecl-site-footer__list">
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/index.php/system/files?file=2024-04/EOSC-EU-Node-Acceptable-Use-Policy.pdf"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >EOSC EU Node Acceptable Use Policy</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="ecl-site-footer__column">
+        <div class="ecl-site-footer__section">
+          <div class="ecl-site-footer__title">About us</div>
+
+          <div class="ecl-site-footer__description">
+            The European Open Science Cloud aims to establish a federation of
+            infrastructures facilitating effortless access to interoperable
+            research assets and enhanced services spanning geographical
+            boundaries and diverse academic fields.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ecl-site-footer__row">
+      <div class="ecl-site-footer__column">
+        <div class="ecl-site-footer__section">
+          <a
+            href="https://commission.europa.eu/index_en"
+            class="ecl-link ecl-link--standalone ecl-site-footer__logo-link"
+          >
+            <picture class="ecl-picture ecl-site-footer__picture">
+              <source
+                srcset="{{ static_url('images/logo-ec-negative--en.svg') }}"
+                media="(min-width: 996px)"
+              />
+              <img
+                class="ecl-site-footer__logo-image"
+                src="{{ static_url('images/logo-ec-negative--en.svg') }}"
+                alt="European Commission"
+              />
+            </picture>
+          </a>
+        </div>
+      </div>
+      <div class="ecl-site-footer__column">
+        <div
+          class="ecl-site-footer__section ecl-site-footer__section--split-list"
+        >
+          <ul class="ecl-site-footer__list">
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/about-european-commission/contact_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Contact the European Commission</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://european-union.europa.eu/contact-eu/social-media-channels_en#/search?page=0&institutions=european_commission"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Follow the European Commission on social media</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/resources-partners_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Resources for partners</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/legal-notice/vulnerability-disclosure-policy_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Report an IT vulnerability</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div class="ecl-site-footer__column">
+        <div
+          class="ecl-site-footer__section ecl-site-footer__section--split-list"
+        >
+          <ul class="ecl-site-footer__list">
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/language-policy_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Languages on our websites</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/cookies_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Cookies</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/privacy-policy_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Privacy policy</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://commission.europa.eu/legal-notice_en"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Legal notice</a
+              >
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer>
+{% endblock footer %}

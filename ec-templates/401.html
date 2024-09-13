@@ -1,0 +1,33 @@
+<!-- htmlhint doctype-first:false -->
+{% extends "error.html" %}
+{% block main %}
+<div class="error">
+  <h1>Unauthorized!</h1>
+  <p>
+    You are trying to access a restricted instance of the EGI Notebooks service.
+  </p>
+  <p>
+    Access requires a valid
+    <a href="https://docs.egi.eu/users/check-in/signup">EGI account</a>
+    and membership of one of the supported VOs.
+  </p>
+  <p>
+    If you think you should be granted access already, please open an issue in
+    <a href="https://ggus.eu">GGUS</a>
+  </p>
+  <p>
+    See
+    <a
+      href="https://docs.egi.eu/users/dev-env/notebooks/#notebooks-for-researchers/"
+    >
+      Documentation related to EGI Notebooks</a
+    >
+    about granting access. You can also
+    <a href="https://marketplace.eosc-portal.eu/services/egi-notebooks"
+      >place an order in EOSC portal</a
+    >
+    for the Notebooks service if you are interested in your own community
+    deployment.
+  </p>
+</div>
+{% endblock %}
