@@ -10,9 +10,10 @@
   <div class="row">
     <div class="text-center">
       {% if default_server.active %}
-      <a id="stop" role="button" class="ecl-button ecl-button--cta"
+      <a id="stop" role="button" class="ecl-button ecl-button--secondary"
         >Stop My Server</a
-      >{% endif %}
+      >
+      {% endif %}
       <a
         id="start"
         role="button"
@@ -53,7 +54,7 @@
             <button
               role="button"
               type="button"
-              class="new-server-btn btn btn-xs btn-primary"
+              class="new-server-btn ecl-button ecl-button--primary btn-xs"
             >
               Add New Server
             </button>
@@ -80,20 +81,20 @@
         <td>
           <a
             role="button"
-            class="stop-server btn btn-xs btn-danger{% if not spawner.active %} hidden{% endif %}"
+            class="stop-server btn-xs ecl-button ecl-button--secondary {% if not spawner.active %} hidden{% endif %}"
             id="stop-{{ spawner.name }}"
             >stop</a
           >
           <a
             role="button"
-            class="start-server btn btn-xs btn-primary {% if spawner.active %}hidden{% endif %}"
+            class="start-server btn-xs ecl-button ecl-button--primary {% if spawner.active %}hidden{% endif %}"
             id="start-{{ spawner.name }}"
             href="{{ base_url }}spawn/{{ user.name }}/{{ spawner.name }}"
             >start</a
           >
           <button
             role="button"
-            class="delete-server btn btn-xs btn-danger{% if spawner.active %} hidden{% endif %}"
+            class="delete-server btn-xs ecl-button ecl-button--secondary {% if spawner.active %} hidden{% endif %}"
             id="delete-{{ spawner.name }}"
           >
             delete
@@ -105,8 +106,11 @@
   </table>
   {% endif %}
 </div>
-{% endblock main %} {% block script %} {{ super() }}
+{% endblock main %}
+
+{% block script %}
+{{ super() }}
 <script type="text/javascript">
-  require(["home"]);
+require(["home"]);
 </script>
-{% endblock script %}
+{% endblock %}

@@ -12,7 +12,7 @@
   </div>
   {% endblock heading %}
   <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="row col-sm-offset-2 col-sm-8">
       {% if for_user and user.name != for_user.name -%}
       <p>Spawning server for {{ for_user.name }}</p>
       {% endif -%} {% if error_message -%}
