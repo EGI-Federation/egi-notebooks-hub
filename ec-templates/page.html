@@ -4,6 +4,25 @@
 
 {% block stylesheet %}
 {{ super() }}
+
+<style>
+html {
+  font-size: 100%;
+  height: 100%;
+}
+body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.site-footer-fix {
+  margin-top: auto;
+}
+.container-fix {
+  flex-grow: 1;
+}
+</style>
+
 <link
   rel="stylesheet"
   href="{{ static_url('css/ecl-ec-default.css') }}"
@@ -35,6 +54,7 @@
   media="print"
 />
 {% endblock stylesheet %}
+
 {% block script %}
 {{ super() }}
 <script src="{{ static_url('js/ecl-ec.js') }}"></script>
@@ -258,8 +278,51 @@
 </header>
 {% endblock nav_bar %}
 
+{% block announcement %}
+{% if announcement %}
+<div
+  class="ecl-notification ecl-notification--info"
+  data-ecl-notification
+  role="alert"
+  data-ecl-auto-init="Notification"
+>
+  <svg
+    class="ecl-icon ecl-icon--l ecl-notification__icon"
+    focusable="false"
+    aria-hidden="false"
+    role="img"
+  >
+    <title>Information</title>
+    <use xlink:href="{{ static_url('images/icons.svg') }}#information"></use>
+  </svg>
+  <div class="ecl-notification__content">
+    <button
+      class="ecl-button ecl-button--tertiary ecl-notification__close ecl-button--icon-only"
+      type="button"
+      data-ecl-notification-close
+    >
+      <span class="ecl-button__container"
+        ><span class="ecl-button__label" data-ecl-label="true">Close</span
+        ><svg
+          class="ecl-icon ecl-icon--m ecl-button__icon"
+          focusable="false"
+          aria-hidden="true"
+          data-ecl-icon
+        >
+          <use
+            xlink:href="{{ static_url('images/icons.svg') }}#close"
+          ></use></svg
+      ></span>
+    </button>
+    <div class="ecl-notification__title">Announcement</div>
+    <div class="ecl-notification__description">{{ announcement | safe }}</div>
+  </div>
+</div>
+{% endif %}
+{% endblock announcement %}
+
 {% block footer %}
-<footer class="ecl-site-footer">
+<footer class="ecl-site-footer site-footer-fix">
   <div class="ecl-container ecl-site-footer__container">
     <div class="ecl-site-footer__row">
       <div class="ecl-site-footer__column">
@@ -275,8 +338,8 @@
             >
           </div>
           <div class="ecl-site-footer__description">
-            This site is managed by:<br />Directorate-General for Communications
-            Networks, Content and Technology
+            This site is managed by:<br />Directorate-General for
+            Communications Networks, Content and Technology
           </div>
           <ul class="ecl-site-footer__list">
             <li class="ecl-site-footer__list-item">

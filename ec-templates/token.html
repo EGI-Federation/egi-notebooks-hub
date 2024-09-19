@@ -2,110 +2,88 @@
 {% extends "page.html" %}
 
 {% block main %}
-<div class="ecl-container ecl-u-mv-xl">
+<div class="ecl-container ecl-u-mv-xl container-fix">
   <h1 class="sr-only">Manage JupyterHub Tokens</h1>
-  <div class="row justify-content-center">
-    <form id="request-token-form" class="col-lg-6">
-      <div class="ecl-form-group">
-        <label for="token-note" class="ecl-form-label"
-          >Note<span class="ecl-form-label__optional">(optional)</span></label
-        >
-        <input
-          id="token-note"
-          class="ecl-text-input ecl-text-input--m"
-          placeholder="note to identify your new token"
-        />
-        <div class="ecl-help-block" id="token-note-helper">
-          This note will help you keep track of what your tokens are for.
-        </div>
-
-        <br />
-        <label
-          for="token-expiration-seconds"
-          id="token-expiration-seconds-label"
-          class="ecl-form-label"
-          >Token expires in<span
-            class="ecl-form-label__required"
-            role="note"
-            aria-label="required"
-            >*</span
-          ></label
-        >
-        <div class="ecl-help-block" id="select-default-helper">
-          You can configure when your token will expire.
-        </div>
-        <div class="ecl-select__container ecl-select__container--m">
-          {% block expiration_options %}
-          <select
-            class="ecl-select"
-            id="token-expiration-seconds"
-            required
-            aria-describedby="token-expiration-seconds-helper"
-            data-ecl-auto-init="Select"
-          >
-            {{ token_expires_in_options_html | safe }}
-          </select>
-          {% endblock expiration_options %}
-          <div class="ecl-select__icon">
-            <button
-              class="ecl-button ecl-button--ghost ecl-button--icon-only"
-              type="button"
-              tabindex="-1"
-            >
-              <span class="ecl-button__container"
-                ><span class="ecl-button__label" data-ecl-label="true"
-                  >Toggle dropdown</span
-                ><svg
-                  class="ecl-icon ecl-icon--xs ecl-icon--rotate-180 ecl-button__icon"
-                  focusable="false"
-                  aria-hidden="true"
-                  data-ecl-icon
-                >
-                  <use
-                    xlink:href="{{ static_url('images/icons.svg') }}#corner-arrow"
-                  ></use></svg
-              ></span>
-            </button>
-          </div>
-        </div>
-        <br />
-
-        <label for="token-scopes" id="token-scopes-label" class="ecl-form-label"
-          >Label<span class="ecl-form-label__optional">(optional)</span></label
-        >
-        <div class="ecl-help-block" id="token-scopes-helper">
-          You can limit the permissions of the token so it can only do what you
-          want it to. If none are specified, the token will have permission to
-          do everything you can do. See the
-          <a
-            href="https://jupyterhub.readthedocs.io/en/stable/rbac/scopes.html#available-scopes"
-            >JupyterHub documentation for a list of available scopes</a
-          >.
-        </div>
-        <input
-          id="token-scopes"
-          class="ecl-text-input ecl-text-input--m"
-          type="text"
-          placeholder="list of scopes for the token to have, separated by space"
-          aria-describedby="token-scopes-helper"
-        />
-      </div>
-      <div class="text-center m-4">
+  <div class="row">
+    <form id="request-token-form" class="col-md-offset-3 col-md-6">
+      <div class="text-center">
         <button type="submit" class="ecl-button ecl-button--primary">
           Request new API token
         </button>
       </div>
+      <div class="form-group">
+        <label for="token-note">Note</label>
+        <input
+          id="token-note"
+          class="form-control"
+          placeholder="note to identify your new token"
+        />
+        <small id="note-note" class="form-text text-muted">
+          This note will help you keep track of what your tokens are for.
+        </small>
+        <br /><br />
+        <label for="token-expiration-seconds">Token expires in</label>
+        {% block expiration_options %}
+        <select id="token-expiration-seconds" class="form-control">
+          <!-- unit used for each value is `seconds` -->
+          <option value="3600">1 Hour</option>
+          <option value="86400">1 Day</option>
+          <option value="604800">1 Week</option>
+          <option value="" selected="selected">Never</option>
+        </select>
+        {% endblock expiration_options %}
+        <small id="note-expires-at" class="form-text text-muted">
+          You can configure when your token will expire.
+        </small>
+      </div>
     </form>
   </div>
-  <div class="row justify-content-center">
-    <div id="token-area" class="col-lg-6" style="display: none">
-      <div class="card">
-        <div class="card-header">Your new API Token</div>
-        <div class="card-body">
-          <p class="card-title text-center">
+
+  <div class="row">
+    <div
+      id="token-area"
+      class="ecl-notification ecl-notification--success"
+      data-ecl-notification
+      role="alert"
+      style="display: none"
+      data-ecl-auto-init="Notification"
+    >
+      <svg
+        class="ecl-icon ecl-icon--l ecl-notification__icon"
+        focusable="false"
+        aria-hidden="false"
+        role="img"
+      >
+        <title>Your new API token</title>
+        <use
+          xlink:href="{{ static_url('images/icons.svg') }}#check-filled"
+        ></use>
+      </svg>
+      <div class="ecl-notification__content">
+        <button
+          class="ecl-button ecl-button--tertiary ecl-notification__close ecl-button--icon-only"
+          type="button"
+          data-ecl-notification-close
+        >
+          <span class="ecl-button__container"
+            ><span class="ecl-button__label" data-ecl-label="true">Close</span
+            ><svg
+              class="ecl-icon ecl-icon--m ecl-button__icon"
+              focusable="false"
+              aria-hidden="true"
+              data-ecl-icon
+            >
+              <use
+                xlink:href="{{ static_url('images/icons.svg') }}#close"
+              ></use></svg
+          ></span>
+        </button>
+        <div class="ecl-notification__title">Your new API token</div>
+        <div class="ecl-notification__description">
+          <p>
             <span id="token-result"></span>
           </p>
-          <p class="card-text">
+          <p>
             Copy this token. You won't be able to see it again, but you can
             always come back here to get a new one.
           </p>
@@ -113,75 +91,64 @@
       </div>
     </div>
   </div>
+
   {% if api_tokens %}
-  <div class="row" id="api-tokens-section">
-    <div class="col">
-      <h2>API Tokens</h2>
-      <p>
-        These are tokens with access to the JupyterHub API. Permissions for each
-        token may be viewed via the JupyterHub tokens API. Revoking the API
-        token for a running server will require restarting that server.
-      </p>
-      <table class="table table-striped" id="api-tokens-table">
-        <thead>
-          <tr>
-            <th>Note</th>
-            <th>Permissions</th>
-            <th>Last used</th>
-            <th>Created</th>
-            <th>Expires</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for token in api_tokens %}
-          <tr class="token-row container" data-token-id="{{ token.api_id }}">
-            {% block token_row scoped %}
-            <td class="note-col col">{{ token.note }}</td>
-            <td class="scope-col col">
-              <details>
-                <summary>scopes</summary>
-                {% for scope in token.scopes %}
-                <pre class="token-scope">{{ scope }}</pre>
-                {% endfor %}
-              </details>
-            </td>
-            <td class="time-col col">
-              {%- if token.last_activity -%} {{ token.last_activity.isoformat()
-              + 'Z' }} {%- else -%} Never {%- endif -%}
-            </td>
-            <td class="time-col col">
-              {%- if token.created -%} {{ token.created.isoformat() + 'Z' }} {%-
-              else -%} N/A {%- endif -%}
-            </td>
-            <td class="time-col col">
-              {%- if token.expires_at -%} {{ token.expires_at.isoformat() + 'Z'
-              }} {%- else -%} Never {%- endif -%}
-            </td>
-            <td class="col text-center">
-              <button class="revoke-token-btn btn btn-xs btn-danger">
-                revoke
-              </button>
-            </td>
-            {% endblock token_row %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+  <div class="row">
+    <h2>API Tokens</h2>
+    <p>
+      These are tokens with access to the JupyterHub API. Permissions for each
+      token may be viewed via the JupyterHub tokens API. Revoking the API token
+      for a running server will require restarting that server.
+    </p>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>Note</th>
+          <th>Last used</th>
+          <th>Created</th>
+          <th>Expires</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for token in api_tokens %}
+        <tr class="token-row" data-token-id="{{token.api_id}}">
+          {% block token_row scoped %}
+          <td class="note-col col-sm-5">{{token.note}}</td>
+          <td class="time-col col-sm-3">
+            {%- if token.last_activity -%} {{ token.last_activity.isoformat() +
+            'Z' }} {%- else -%} Never {%- endif -%}
+          </td>
+          <td class="time-col col-sm-3">
+            {%- if token.created -%} {{ token.created.isoformat() + 'Z' }} {%-
+            else -%} N/A {%- endif -%}
+          </td>
+          <td class="time-col col-sm-3">
+            {%- if token.expires_at -%} {{ token.expires_at.isoformat() + 'Z' }}
+            {%- else -%} Never {%- endif -%}
+          </td>
+          <td class="col-sm-1 text-center">
+            <button class="revoke-token-btn ecl-button ecl-button--secondary">
+              revoke
+            </button>
+          </td>
+          {% endblock token_row %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
   {% endif %} {% if oauth_clients %}
-  <div class="row" id="oauth-clients-section">
+  <div class="row">
     <h2>Authorized Applications</h2>
     <p>
       These are applications that use OAuth with JupyterHub to identify users
       (mostly notebook servers). OAuth tokens can generally only be used to
       identify you, not take actions on your behalf.
     </p>
-    <table class="table table-striped" id="oauth-tokens-table">
+    <table class="table table-striped">
       <thead>
         <tr>
           <th>Application</th>
-          <th>Permissions</th>
           <th>Last used</th>
           <th>First authorized</th>
         </tr>
@@ -190,18 +157,7 @@
         {% for client in oauth_clients %}
         <tr class="token-row" data-token-id="{{ client['token_id'] }}">
           {% block client_row scoped %}
-          <td class="note-col col-sm-4">{{ client['description'] }}</td>
-          <td class="scope-col col-sm-1">
-            <details>
-              <summary>scopes</summary>
-              {# create set of scopes on all tokens -#} {# sum concatenates all
-              token.scopes into a single list -#} {# then filter to unique set
-              and sort -#} {% for scope in client.tokens |
-              sum(attribute="scopes", start=[]) | unique | sort %}
-              <pre class="token-scope">{{ scope }}</pre>
-              {% endfor %}
-            </details>
-          </td>
+          <td class="note-col col-sm-5">{{ client['description'] }}</td>
           <td class="time-col col-sm-3">
             {%- if client['last_activity'] -%} {{
             client['last_activity'].isoformat() + 'Z' }} {%- else -%} Never {%-
@@ -212,11 +168,11 @@
             }} {%- else -%} N/A {%- endif -%}
           </td>
           <td class="col-sm-1 text-center">
-            <button class="revoke-token-btn btn btn-xs btn-danger">
+            <button class="revoke-token-btn ecl-button ecl-button--secondary">
               revoke
             </button>
+            {% endblock client_row %}
           </td>
-          {% endblock client_row %}
         </tr>
         {% endfor %}
       </tbody>
