@@ -403,7 +403,7 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
     # Personal projects are in the form:
     # <urn-namespace>:group:pp-0190356a-ac97-db53-21c0-df7cd31a47c4
     personal_project_re = Unicode(
-        r"^urn:geant:[^:]*:group:(pp-.*)$",
+        r"^urn:geant:[^:]+:group:(pp-.*)$",
         config=True,
         help="""Regular expression to match the personal groups.
                 If the regular expression contains a group and matches, it will be
