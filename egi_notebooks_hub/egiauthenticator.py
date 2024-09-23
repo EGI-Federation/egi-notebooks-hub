@@ -395,8 +395,15 @@ class EOSCNodeAuthenticator(EGICheckinAuthenticator):
 
     login_service = "EOSC AAI"
 
+    # Namespaces used in the EOSC EU Node:
+    # Testing: urn:geant:eosc-federation.eu
+    # Staging: urn:geant:eosc-federation.eu
+    # Production: urn:geant:open-science-cloud.ec.europa.eu
+    #
+    # Personal projects are in the form:
+    # <urn-namespace>:group:pp-0190356a-ac97-db53-21c0-df7cd31a47c4
     personal_project_re = Unicode(
-        r"^urn:geant:eosc-federation.eu:group:(pp-.*)$",
+        r"^urn:geant:[^:]+:group:(pp-.*)$",
         config=True,
         help="""Regular expression to match the personal groups.
                 If the regular expression contains a group and matches, it will be
