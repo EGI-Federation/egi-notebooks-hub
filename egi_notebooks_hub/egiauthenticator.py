@@ -3,11 +3,11 @@
 Uses OpenID Connect with aai.egi.eu
 """
 
+import hashlib
 import json
 import os
 import re
 import time
-import uuid
 from urllib.parse import urlencode
 
 import jwt
@@ -17,7 +17,7 @@ from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
-from traitlets import List, Unicode, default, validate
+from traitlets import Bool, List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
@@ -225,18 +225,36 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
+    allow_anonymous = Bool(
+        True,
+        config=True,
+        help="""Whether to allow for users without available username
+                claim and create usernames for them on the fly""",
+    )
+    anonymous_username_prefix = Unicode(
+        "anon-",
+        config=True,
+        help="""A prefix for the the anonymous users""",
+    )
+
     @default("manage_groups")
     def _manage_groups_default(self):
         return True
 
     def user_info_to_username(self, user_info):
+        """Get the username or create one repeatable username
+        from the userinfo"""
         try:
             return super().user_info_to_username(user_info)
-        except ValueError:
-            # let's treat this as an anonymous user with a unique name
-            # This won't help in caching the tokens though, as there
-            # is no way to understand whether the user is the same or not
-            return str(uuid.uuid4())
+        except ValueError as e:
+            if not self.allow_anonymous:
+                raise e
+            # let's treat this as an anonymous user with a name
+            # that's generated as a hash of user_info
+            return "{0}-{1}".format(
+                self.anonymous_username_prefix,
+                hashlib.sha256(json.dumps(user_info, sort_keys=True)).hexdigest(),
+            )
 
     async def jwt_authenticate(self, handler, data=None):
         try:
