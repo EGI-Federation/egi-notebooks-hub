@@ -7,8 +7,8 @@ import json
 import os
 import re
 import time
-from urllib.parse import urlencode
 import uuid
+from urllib.parse import urlencode
 
 import jwt
 import jwt.exceptions
@@ -232,7 +232,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def user_info_to_username(self, user_info):
         try:
             return super().user_info_to_username(user_info)
-        except ValueError as e:
+        except ValueError:
             # let's treat this as an anonymous user with a unique name
             # This won't help in caching the tokens though, as there
             # is no way to understand whether the user is the same or not
