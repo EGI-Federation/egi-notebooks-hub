@@ -245,18 +245,25 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def user_info_to_username(self, user_info):
         """Get the username or create one repeatable username
         from the userinfo"""
-        try:
-            return super().user_info_to_username(user_info)
-        except ValueError as e:
+        if callable(self.username_claim):
+            username = self.username_claim(user_info)
+        else:
+            username = user_info.get(self.username_claim, None)
+        if not username:
             if not self.allow_anonymous:
-                raise e
+                message = (
+                    f"No {self.username_claim} found in {user_info} and anonymous users not enabled",
+                )
+                self.log.error(message)
+                raise ValueError(message)
             # let's treat this as an anonymous user with a name
             # that's generated as a hash of user_info
             info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
-            return "{0}-{1}".format(
+            username = "{0}-{1}".format(
                 self.anonymous_username_prefix,
                 hashlib.sha256(info_str).hexdigest(),
             )
+        return username
 
     async def jwt_authenticate(self, handler, data=None):
         try:
