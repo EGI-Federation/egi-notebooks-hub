@@ -251,9 +251,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 raise e
             # let's treat this as an anonymous user with a name
             # that's generated as a hash of user_info
+            info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
             return "{0}-{1}".format(
                 self.anonymous_username_prefix,
-                hashlib.sha256(json.dumps(user_info, sort_keys=True)).hexdigest(),
+                hashlib.sha256(info_str).hexdigest(),
             )
 
     async def jwt_authenticate(self, handler, data=None):
