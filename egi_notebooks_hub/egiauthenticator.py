@@ -133,7 +133,8 @@ class JWTHandler(BaseHandler):
                 # roles=token_roles,
                 # scopes=token_scopes,
             )
-            auth_state["jwt_api_token"] = api_token
+            if auth_state:
+                auth_state["jwt_api_token"] = api_token
             await user.save_auth_state(auth_state)
         self.finish({"token": api_token, "user": user.name})
 
@@ -232,7 +233,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 claim and create usernames for them on the fly""",
     )
     anonymous_username_prefix = Unicode(
-        "anon-",
+        "anon",
         config=True,
         help="""A prefix for the the anonymous users""",
     )
