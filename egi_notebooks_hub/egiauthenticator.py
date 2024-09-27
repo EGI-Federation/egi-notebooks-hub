@@ -17,7 +17,7 @@ from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
-from traitlets import Bool, List, Unicode, default, validate
+from traitlets import Bool, Int, List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
