@@ -336,14 +336,19 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return True
 
         try:
+            # We want to fall on the safe side for refreshing, hence using
+            # the auth_refresh_age plus one second and negative as the code
+            # checks that the token is valid as of (now - leeway)
+            # See PyJWT code here:
+            # https://github.com/jpadilla/pyjwt/blob/868cf4ab2ca5a0a39da40e5a14dd740b203662b2/jwt/api_jwt.py#L306
+            leeway = -float(self.auth_refresh_age + 1)
             if jwt.decode(
                 access_token,
                 options=dict(
                     verify_signature=False,
                     verify_exp=True,
-                    # we want to fall on the safe side for refreshing
-                    leeway=self.auth_refresh_age + 1,
                 ),
+                leeway=leeway,
             ):
                 # access token is good, no need to keep going
                 self.log.debug("Access token is still good, no refresh needed")
