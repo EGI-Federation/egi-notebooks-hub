@@ -3,6 +3,7 @@
 Uses OpenID Connect with aai.egi.eu
 """
 
+import hashlib
 import json
 import os
 import re
@@ -16,7 +17,7 @@ from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
-from traitlets import List, Unicode, default, validate
+from traitlets import Bool, List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
@@ -132,7 +133,8 @@ class JWTHandler(BaseHandler):
                 # roles=token_roles,
                 # scopes=token_scopes,
             )
-            auth_state["jwt_api_token"] = api_token
+            if auth_state:
+                auth_state["jwt_api_token"] = api_token
             await user.save_auth_state(auth_state)
         self.finish({"token": api_token, "user": user.name})
 
@@ -224,9 +226,45 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
+    allow_anonymous = Bool(
+        True,
+        config=True,
+        help="""Whether to allow for users without available username
+                claim and create usernames for them on the fly""",
+    )
+    anonymous_username_prefix = Unicode(
+        "anon",
+        config=True,
+        help="""A prefix for the the anonymous users""",
+    )
+
     @default("manage_groups")
     def _manage_groups_default(self):
         return True
+
+    def user_info_to_username(self, user_info):
+        """Get the username or create one repeatable username
+        from the userinfo"""
+        if callable(self.username_claim):
+            username = self.username_claim(user_info)
+        else:
+            username = user_info.get(self.username_claim, None)
+        if not username:
+            if not self.allow_anonymous:
+                message = (
+                    f"No {self.username_claim} found in {user_info}"
+                    "and anonymous users not enabled"
+                )
+                self.log.error(message)
+                raise ValueError(message)
+            # let's treat this as an anonymous user with a name
+            # that's generated as a hash of user_info
+            info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
+            username = "{0}-{1}".format(
+                self.anonymous_username_prefix,
+                hashlib.sha256(info_str).hexdigest(),
+            )
+        return username
 
     async def jwt_authenticate(self, handler, data=None):
         try:
@@ -306,9 +344,19 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return True
 
         try:
+            # We want to fall on the safe side for refreshing, hence using
+            # the auth_refresh_age plus one second and negative as the code
+            # checks that the token is valid as of (now - leeway)
+            # See PyJWT code here:
+            # https://github.com/jpadilla/pyjwt/blob/868cf4ab2ca5a0a39da40e5a14dd740b203662b2/jwt/api_jwt.py#L306
+            leeway = -float(self.auth_refresh_age + 1)
             if jwt.decode(
                 access_token,
-                options=dict(verify_signature=False, verify_exp=True),
+                options=dict(
+                    verify_signature=False,
+                    verify_exp=True,
+                ),
+                leeway=leeway,
             ):
                 # access token is good, no need to keep going
                 self.log.debug("Access token is still good, no refresh needed")
