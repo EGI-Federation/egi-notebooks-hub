@@ -338,7 +338,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         try:
             if jwt.decode(
                 access_token,
-                options=dict(verify_signature=False, verify_exp=True),
+                options=dict(
+                    verify_signature=False,
+                    verify_exp=True,
+                    # we want to fall on the safe side for refreshing
+                    leeway=self.auth_refresh_age + 1,
+                ),
             ):
                 # access token is good, no need to keep going
                 self.log.debug("Access token is still good, no refresh needed")
