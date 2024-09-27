@@ -252,7 +252,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         if not username:
             if not self.allow_anonymous:
                 message = (
-                    f"No {self.username_claim} found in {user_info} and anonymous users not enabled",
+                    f"No {self.username_claim} found in {user_info}"
+                    "and anonymous users not enabled"
                 )
                 self.log.error(message)
                 raise ValueError(message)
