@@ -1,4 +1,4 @@
-"""An helper service to redirect users to the right server option.
+"""A helper service to redirect users to the right server option.
 
 It expects that the users is already authenticated.
 """
