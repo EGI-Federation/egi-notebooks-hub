@@ -10,7 +10,9 @@ and this project adheres to
 
 ## [Unreleased]
 
-## Added
+## [0.2.0] - 2024-10-02
+
+### Added
 
 - Better templates
   [#101](https://github.com/EGI-Federation/egi-notebooks-hub/pull/101)
