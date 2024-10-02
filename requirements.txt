@@ -1,7 +1,7 @@
 jupyterhub>=5.0.0
-oauthenticator>=16.3.0
+oauthenticator>=16.3.0,<17
 jupyterhub-kubespawner>=6.1.0
 xmltodict
-fastapi
+fastapi[standard]
 pydantic-settings
 pbr

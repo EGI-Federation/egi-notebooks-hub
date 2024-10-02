@@ -1,0 +1,60 @@
+<!-- htmlhint doctype-first:false,id-class-value:false -->
+{% extends "page.html" %}
+{% if announcement_login %}
+  {% set announcement = announcement_login %}
+{% endif %}
+
+{% block main %}
+<div id="main-page-content" class="ecl-u-mb-l container-fix">
+  <article>
+    <div>
+      <div class="ecl-u-mb-2xl">
+        <div>
+          <section
+            class="ecl-banner ecl-banner--text-highlight ecl-banner--m ecl-banner--full-width"
+          >
+            <picture class="ecl-picture ecl-banner__picture"
+              ><img
+                class="ecl-banner__image"
+                src="{{ static_url('images/EOSC-Visuals-Interactive-Notebooks-blue-2.jpg') }}"
+                alt="Interactive notebooks"
+            /></picture>
+            <div class="ecl-container">
+              <div class="ecl-banner__container">
+                <div class="ecl-banner__content">
+                  <div class="ecl-banner__title">
+                    <span class="ecl-banner__title-text"
+                      >Interactive Notebooks</span
+                    >
+                  </div>
+                  <p class="ecl-banner__description">
+                    <span class="ecl-banner__description-text"
+                      >Create and share documents with real-time code
+                      execution.</span
+                    >
+                  </p>
+                  <div class="ecl-banner__cta">
+                    <a
+                      href="{{ authenticator_login_url }}"
+                      class="ecl-link ecl-link--cta ecl-link--icon ecl-link--icon-after ecl-banner__link-cta"
+                      ><span class="ecl-link__label">Get Started</span
+                      ><svg
+                        class="ecl-icon ecl-icon--xs ecl-icon--rotate-90 ecl-link__icon"
+                        focusable="false"
+                        aria-hidden="true"
+                      >
+                        <use
+                          xlink:href="{{ static_url('images/icons.svg#corner-arrow') }}"
+                        ></use></svg
+                    ></a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </article>
+</div>
+{% endblock main %}

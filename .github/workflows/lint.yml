@@ -20,7 +20,7 @@ jobs:
 
       # Runs the Super-Linter action
       - name: Run Super-Linter on new changes
-        uses: github/super-linter@v6
+        uses: github/super-linter@v7
         env:
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,3 +33,7 @@ jobs:
           # Pylint is too picky about everything, not ready
           # for this yet here
           VALIDATE_PYTHON_PYLINT: false
+          # this messes with jinja templates
+          VALIDATE_HTML_PRETTIER: false
+          # We don't want to lint EC files
+          FILTER_REGEX_EXCLUDE: ".*/ecl-.*\\.(css|js)"
