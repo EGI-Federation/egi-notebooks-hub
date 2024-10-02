@@ -25,13 +25,24 @@ and this project adheres to
 - Support for JWT authentication and proxy service
   [#119](https://github.com/EGI-Federation/egi-notebooks-hub/pull/119),
   [#122](https://github.com/EGI-Federation/egi-notebooks-hub/pull/122),
-  [#123](https://github.com/EGI-Federation/egi-notebooks-hub/pull/123)
+  [#123](https://github.com/EGI-Federation/egi-notebooks-hub/pull/123),
+  [#127](https://github.com/EGI-Federation/egi-notebooks-hub/pull/127),
+  [#135](https://github.com/EGI-Federation/egi-notebooks-hub/pull/135)
 - Add version to the package
   [#124](https://github.com/EGI-Federation/egi-notebooks-hub/pull/124)
 - EOSC Node AAI support
   [#121](https://github.com/EGI-Federation/egi-notebooks-hub/pull/121)
 - D4Science: support for GKE deployment
   [#117](https://github.com/EGI-Federation/egi-notebooks-hub/pull/117)
+- EC Templates
+  [#131](https://github.com/EGI-Federation/egi-notebooks-hub/pull/131),
+  [#132](https://github.com/EGI-Federation/egi-notebooks-hub/pull/132),
+  [#133](https://github.com/EGI-Federation/egi-notebooks-hub/pull/133),
+  [#134](https://github.com/EGI-Federation/egi-notebooks-hub/pull/134)
+- Support anonymous users from AAI
+  [#136](https://github.com/EGI-Federation/egi-notebooks-hub/pull/136)
+- Configurable leeway time for token refresh
+  [#137](https://github.com/EGI-Federation/egi-notebooks-hub/pull/137)
 
 ### Changed
 
@@ -44,7 +55,8 @@ and this project adheres to
   [#113](https://github.com/EGI-Federation/egi-notebooks-hub/pull/113),
   [#114](https://github.com/EGI-Federation/egi-notebooks-hub/pull/114),
   [#120](https://github.com/EGI-Federation/egi-notebooks-hub/pull/120),
-  [#118](https://github.com/EGI-Federation/egi-notebooks-hub/pull/118)
+  [#118](https://github.com/EGI-Federation/egi-notebooks-hub/pull/118),
+  [#129](https://github.com/EGI-Federation/egi-notebooks-hub/pull/129)
 - Upgrade dependencies k8s-hub (3.2.1), jupyterhub (4.0.2),
   oauthenticator(16.1.0), kubespawner(6.1.0)
 - Add new dependencies: fastapi, pydantic-settings, pbr
