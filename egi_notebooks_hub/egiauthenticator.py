@@ -17,7 +17,7 @@ from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
-from traitlets import Bool, List, Unicode, default, validate
+from traitlets import Bool, Int, List, Unicode, default, validate
 
 
 class JWTHandler(BaseHandler):
@@ -238,6 +238,13 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         help="""A prefix for the the anonymous users""",
     )
 
+    auth_refresh_leeway = Int(
+        60,
+        config=True,
+        help="""Additional leeway time (in seconds) on top
+                of the auth_refresh_age to renew tokens""",
+    )
+
     @default("manage_groups")
     def _manage_groups_default(self):
         return True
@@ -345,11 +352,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
         try:
             # We want to fall on the safe side for refreshing, hence using
-            # the auth_refresh_age plus one second and negative as the code
-            # checks that the token is valid as of (now - leeway)
+            # the auth_refresh_age plus a configurable leeway
+            # Set as negative as the code checks that the token is
+            # valid as of (now - leeway)
             # See PyJWT code here:
             # https://github.com/jpadilla/pyjwt/blob/868cf4ab2ca5a0a39da40e5a14dd740b203662b2/jwt/api_jwt.py#L306
-            leeway = -float(self.auth_refresh_age + 1)
+            leeway = -float(self.auth_refresh_age + self.auth_refresh_leeway)
             if jwt.decode(
                 access_token,
                 options=dict(
