@@ -3,6 +3,7 @@
 Uses OpenID Connect with aai.egi.eu
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -174,6 +175,24 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             % self.checkin_host
         )
 
+    introspect_url = Unicode(
+        config=True,
+        help="""
+        The URL to where this authenticator makes a request to
+        introspect user tokens received via the jwt authentication
+
+        For more context, see `RFC7622
+        <https://datatracker.ietf.org/doc/html/rfc7662>`_.
+        """,
+    )
+
+    @default("introspect_url")
+    def _introspect_url_default(self):
+        return (
+            "https://%s/auth/realms/egi/protocol/openid-connect/token/introspect"
+            % self.checkin_host
+        )
+
     openid_configuration_url = Unicode(
         config=True, help="""The OpenID configuration URL"""
     )
@@ -273,9 +292,33 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             )
         return username
 
+    async def introspect_token(self, data):
+        if "access_token" not in data:
+            raise web.HTTPError(500, "No access token available")
+
+        # Taken from build_token_info_request_headers of oauthenticator
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded; charset=utf-8",
+            "User-Agent": "JupyterHub",
+        }
+        b64key = base64.b64encode(
+            bytes(f"{self.client_id}:{self.client_secret}", "utf8")
+        )
+        headers.update({"Authorization": f'Basic {b64key.decode("utf8")}'})
+        params = {"token": data["access_token"]}
+        return await self.httpfetch(
+            self.introspect_url,
+            label="Introspecting token...",
+            method="POST",
+            headers=headers,
+            body=urlencode(params).encode("utf-8"),
+            validate_cert=self.validate_server_cert,
+        )
+
     async def jwt_authenticate(self, handler, data=None):
         try:
-            user_info = await self.token_to_user(data)
+            user_info = await self.introspect_token(data)
         except HTTPClientError:
             raise web.HTTPError(403)
         # this code below comes is from oauthenticator authenticate
