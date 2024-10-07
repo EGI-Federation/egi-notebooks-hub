@@ -185,6 +185,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         <https://datatracker.ietf.org/doc/html/rfc7662>`_.
         """,
     )
+
     @default("introspect_url")
     def _introspect_url_default(self):
         return (
@@ -293,7 +294,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     async def introspect_token(self, data):
         if "access_token" not in data:
-            raise web.HTTPError(500, f"No access token available")
+            raise web.HTTPError(500, "No access token available")
 
         # Taken from build_token_info_request_headers of oauthenticator
         headers = {
