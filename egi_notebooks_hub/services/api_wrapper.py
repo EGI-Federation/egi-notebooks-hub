@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     jupyterhub_service_prefix: str = "/services/jwt"
     jupyterhub_api_url: str = "http://localhost:8000/hub/api"
     jwt_login_suffix: str = "/jwt_login"
+    api_timeout: float = 15.0
 
 
 settings = Settings()
@@ -63,7 +64,7 @@ async def api_wrapper(request: Request, svc_path: str):
         if svc_path
         else ""
     )
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=settings.api_timeout) as client:
         # which headers do we need to preserve?
         headers = dict(request.headers)
         if settings.auth_header in headers:
