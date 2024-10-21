@@ -8,7 +8,6 @@ import hashlib
 import json
 import os
 import re
-import time
 from urllib.parse import urlencode
 
 import jwt
@@ -245,6 +244,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """,
     )
 
+    # Service accounts may not have "sub", so this is an alternative
+    # claim for those accounts
+    servicename_claim = Unicode(
+        "client_id",
+        config=True,
+        help="""
+        Claim name to use for getting the name for services where the `username_claim`
+        is not available. See also `allow_anonymous`.
+        """,
+    )
+
     allow_anonymous = Bool(
         True,
         config=True,
@@ -275,6 +285,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             username = self.username_claim(user_info)
         else:
             username = user_info.get(self.username_claim, None)
+        if not username:
+            # try with the service name claim
+            username = user_info.get(self.servicename_claim, None)
+        # last attempt, go anonymous
         if not username:
             if not self.allow_anonymous:
                 message = (
@@ -381,7 +395,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     async def refresh_user(self, user, handler=None):
         auth_state = await user.get_auth_state()
         if not auth_state:
-            self.log.debug("No auth state, assuming user is not managed with Check-in")
+            self.log.debug("No auth state, assuming user is valid")
             return True
 
         access_token = auth_state.get("access_token", None)
@@ -391,6 +405,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             self.log.debug(
                 "No access token, assuming user is not managed with Check-in"
             )
+            return True
+
+        if not refresh_token:
+            self.log.debug("No refresh token, assuming this user does not need it")
             return True
 
         try:
@@ -414,18 +432,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 return True
         except jwt.exceptions.InvalidTokenError as e:
             self.log.debug(f"Invalid access token, will try to refresh: {e}")
-
-        now = time.time()
-        refresh_info = auth_state.get("refresh_info", {})
-        # if the token is still valid, avoid refreshing
-        time_left = refresh_info.get("expiry_time", 0) - now
-        if time_left > self.auth_refresh_age:
-            self.log.debug("Credentials still valid, time left: %f", time_left)
-            return True
-
-        if not refresh_token:
-            self.log.debug("No refresh token, cannot refresh user")
-            return False
 
         # performing the refresh token call
         self.log.debug("Perform refresh call to Check-in")
@@ -460,9 +466,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             # clear here the existing auth state so it's no longer valid
             await user.save_auth_state(None)
             return False
-        refresh_info = json.loads(resp.body.decode("utf8", "replace"))
-        refresh_info["expiry_time"] = now + refresh_info["expires_in"]
-        auth_state["refresh_info"] = refresh_info
+        resp_body = resp.body.decode("utf8", "replace")
+        if not resp_body:
+            self.log.warning("Empty reply from refresh call? %s", body)
+            return False
+        refresh_info = json.loads(resp_body)
         auth_state["access_token"] = refresh_info["access_token"]
         if "refresh_token" in refresh_info:
             auth_state["refresh_token"] = refresh_info["refresh_token"]
