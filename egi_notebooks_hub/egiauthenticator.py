@@ -399,16 +399,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return True
 
         access_token = auth_state.get("access_token", None)
-        refresh_token = auth_state.get("refresh_token", None)
 
         if not access_token:
             self.log.debug(
                 "No access token, assuming user is not managed with Check-in"
             )
-            return True
-
-        if not refresh_token:
-            self.log.debug("No refresh token, assuming this user does not need it")
             return True
 
         try:
@@ -432,6 +427,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 return True
         except jwt.exceptions.InvalidTokenError as e:
             self.log.debug(f"Invalid access token, will try to refresh: {e}")
+
+        refresh_token = auth_state.get("refresh_token", None)
+        if not refresh_token:
+            self.log.warn(f"No refresh token, not allowing {user} without re-login")
+            return False
 
         # performing the refresh token call
         self.log.debug("Perform refresh call to Check-in")
@@ -468,7 +468,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return False
         resp_body = resp.body.decode("utf8", "replace")
         if not resp_body:
-            self.log.warning("Empty reply from refresh call? %s", body)
+            self.log.warning(f"Empty reply from refresh call for user {user}: {body}")
             return False
         refresh_info = json.loads(resp_body)
         auth_state["access_token"] = refresh_info["access_token"]
