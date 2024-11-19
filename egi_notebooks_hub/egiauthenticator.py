@@ -341,7 +341,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return super().build_access_tokens_request_params(handler, data)
 
     async def get_token_info(self, handler, params):
-        if "data" in params and params["data"] and data["introspect"]:
+        if "data" in params and params["data"] and params["data"]["introspect"]:
             # access token is already here no need to do anything else
             return params["data"]
         else:
