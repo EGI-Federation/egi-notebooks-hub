@@ -1,6 +1,6 @@
-jupyterhub>=4.1.6
-oauthenticator>=16.3.0,<17
-jupyterhub-kubespawner>=6.1.0
+jupyterhub>=5.2.1
+oauthenticator>=17.1.0
+jupyterhub-kubespawner>=7.0.0
 xmltodict
 fastapi[standard]
 pydantic-settings

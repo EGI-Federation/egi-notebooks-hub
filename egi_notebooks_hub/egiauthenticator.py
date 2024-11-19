@@ -330,36 +330,28 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             validate_cert=self.validate_server_cert,
         )
 
-    async def jwt_authenticate(self, handler, data=None):
-        try:
-            user_info = await self.introspect_token(data)
-        except HTTPClientError:
-            raise web.HTTPError(403)
-        # this code below comes is from oauthenticator authenticate
-        # we cannot directly call that method as we don't obtain the access
-        # token with the code grant but they pass it to us directly
-        username = self.user_info_to_username(user_info)
-        username = self.normalize_username(username)
+    def build_access_tokens_request_params(self, handler, data=None):
+        # "regular" authentication does not have any data, assume that if
+        # receive something in there, we are dealing with jwt, still if
+        # not successful keep trying the usual way
+        if data:
+            data["introspect"] = True
+            return {"data": data}
+        else:
+            return super().build_access_tokens_request_params(handler, data)
 
-        # check if there is any refresh_token in the token_info dict
-        refresh_token = data.get("refresh_token", None)
-        if self.enable_auth_state and not refresh_token:
-            self.log.debug(
-                "Refresh token was empty, will try to pull refresh_token from "
-                "previous auth_state"
-            )
-            refresh_token = await self.get_prev_refresh_token(handler, username)
-            if refresh_token:
-                data["refresh_token"] = refresh_token
-        # build the auth model to be read if authentication goes right
-        auth_model = {
-            "name": username,
-            "admin": True if username in self.admin_users else None,
-            "auth_state": self.build_auth_state_dict(data, user_info),
-        }
-        # update the auth_model with info to later authorize the user in
-        # check_allowed, such as admin status and group memberships
-        return await self.update_auth_model(auth_model)
+    async def get_token_info(self, handler, params):
+        if "data" in params and params["data"]:
+            # access token is already here no need to do anything else
+            return params["data"]
+        else:
+            return await super().get_token_info(handler, params)
+
+    async def token_to_user(self, token_info):
+        if "introspect" in token_info:
+            return await self.introspect_token(token_info)
+        else:
+            return await super().token_to_user(token_info)
 
     def get_primary_group(self, user_info):
         groups = user_info.get("groups", [])
@@ -369,21 +361,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         return first_group
 
     async def authenticate(self, handler, data=None):
-        # "regular" authentication does not have any data, assume that if
-        # receive something in there, we are dealing with jwt, still if
-        # not successful keep trying the usual way
-        if data:
-            user_info = await self.jwt_authenticate(handler, data)
-        else:
-            user_info = await super().authenticate(handler, data)
+        user_info = await super().authenticate(handler, data)
         if user_info is None or self.claim_groups_key is None:
             return user_info
         auth_state = user_info.get("auth_state", {})
-        oauth_user = auth_state.get(self.user_auth_state_key, {})
-        if not oauth_user:
-            self.log.warning("Missing OAuth info")
-            return user_info
-
         first_group = self.get_primary_group(user_info)
         self.log.info("Primary group: %s", first_group)
         if first_group:
