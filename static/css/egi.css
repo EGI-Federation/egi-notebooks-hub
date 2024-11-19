@@ -9,7 +9,7 @@ html {
 
 body {
   margin-bottom: 60px; /* Margin bottom by footer height */
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
 }
 
 .footer {
@@ -19,7 +19,7 @@ body {
   width: 100%;
   height: 40px;
   line-height: 20px;
-  opacity: 0.80;
+  opacity: 0.8;
   font-size: 0.85rem;
 }
 
@@ -29,9 +29,9 @@ body {
 }
 
 #jupyterhub-logo .jpy-logo {
-    height: 60px;
-    margin-top: 5px;
-    margin-right: 20px;
+  height: 60px;
+  margin-top: 5px;
+  margin-right: 20px;
 }
 
 /* this is mainly for the policy pages */
