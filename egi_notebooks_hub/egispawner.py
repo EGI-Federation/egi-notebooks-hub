@@ -180,7 +180,7 @@ class EGISpawner(KubeSpawner):
         new_mounts = []
         for mount in self._sorted_dict_values(volume_mounts):
             if mount["name"] == self._token_secret_volume_name:
-                log.debug(f"Removing secret volume mount {mount['name']} from pod")
+                self.log.debug(f"Removing secret volume mount {mount['name']} from pod")
             else:
                 new_mounts.append(mount)
         profile["kubespawner_override"]["volume_mounts"] = new_mounts
