@@ -52,18 +52,18 @@ class EGISpawner(KubeSpawner):
         self.token_secret_name = self._expand_user_properties(
             self.token_secret_name_template
         )
-        token_secret_volume_name = self._expand_user_properties(
+        self._token_secret_volume_name = self._expand_user_properties(
             self.token_secret_volume_name_template
         )
         self.volumes.append(
             {
-                "name": token_secret_volume_name,
+                "name": self._token_secret_volume_name,
                 "secret": {"secretName": self.token_secret_name},
             }
         )
         self.volume_mounts.append(
             {
-                "name": token_secret_volume_name,
+                "name": self._token_secret_volume_name,
                 "mountPath": self.token_mount_path,
                 "readOnly": True,
             }
@@ -173,15 +173,25 @@ class EGISpawner(KubeSpawner):
         # ensure we have a secret
         await self._update_secret({})
 
+    def _adjust_secret_volume(self, profile):
+        if not profile.get("no_secrets", False):
+            return profile
+        volume_mounts = profile.get("volume_mounts", self.volume_mounts)
+        new_mounts = []
+        for mount in self._sorted_dict_values(volume_mounts):
+            if mount["name"] == self._token_secret_volume_name:
+                log.debug(f"Removing secret volume mount {mount['name']} from pod")
+            else:
+                new_mounts.append(mount)
+        profile["kubespawner_override"]["volume_mounts"] = new_mounts
+        return profile
+
     def _profile_filter(self, spawner):
         profile_list = []
         if spawner._profile_config:
             groups = [g.name for g in spawner.user.groups]
             for profile in spawner._profile_config:
                 profile_vos = profile.get("vo_claims", [])
-                if not profile_vos:
-                    profile_list.append(profile)
-                else:
-                    if any(i in groups for i in profile_vos):
-                        profile_list.append(profile)
+                if not profile_vos or any(i in groups for i in profile_vos):
+                    profile_list.append(self._adjust_secret_volume(profile))
         return profile_list
