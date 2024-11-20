@@ -174,7 +174,7 @@ class EGISpawner(KubeSpawner):
         await self._update_secret({})
 
     def _adjust_secret_volume(self, profile):
-        if not profile.get("no_secrets", False):
+        if profile.get("mount_secrets_volume", True):
             return profile
         volume_mounts = profile.get("volume_mounts", self.volume_mounts)
         new_mounts = []
