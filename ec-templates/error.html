@@ -4,14 +4,18 @@
 {% endblock login_widget %}
 {% block main %}
   <div class="ecl-container ecl-u-mv-xl container-fix">
-    {% block h1_error %}
-      <h1>{{ status_code }} : {{ status_message }}</h1>
-    {% endblock h1_error %}
-    {% block error_detail %}
-      {% if message %}<p>{{ message }}</p>{% endif %}
-      {% if message_html %}<p>{{ message_html | safe }}</p>{% endif %}
-      {% if extra_error_html %}<p>{{ extra_error_html | safe }}</p>{% endif %}
-    {% endblock error_detail %}
+    <div class="ecl-u-d-flex justify-content-center">
+      <div>
+        {% block h1_error %}
+        <h1>{{ status_code }} : {{ status_message }}</h1>
+        {% endblock h1_error %}
+        {% block error_detail %}
+        {% if message %}<p>{{ message }}</p>{% endif %}
+        {% if message_html %}<p>{{ message_html | safe }}</p>{% endif %}
+        {% if extra_error_html %}<p>{{ extra_error_html | safe }}</p>{% endif %}
+        {% endblock error_detail %}
+      </div>
+    </div>
   </div>
 {% endblock main %}
 {% block script %}
