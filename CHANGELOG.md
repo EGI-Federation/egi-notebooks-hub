@@ -10,6 +10,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.3.0] - 2024-11-21
+
+### Added
+
+- Conditionally mount secrets in user environmet
+  [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145)
+- Support service accounts without username claim
+  [#140](https://github.com/EGI-Federation/egi-notebooks-hub/pull/139)
+
+### Changed
+
+- Update Zero2Jupyter to 4.0.0 (with associated dependencies) and update
+  templates to work with JupyterHub 5.x
+  [#142](https://github.com/EGI-Federation/egi-notebooks-hub/pull/142),
+  [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145),
+  [#146](https://github.com/EGI-Federation/egi-notebooks-hub/pull/146)
+
 ## [0.2.0] - 2024-10-02
 
 ### Added
