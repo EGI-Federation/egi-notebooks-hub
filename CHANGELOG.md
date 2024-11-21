@@ -24,6 +24,7 @@ and this project adheres to
 - Update Zero2Jupyter to 4.0.0 (with associated dependencies) and update
   templates to work with JupyterHub 5.x
   [#142](https://github.com/EGI-Federation/egi-notebooks-hub/pull/142),
+  [#143](https://github.com/EGI-Federation/egi-notebooks-hub/pull/143),
   [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145),
   [#146](https://github.com/EGI-Federation/egi-notebooks-hub/pull/146)
 
