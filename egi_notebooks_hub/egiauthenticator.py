@@ -467,6 +467,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             "admin": True if user.name in self.admin_users else None,
             "auth_state": auth_state,
         }
+        if self.manage_groups:
+            auth_model = await self._apply_managed_groups(auth_model)
         return await self.update_auth_model(auth_model)
 
     def get_handlers(self, app):
