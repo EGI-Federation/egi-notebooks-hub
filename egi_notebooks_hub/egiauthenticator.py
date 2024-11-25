@@ -452,6 +452,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             self.log.warning(f"Empty reply from refresh call for user {user}: {body}")
             return False
         token_info = json.loads(resp_body)
+        if "refresh_token" not in token_info:
+            self.log.debug("Will reuse refresh token or next user refresh")
+            token_info["refresh_token"] = refresh_token
 
         # Do get again the user_info, as this may have changed from last time
         user_info = await self.token_to_user(token_info)
