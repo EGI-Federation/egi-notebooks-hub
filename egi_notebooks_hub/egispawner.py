@@ -206,3 +206,10 @@ class EGISpawner(KubeSpawner):
                 if not profile_vos or any(i in groups for i in profile_vos):
                     profile_list.append(profile)
         return profile_list
+
+    async def pre_spawn_hook(self, spawner):
+        """
+        Do actions before spawning.
+        This is for now empty to ensure compability with the existing child spawners
+        """
+        pass
