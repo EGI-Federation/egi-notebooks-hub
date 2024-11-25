@@ -451,22 +451,29 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         if not resp_body:
             self.log.warning(f"Empty reply from refresh call for user {user}: {body}")
             return False
-        refresh_info = json.loads(resp_body)
-        auth_state["access_token"] = refresh_info["access_token"]
-        if "refresh_token" in refresh_info:
-            auth_state["refresh_token"] = refresh_info["refresh_token"]
-        if "id_token" in refresh_info:
-            auth_state["id_token"] = refresh_info["id_token"]
-        self.log.debug("Refreshed token for user!")
+        token_info = json.loads(resp_body)
+        if "refresh_token" not in token_info:
+            self.log.debug("Will reuse refresh token or next user refresh")
+            token_info["refresh_token"] = refresh_token
+
+        # Do get again the user_info, as this may have changed from last time
+        user_info = await self.token_to_user(token_info)
+        # extract the username out of the user_info dict and normalize it
+        username = self.user_info_to_username(user_info)
+        username = self.normalize_username(username)
+        auth_state = self.build_auth_state_dict(token_info, user_info)
+
         if callable(getattr(user.spawner, "set_access_token", None)):
             await user.spawner.set_access_token(
-                auth_state["access_token"], refresh_info.get("id_token", None)
+                token_info["access_token"], token_info.get("id_token", None)
             )
         auth_model = {
             "name": user.name,
             "admin": True if user.name in self.admin_users else None,
             "auth_state": auth_state,
         }
+        if self.manage_groups:
+            auth_model = await self._apply_managed_groups(auth_model)
         return await self.update_auth_model(auth_model)
 
     def get_handlers(self, app):
