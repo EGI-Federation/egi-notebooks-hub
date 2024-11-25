@@ -7,7 +7,7 @@ import uuid
 from kubernetes_asyncio.client import V1ObjectMeta, V1Secret
 from kubernetes_asyncio.client.rest import ApiException
 from kubespawner import KubeSpawner
-from traitlets import Unicode
+from traitlets import Bool, Unicode
 
 
 class EGISpawner(KubeSpawner):
@@ -43,6 +43,12 @@ class EGISpawner(KubeSpawner):
         """,
     )
 
+    mount_secrets_volume = Bool(
+        True,
+        config=True,
+        help="""Whether to mount or not the secrets as a volume in the user space""",
+    )
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # change to a method so we can filter
@@ -59,13 +65,6 @@ class EGISpawner(KubeSpawner):
             {
                 "name": self._token_secret_volume_name,
                 "secret": {"secretName": self.token_secret_name},
-            }
-        )
-        self.volume_mounts.append(
-            {
-                "name": self._token_secret_volume_name,
-                "mountPath": self.token_mount_path,
-                "readOnly": True,
             }
         )
 
@@ -149,9 +148,27 @@ class EGISpawner(KubeSpawner):
                 "primary_group"
             ]
 
-    async def pre_spawn_hook(self, spawner):
-        # deal here with the pvc names as there is no async option
-        # in the get_pvc_manifest
+    async def configure_secret_volumes(self):
+        # ensure we have a secret
+        await self._update_secret({})
+        # secrets mounting
+        new_mounts = []
+        for mount in self._sorted_dict_values(self.volume_mounts):
+            if mount["name"] == self._token_secret_volume_name:
+                self.log.debug(f"Removing secret volume mount {mount['name']} from pod")
+            else:
+                new_mounts.append(mount)
+        if self.mount_secrets_volume:
+            new_mounts.append(
+                {
+                    "name": self._token_secret_volume_name,
+                    "mountPath": self.token_mount_path,
+                    "readOnly": True,
+                }
+            )
+        self.volume_mounts = new_mounts
+
+    async def configure_user_volumes(self):
         pvcs = await self.api.list_namespaced_persistent_volume_claim(
             namespace=self.namespace
         )
@@ -170,21 +187,15 @@ class EGISpawner(KubeSpawner):
                 v["persistentVolumeClaim"]["claimName"] = self.pvc_name
             vols.append(v)
         self.volumes = vols
-        # ensure we have a secret
-        await self._update_secret({})
 
-    def _adjust_secret_volume(self, profile):
-        if profile.get("mount_secrets_volume", True):
-            return profile
-        volume_mounts = profile.get("volume_mounts", self.volume_mounts)
-        new_mounts = []
-        for mount in self._sorted_dict_values(volume_mounts):
-            if mount["name"] == self._token_secret_volume_name:
-                self.log.debug(f"Removing secret volume mount {mount['name']} from pod")
-            else:
-                new_mounts.append(mount)
-        profile["kubespawner_override"]["volume_mounts"] = new_mounts
-        return profile
+    async def load_user_options(self):
+        """
+        Tunes the configuration of the volumes before the start
+        and once the overrides have been loaded.
+        """
+        await super().load_user_options()
+        await self.configure_user_volumes()
+        await self.configure_secret_volumes()
 
     def _profile_filter(self, spawner):
         profile_list = []
@@ -193,5 +204,5 @@ class EGISpawner(KubeSpawner):
             for profile in spawner._profile_config:
                 profile_vos = profile.get("vo_claims", [])
                 if not profile_vos or any(i in groups for i in profile_vos):
-                    profile_list.append(self._adjust_secret_volume(profile))
+                    profile_list.append(profile)
         return profile_list
