@@ -10,12 +10,15 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [0.3.0] - 2024-11-21
+## [0.3.0] - 2024-11-26
 
 ### Added
 
 - Conditionally mount secrets in user environmet
-  [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145)
+  [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145),
+  [#150](https://github.com/EGI-Federation/egi-notebooks-hub/pull/150),
+  [#151](https://github.com/EGI-Federation/egi-notebooks-hub/pull/151)
+
 - Support service accounts without username claim
   [#140](https://github.com/EGI-Federation/egi-notebooks-hub/pull/139)
 
@@ -26,7 +29,8 @@ and this project adheres to
   [#142](https://github.com/EGI-Federation/egi-notebooks-hub/pull/142),
   [#143](https://github.com/EGI-Federation/egi-notebooks-hub/pull/143),
   [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145),
-  [#146](https://github.com/EGI-Federation/egi-notebooks-hub/pull/146)
+  [#146](https://github.com/EGI-Federation/egi-notebooks-hub/pull/146),
+  [#149](https://github.com/EGI-Federation/egi-notebooks-hub/pull/149)
 
 ## [0.2.0] - 2024-10-02
 
