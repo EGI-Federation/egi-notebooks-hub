@@ -1,0 +1,40 @@
+/*
+ * Some style for the footer
+ */
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px; /* Margin bottom by footer height */
+  font-family: "DM Sans", sans-serif;
+}
+
+.footer {
+  z-index: 10;
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  height: 40px;
+  line-height: 20px;
+  opacity: 0.8;
+  font-size: 0.85rem;
+}
+
+.footer img {
+  height: 30px;
+  margin-right: 20px;
+}
+
+#jupyterhub-logo .jpy-logo {
+  height: 60px;
+  margin-top: 5px;
+  margin-right: 20px;
+}
+
+/* this is mainly for the policy pages */
+address {
+  white-space: pre-line;
+}
