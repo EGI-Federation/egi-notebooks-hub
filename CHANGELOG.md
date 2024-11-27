@@ -10,7 +10,7 @@ and this project adheres to
 
 ## [Unreleased]
 
-## [0.3.0] - 2024-11-26
+## [0.3.0] - 2024-11-27
 
 ### Added
 
@@ -20,17 +20,23 @@ and this project adheres to
   [#151](https://github.com/EGI-Federation/egi-notebooks-hub/pull/151)
 
 - Support service accounts without username claim
-  [#140](https://github.com/EGI-Federation/egi-notebooks-hub/pull/139)
+  [#140](https://github.com/EGI-Federation/egi-notebooks-hub/pull/140)
+
+- Add timeout to Hub API calls from JWT wrapper
+  [#139](https://github.com/EGI-Federation/egi-notebooks-hub/pull/139)
 
 ### Changed
 
 - Update Zero2Jupyter to 4.0.0 (with associated dependencies) and update
   templates to work with JupyterHub 5.x
+  [#141](https://github.com/EGI-Federation/egi-notebooks-hub/pull/141),
   [#142](https://github.com/EGI-Federation/egi-notebooks-hub/pull/142),
   [#143](https://github.com/EGI-Federation/egi-notebooks-hub/pull/143),
-  [#145](https://github.com/EGI-Federation/egi-notebooks-hub/pull/145),
   [#146](https://github.com/EGI-Federation/egi-notebooks-hub/pull/146),
   [#149](https://github.com/EGI-Federation/egi-notebooks-hub/pull/149)
+
+- Use introspection endpoint for JWT authentication
+  [#138](https://github.com/EGI-Federation/egi-notebooks-hub/pull/138)
 
 ## [0.2.0] - 2024-10-02
 
