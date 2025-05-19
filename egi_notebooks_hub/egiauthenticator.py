@@ -57,7 +57,17 @@ class JWTHandler(BaseHandler):
             if e.response:
                 self.log.debug(e.response.body)
             return None
-        token_info = json.loads(resp.body.decode("utf8", "replace"))
+        resp_body = resp.body.decode("utf8", "replace")
+        if not resp_body:
+            self.log.warning("Empty reply from refresh call when exchanging token")
+            return None
+        try:
+            token_info = json.loads(resp_body)
+        except json.JSONDecodeError as e:
+            self.log.error(
+                f"Invalid JSON from server: {e}, server response: {resp_body}"
+            )
+            return None
         if "refresh_token" in token_info:
             return token_info.get("refresh_token")
         # EOSC AAI returns the token into "access_token" field, so be it
