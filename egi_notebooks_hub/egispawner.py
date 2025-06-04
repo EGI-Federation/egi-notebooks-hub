@@ -188,15 +188,6 @@ class EGISpawner(KubeSpawner):
             vols.append(v)
         self.volumes = vols
 
-    async def load_user_options(self):
-        """
-        Tunes the configuration of the volumes before the start
-        and once the overrides have been loaded.
-        """
-        await super().load_user_options()
-        await self.configure_user_volumes()
-        await self.configure_secret_volumes()
-
     def _profile_filter(self, spawner):
         profile_list = []
         if spawner._profile_config:
@@ -210,6 +201,7 @@ class EGISpawner(KubeSpawner):
     async def pre_spawn_hook(self, spawner):
         """
         Do actions before spawning.
-        This is for now empty to ensure compability with the existing child spawners
         """
-        pass
+        await super().load_user_options()
+        await self.configure_user_volumes()
+        await self.configure_secret_volumes()
