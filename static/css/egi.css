@@ -32,3 +32,13 @@ body {
 address {
   white-space: pre-line;
 }
+
+.dark-blue {
+  /* EGI dark Blue */
+  color: #005FAA;
+}
+
+.bg-body-tertiary {
+  /* EGI light gray */
+  background-color: #F7F6F7 !important;
+}

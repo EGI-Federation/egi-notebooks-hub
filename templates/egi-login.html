@@ -38,33 +38,35 @@
 </style>
 {% endblock stylesheet %}
 
-{% block nav_bar_right_items %}
+{% block login_widget %}
 {% endblock %}
 
 {% block main %}
 
-<div class="container">
-<div class="container-fluid">
-  <div class="row d-flex align-items-center py-5">
-    <div class="col-lg-7 p-5">
-      <h1>Notebooks</h1>
-      <p class="fs-3 py-5">
+<div class="bg-body-tertiary">
+  <div class="container">
+  <div class="container-fluid">
+    <div class="row d-flex align-items-center py-5">
+      <div class="col-lg-6 p-5">
+        <h1 class="dark-blue">Notebooks</h1>
+        <p class="fs-3 py-5">
         Create interactive documents with live code, visualisations and text
-      </p>
-      {% block login %}
-      <a
+        </p>
+        {% block login %}
+        <a
         role="button"
         class="btn button-blue-background"
         href="{{authenticator_login_url}}"
-      >Continue with EGI Check-in</a>
-      {% endblock login %}
-    </div>
-    <div class="col-lg-5 rounded-5 bg-body-secondary p-5 text-center">
-      <img
+        >Continue with EGI Check-in</a>
+        {% endblock login %}
+      </div>
+      <div class="col-lg-6 p-5 text-center">
+        <img
         alt="Full Notebooks Logo"
         src="{{ static_url('images/full-notebooks.png') }}"
         width="85%"
-      />
+        />
+      </div>
     </div>
   </div>
   </div>
