@@ -28,13 +28,17 @@ body {
   margin-right: 20px;
 }
 
-#jupyterhub-logo .jpy-logo {
-  height: 60px;
-  margin-top: 5px;
-  margin-right: 20px;
-}
-
 /* this is mainly for the policy pages */
 address {
   white-space: pre-line;
+}
+
+.dark-blue {
+  /* EGI dark Blue */
+  color: #005faa;
+}
+
+.bg-body-tertiary {
+  /* EGI light gray */
+  background-color: #f7f6f7 !important;
 }
