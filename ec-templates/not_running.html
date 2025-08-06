@@ -16,15 +16,14 @@
         {% block message %}
           <p>
             {% if failed %}
-              The latest attempt to start your server {{ server_name }} has failed.
               {% if failed_html_message %}
-              </p>
               <p>{{ failed_html_message | safe }}</p>
-              <p>{% elif failed_message %}</p>
+              {% elif failed_message %}
               <p>{{ failed_message }}</p>
-              <p>
-              {% endif %}
+              {% else %}
+              The latest attempt to start your server {{ server_name }} has failed.
               Would you like to retry starting it?
+              {% endif %}
             {% else %}
               Your server {{ server_name }} is not running.
               {% if implicit_spawn_seconds %}
