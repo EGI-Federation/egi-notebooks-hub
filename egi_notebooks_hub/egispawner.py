@@ -213,8 +213,8 @@ class EGISpawner(KubeSpawner):
                     profile_list.append(profile)
         return profile_list
 
-    def options_from_form(self, formdata):
-        user_options = super().options_from_form(formdata)
+    def _options_from_form(self, formdata):
+        user_options = super()._options_from_form(formdata)
         form_secrets_mount = formdata.get("secrets-volume-setting", [None])[0] == "1"
         user_options.update({"mount_secrets_volume": form_secrets_mount})
         return user_options
