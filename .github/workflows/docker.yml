@@ -4,7 +4,7 @@ name: Build and push containers
 on:
   push:
     branches:
-    - main
+      - main
   pull_request:
 
 permissions: read-all
