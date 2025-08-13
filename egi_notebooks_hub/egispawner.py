@@ -45,7 +45,9 @@ class EGISpawner(KubeSpawner):
     mount_secrets_volume = Bool(
         True,
         config=True,
-        help="""Whether to mount or not the secrets as a volume in the user space""",
+        help="""Whether to mount or not the secrets as a volume in the
+                user space at the `token_mount_path`. If False, then a
+                in-memory volume will be provided instead""",
     )
 
     def __init__(self, *args, **kwargs):
@@ -144,7 +146,8 @@ class EGISpawner(KubeSpawner):
     async def configure_secret_volumes(self):
         # ensure we have a secret
         await self._update_secret({})
-        # Remove the secret from new_mounts and re-add it, just not to have it duplicated
+        # Remove the secret from new_mounts and re-add it
+        # just not to have it duplicated
         new_mounts = list(
             filter(
                 lambda x: x["name"] != self._token_secret_volume_name,
