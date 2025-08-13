@@ -210,11 +210,19 @@ class EGISpawner(KubeSpawner):
                     profile_list.append(profile)
         return profile_list
 
+    def options_from_form(self, formdata):
+        user_options = super().options_from_form(formdata)
+        form_secrets_mount = formdata.get("secrets-volume-setting", [None])[0] == "1"
+        user_options.update({"mount_secrets_volume": form_secrets_mount})
+        return user_options
+
     async def load_user_options(self):
         # applies overrides from the spawner
         await super().load_user_options()
         if not self.user_options:
             return
+        if "mount_secrets_volume" in self.user_options:
+            self.mount_secrets_volume = self.user_options.get("mount_secrets_volume")
 
     async def pre_spawn_hook(self, spawner):
         """
