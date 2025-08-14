@@ -1,5 +1,4 @@
-"""A Spawner for the EGI Notebooks service
-"""
+"""A Spawner for the EGI Notebooks service"""
 
 import base64
 import uuid
@@ -46,7 +45,9 @@ class EGISpawner(KubeSpawner):
     mount_secrets_volume = Bool(
         True,
         config=True,
-        help="""Whether to mount or not the secrets as a volume in the user space""",
+        help="""Whether to mount or not the secrets as a volume in the
+                user space at the `token_mount_path`. If False, then a
+                in-memory volume will be provided instead""",
     )
 
     def __init__(self, *args, **kwargs):
@@ -60,12 +61,6 @@ class EGISpawner(KubeSpawner):
         )
         self._token_secret_volume_name = self._expand_user_properties(
             self.token_secret_volume_name_template
-        )
-        self.volumes.append(
-            {
-                "name": self._token_secret_volume_name,
-                "secret": {"secretName": self.token_secret_name},
-            }
         )
 
     # overriding this one to avoid long usernames as labels
@@ -151,22 +146,42 @@ class EGISpawner(KubeSpawner):
     async def configure_secret_volumes(self):
         # ensure we have a secret
         await self._update_secret({})
-        # secrets mounting
-        new_mounts = []
-        for mount in self._sorted_dict_values(self.volume_mounts):
-            if mount["name"] == self._token_secret_volume_name:
-                self.log.debug(f"Removing secret volume mount {mount['name']} from pod")
-            else:
-                new_mounts.append(mount)
+        # Remove the secret from new_mounts and re-add it
+        # just not to have it duplicated
+        new_mounts = list(
+            filter(
+                lambda x: x["name"] != self._token_secret_volume_name,
+                self._sorted_dict_values(self.volume_mounts),
+            )
+        )
+        new_mounts.append(
+            {
+                "name": self._token_secret_volume_name,
+                "mountPath": self.token_mount_path,
+                # read only when is the real secret, otherwise not
+                "readOnly": self.mount_secrets_volume,
+            }
+        )
+        self.volume_mounts = new_mounts
+        # Do the same for the secret volume, remove and then add
+        new_volumes = list(
+            filter(lambda x: x["name"] != self._token_secret_volume_name, self.volumes)
+        )
+        secret_vol = {"name": self._token_secret_volume_name}
         if self.mount_secrets_volume:
-            new_mounts.append(
+            secret_vol.update(
                 {
-                    "name": self._token_secret_volume_name,
-                    "mountPath": self.token_mount_path,
-                    "readOnly": True,
+                    "secret": {"secretName": self.token_secret_name},
                 }
             )
-        self.volume_mounts = new_mounts
+        else:
+            secret_vol.update({"emptyDir": {"medium": "Memory"}})
+        new_volumes.append(secret_vol)
+        self.volumes = new_volumes
+        # set also the env
+        self.environment.update(
+            {"SECRETS_VOLUME_MOUNTED": f"{int(self.mount_secrets_volume)}"}
+        )
 
     async def configure_user_volumes(self):
         pvcs = await self.api.list_namespaced_persistent_volume_claim(
@@ -198,10 +213,24 @@ class EGISpawner(KubeSpawner):
                     profile_list.append(profile)
         return profile_list
 
+    def _options_from_form(self, formdata):
+        user_options = super()._options_from_form(formdata)
+        form_secrets_mount = formdata.get("secrets-volume-setting", [None])[0] == "1"
+        user_options.update({"mount_secrets_volume": form_secrets_mount})
+        return user_options
+
+    async def load_user_options(self):
+        # applies overrides from the spawner
+        await super().load_user_options()
+        if not self.user_options:
+            return
+        if "mount_secrets_volume" in self.user_options:
+            self.mount_secrets_volume = self.user_options.get("mount_secrets_volume")
+
     async def pre_spawn_hook(self, spawner):
         """
         Do actions before spawning.
         """
-        await super().load_user_options()
+        await self.load_user_options()
         await self.configure_user_volumes()
         await self.configure_secret_volumes()
