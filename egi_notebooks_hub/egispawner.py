@@ -238,5 +238,7 @@ class EGISpawner(KubeSpawner):
     def get_args(self):
         args = super().get_args()
         if not self.mount_secrets_volume:
-            args.append(f"--TokenAcquirerApp.secrets_mount_path={self.token_mount_path}")
+            args.append(
+                f"--TokenAcquirerApp.secrets_mount_path={self.token_mount_path}"
+            )
         return args
