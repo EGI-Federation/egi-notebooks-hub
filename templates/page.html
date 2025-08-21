@@ -6,6 +6,22 @@
 {{ super() }}
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans"/>
 <link rel="stylesheet" href="{{ static_url('css/egi.css') }}"/>
+<style>
+  [data-bs-theme="light"] #egi-page-logo,
+  [data-bs-theme="light"] .jpy-logo {
+    content: url({{ static_url('images/egi-logo.svg') }}) !important;
+  }
+  [data-bs-theme="dark"] #egi-page-logo,
+  [data-bs-theme="dark"] .jpy-logo {
+    content: url({{ static_url('images/egi-logo-white.svg') }}) !important;
+  }
+  [data-bs-theme="light"] #cesnet-page-logo {
+    content: url({{ static_url('images/cesnet-logo.png') }});
+  }
+  [data-bs-theme="dark"] #cesnet-page-logo {
+    content: url({{ static_url('images/cesnet-logo-white.png') }});
+  }
+</style>
 {% endblock %}
 
 {% block title %}EGI {{ service_name }}{% endblock %}
@@ -18,13 +34,11 @@
         <a href="https://www.egi.eu/">
           <img
             alt="EGI logo"
-            src="{{ static_url('images/egi-logo.svg') }}"
-          /></a>
+            id="egi-page-logo"/></a>
         <a href="https://www.cesnet.cz/?lang=en">
           <img
             alt="CESNET logo"
-            src="{{ static_url('images/cesnet.png') }}"
-          /></a>
+            id="cesnet-page-logo"/></a>
           {{ service_name }} is an <a href="https://www.egi.eu">EGI</a> service provided by
         <a href="https://www.cesnet.cz/?lang=en">CESNET</a>
       </div>
