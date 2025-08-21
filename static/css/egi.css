@@ -39,11 +39,12 @@ address {
   color: #005faa;
 }
 
-[data-bs-theme=light] .bg-body-tertiary {
+[data-bs-theme="light"] .bg-body-tertiary {
   /* EGI light gray in light mode */
   background-color: #f7f6f7 !important;
 }
-[data-bs-theme=dark] .bg-body-tertiary {
+
+[data-bs-theme="dark"] .bg-body-tertiary {
   /* SASS black color in dark mode */
   background-color: #212529 !important;
 }
