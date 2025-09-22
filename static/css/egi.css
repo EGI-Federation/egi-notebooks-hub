@@ -44,6 +44,6 @@ address {
 }
 
 [data-bs-theme="dark"] .bg-body-tertiary {
-  /* SASS black color in dark mode */
-  background-color: #212529 !important;
+  /* Darker than SASS #212529 black color for better contrast in dark mode */
+  background-color: #101010 !important;
 }
