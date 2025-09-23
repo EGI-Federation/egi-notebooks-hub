@@ -241,4 +241,5 @@ class EGISpawner(KubeSpawner):
             args.append(
                 f"--TokenAcquirerApp.secrets_mount_path={self.token_mount_path}"
             )
+        args.append(f"--UserSharingApp.secrets_mount_path={self.token_mount_path}")
         return args
