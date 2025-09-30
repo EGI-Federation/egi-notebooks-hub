@@ -75,12 +75,9 @@ def main():
             (r".*", TokenAcquirerHandler),
         ]
     )
-
     http_server = HTTPServer(app)
     url = urlparse(os.environ["JUPYTERHUB_SERVICE_URL"])
-
     http_server.listen(url.port, url.hostname)
-
     IOLoop.current().start()
 
 
