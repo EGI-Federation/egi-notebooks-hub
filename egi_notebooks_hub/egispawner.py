@@ -43,7 +43,7 @@ class EGISpawner(KubeSpawner):
     )
 
     mount_secrets_volume = Bool(
-        True,
+        False,
         config=True,
         help="""Whether to mount or not the secrets as a volume in the
                 user space at the `token_mount_path`. If False, then a
