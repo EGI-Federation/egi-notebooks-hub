@@ -10,10 +10,41 @@ from jupyterhub.services.auth import HubAuthenticated
 from jupyterhub.utils import url_path_join
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
-from tornado.web import Application, RequestHandler, authenticated
+from tornado.web import Application, HTTPError, RequestHandler, authenticated
 
 
 class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
+    """Gets tokens from the auth_state.
+
+    It requires the service to be configured with the right scopes:
+    `read:users` and `admin:auth_state`.
+
+     Sample configuration:
+     ```
+     c.JupyterHub.load_roles = [
+         {
+             'name': 'user',
+             'description': 'Grant users access to hub services',
+             'scopes': ["access:services", "self"],
+         },
+         {
+             "name": "token-aquirer",
+             "scopes": ["read:users", "admin:auth_state"],
+             "services": ["token-acquirer"]
+         }
+     ]
+
+     c.JupyterHub.services = [
+         {
+             'name': 'token-acquirer',
+             'command': ['python3', '-m', 'egi_notebooks_hub.services.token_acquirer'],
+             # the service will listen on whatever is configured here
+             'url': 'http://127.0.0.1:8090',
+         }
+     ]
+     ```
+    """
+
     @authenticated
     def get(self):
         user_model = self.get_current_user()
@@ -32,7 +63,7 @@ class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
         # self.logger.debug(f"Getting token for {user_model['name']}")
         access_token = data.get("auth_state", {}).get("access_token", None)
         if not access_token:
-            raise ("PUM")
+            raise HTTPError(404, reason="No access token available for the user")
         self.set_header("content-type", "application/json")
         self.write(json.dumps({"access_token": access_token}))
 
