@@ -146,38 +146,48 @@ class EGISpawner(KubeSpawner):
     async def configure_secret_volumes(self):
         # ensure we have a secret
         await self._update_secret({})
-        # Remove the secret from new_mounts and re-add it
-        # just not to have it duplicated
+        # make the secret available in the mounts for sidecars
+        # Remove the secret from mounts and re-add it
+        # just to ensure we don't have it duplicated
+        # We have a fake secret volume when we don't mount the actual secret
+        fake_secret_volume_name = f"{self._token_secret_volume_name}_fake"
+        mounted_volume_name = self._token_secret_volume_name
+        new_volumes = list(
+            filter(
+                lambda x: x["name"]
+                not in [self._token_secret_volume_name, fake_secret_volume_name],
+                self.volumes,
+            )
+        )
+        new_volumes.append(
+            {
+                "name": self._token_secret_volume_name,
+                "secret": {"secretName": self.token_secret_name},
+            }
+        )
+        if not self.mount_secrets_volume:
+            new_volumes.append(
+                {"name": fake_secret_volume_name, "emprtyDir": {"medium": "Memory"}}
+            )
+            mounted_volume_name = fake_secret_volume_name
+        self.volumes = new_volumes
+        # Do as with volumes, remove the secret from new_mounts and re-add it
         new_mounts = list(
             filter(
-                lambda x: x["name"] != self._token_secret_volume_name,
+                lambda x: x["name"]
+                not in [self._token_secret_volume_name, fake_secret_volume_name],
                 self._sorted_dict_values(self.volume_mounts),
             )
         )
         new_mounts.append(
             {
-                "name": self._token_secret_volume_name,
+                "name": mounted_volume_name,
                 "mountPath": self.token_mount_path,
                 # read only when is the real secret, otherwise not
                 "readOnly": self.mount_secrets_volume,
             }
         )
         self.volume_mounts = new_mounts
-        # Do the same for the secret volume, remove and then add
-        new_volumes = list(
-            filter(lambda x: x["name"] != self._token_secret_volume_name, self.volumes)
-        )
-        secret_vol = {"name": self._token_secret_volume_name}
-        if self.mount_secrets_volume:
-            secret_vol.update(
-                {
-                    "secret": {"secretName": self.token_secret_name},
-                }
-            )
-        else:
-            secret_vol.update({"emptyDir": {"medium": "Memory"}})
-        new_volumes.append(secret_vol)
-        self.volumes = new_volumes
         # set also the env
         self.environment.update(
             {"SECRETS_VOLUME_MOUNTED": f"{int(self.mount_secrets_volume)}"}
