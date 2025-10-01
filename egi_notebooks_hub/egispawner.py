@@ -150,7 +150,7 @@ class EGISpawner(KubeSpawner):
         # Remove the secret from mounts and re-add it
         # just to ensure we don't have it duplicated
         # We have a fake secret volume when we don't mount the actual secret
-        fake_secret_volume_name = f"{self._token_secret_volume_name}_fake"
+        fake_secret_volume_name = f"{self._token_secret_volume_name}-fake"
         mounted_volume_name = self._token_secret_volume_name
         new_volumes = list(
             filter(
@@ -167,7 +167,7 @@ class EGISpawner(KubeSpawner):
         )
         if not self.mount_secrets_volume:
             new_volumes.append(
-                {"name": fake_secret_volume_name, "emprtyDir": {"medium": "Memory"}}
+                {"name": fake_secret_volume_name, "emptyDir": {"medium": "Memory"}}
             )
             mounted_volume_name = fake_secret_volume_name
         self.volumes = new_volumes
