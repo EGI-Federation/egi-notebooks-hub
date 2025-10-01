@@ -61,7 +61,10 @@ class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
             headers={"Authorization": "token " + self.hub_auth.api_token},
         )
         # self.logger.debug(f"Getting token for {user_model['name']}")
-        access_token = data.get("auth_state", {}).get("access_token", None)
+        access_token = None
+        auth_state = data.get("auth_state", {})
+        if auth_state:
+            access_token = auth_state.get("access_token", None)
         if not access_token:
             raise HTTPError(404, reason="No access token available for the user")
         self.set_header("content-type", "application/json")
