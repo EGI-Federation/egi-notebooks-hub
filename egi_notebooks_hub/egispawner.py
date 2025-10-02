@@ -149,7 +149,7 @@ class EGISpawner(KubeSpawner):
         new_mounts = list(
             filter(
                 lambda x: x["name"]
-                not in [self.secret_volume_name, self.secret_sidecar_volume_name],
+                not in [self._token_secret_volume_name, user_secret_volume_name],
                 self._sorted_dict_values(self.volume_mounts),
             )
         )
