@@ -10,7 +10,7 @@ from traitlets import Bool, Unicode
 
 
 class EGISpawner(KubeSpawner):
-    token_secret_name_template = Unicode(
+    secret_name_template = Unicode(
         "access-token-{userid}",
         config=True,
         help="""
@@ -22,15 +22,12 @@ class EGISpawner(KubeSpawner):
         """,
     )
 
-    token_secret_volume_name_template = Unicode(
+    secret_volume_name_template = Unicode(
         "secret-{userid}",
         config=True,
         help="""
         Template to use to form the name of secret to store user's token.
         `{username}` is expanded to the escaped, dns-label safe username.
-        This must be unique within the namespace the pvc are being spawned
-        in, so if you are running multiple jupyterhubs spawning in the
-        same namespace, consider setting this to be something more unique.
         """,
     )
 
@@ -56,12 +53,11 @@ class EGISpawner(KubeSpawner):
         self._profile_config = self.profile_list
         self.profile_list = self._profile_filter
         self.pvc_name = uuid.uuid4().hex
-        self.token_secret_name = self._expand_user_properties(
-            self.token_secret_name_template
+        self.secret_name = self._expand_user_properties(self.secret_name_template)
+        self.secret_volume_name = self._expand_user_properties(
+            self.secret_volume_name_template
         )
-        self._token_secret_volume_name = self._expand_user_properties(
-            self.token_secret_volume_name_template
-        )
+        self.secret_sidecar_volume_name = f"{self.secret_volume_name}-sidecar"
 
     # overriding this one to avoid long usernames as labels
     def _build_common_labels(self, extra_labels):
@@ -72,7 +68,7 @@ class EGISpawner(KubeSpawner):
     def _get_secret_manifest(self, data):
         """creates a secret in k8s that will contain the token of the user"""
         meta = V1ObjectMeta(
-            name=self.token_secret_name,
+            name=self.secret_name,
             labels=self._build_common_labels({}),
             annotations=self._build_common_annotations({}),
         )
@@ -86,7 +82,7 @@ class EGISpawner(KubeSpawner):
         secret_data = {}
         try:
             current_secret = await self.api.read_namespaced_secret(
-                self.token_secret_name, self.namespace
+                self.secret_name, self.namespace
             )
             if current_secret and current_secret.data:
                 secret_data = current_secret.data
@@ -105,15 +101,13 @@ class EGISpawner(KubeSpawner):
         secret = self._get_secret_manifest(data)
         try:
             await self.api.replace_namespaced_secret(
-                name=self.token_secret_name, namespace=self.namespace, body=secret
+                name=self.secret_name, namespace=self.namespace, body=secret
             )
         except ApiException as e:
             # maybe it does not exist yet?
             if e.status == 404:
                 try:
-                    self.log.info(
-                        "Creating access token secret %s", self.token_secret_name
-                    )
+                    self.log.info("Creating access token secret %s", self.secret_name)
                     await self.api.create_namespaced_secret(
                         namespace=self.namespace, body=secret
                     )
@@ -146,42 +140,44 @@ class EGISpawner(KubeSpawner):
     async def configure_secret_volumes(self):
         # ensure we have a secret
         await self._update_secret({})
+        # have two volumes one towards the user and another for sidecars
+        # depending on whether the mount_secrets_volume option, the user
+        # will have the actual content or just an emptyDir
+
         # make the secret available in the mounts for sidecars
         # Remove the secret from mounts and re-add it
         # just to ensure we don't have it duplicated
         # We have a fake secret volume when we don't mount the actual secret
-        fake_secret_volume_name = f"{self._token_secret_volume_name}-fake"
-        mounted_volume_name = self._token_secret_volume_name
         new_volumes = list(
             filter(
                 lambda x: x["name"]
-                not in [self._token_secret_volume_name, fake_secret_volume_name],
+                not in [self.secret_volume_name, self.secret_sidecar_volume_name],
                 self.volumes,
             )
         )
-        new_volumes.append(
-            {
-                "name": self._token_secret_volume_name,
-                "secret": {"secretName": self.token_secret_name},
-            }
-        )
+        sidecar_secret = {
+            "name": self.secret_sidecar_volume_name,
+            "secret": {"secretName": self.token_secret_name},
+        }
+        new_volumes.append(sidecar_secret)
+        user_secret = {"name": self.secret_volume_name}
         if not self.mount_secrets_volume:
-            new_volumes.append(
-                {"name": fake_secret_volume_name, "emptyDir": {"medium": "Memory"}}
-            )
-            mounted_volume_name = fake_secret_volume_name
+            user_secret.update({"emptyDir": {"medium": "Memory"}})
+        else:
+            user_secret.update({"secret": {"secretName": self.token_secret_name}})
+        new_volumes.append(user_secret)
         self.volumes = new_volumes
         # Do as with volumes, remove the secret from new_mounts and re-add it
         new_mounts = list(
             filter(
                 lambda x: x["name"]
-                not in [self._token_secret_volume_name, fake_secret_volume_name],
+                not in [self.secret_volume_name, self.secret_sidecar_volume_name],
                 self._sorted_dict_values(self.volume_mounts),
             )
         )
         new_mounts.append(
             {
-                "name": mounted_volume_name,
+                "name": self.secret_volume_name,
                 "mountPath": self.token_mount_path,
                 # read only when is the real secret, otherwise not
                 "readOnly": self.mount_secrets_volume,
