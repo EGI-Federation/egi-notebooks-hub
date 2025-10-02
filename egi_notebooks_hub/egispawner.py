@@ -69,7 +69,7 @@ class EGISpawner(KubeSpawner):
     def _get_secret_manifest(self, data):
         """creates a secret in k8s that will contain the token of the user"""
         meta = V1ObjectMeta(
-            name=self.secret_name,
+            name=self.token_secret_name,
             labels=self._build_common_labels({}),
             annotations=self._build_common_annotations({}),
         )
@@ -83,7 +83,7 @@ class EGISpawner(KubeSpawner):
         secret_data = {}
         try:
             current_secret = await self.api.read_namespaced_secret(
-                self.secret_name, self.namespace
+                self.token_secret_name, self.namespace
             )
             if current_secret and current_secret.data:
                 secret_data = current_secret.data
@@ -102,13 +102,15 @@ class EGISpawner(KubeSpawner):
         secret = self._get_secret_manifest(data)
         try:
             await self.api.replace_namespaced_secret(
-                name=self.secret_name, namespace=self.namespace, body=secret
+                name=self.token_secret_name, namespace=self.namespace, body=secret
             )
         except ApiException as e:
             # maybe it does not exist yet?
             if e.status == 404:
                 try:
-                    self.log.info("Creating access token secret %s", self.secret_name)
+                    self.log.info(
+                        "Creating access token secret %s", self.token_secret_name
+                    )
                     await self.api.create_namespaced_secret(
                         namespace=self.namespace, body=secret
                     )
