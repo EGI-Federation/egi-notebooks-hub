@@ -10,7 +10,7 @@ from traitlets import Bool, Unicode
 
 
 class EGISpawner(KubeSpawner):
-    secret_name_template = Unicode(
+    token_secret_name_template = Unicode(
         "access-token-{userid}",
         config=True,
         help="""
@@ -22,7 +22,7 @@ class EGISpawner(KubeSpawner):
         """,
     )
 
-    secret_volume_name_template = Unicode(
+    token_secret_volume_name_template = Unicode(
         "secret-{userid}",
         config=True,
         help="""
@@ -53,11 +53,12 @@ class EGISpawner(KubeSpawner):
         self._profile_config = self.profile_list
         self.profile_list = self._profile_filter
         self.pvc_name = uuid.uuid4().hex
-        self.secret_name = self._expand_user_properties(self.secret_name_template)
-        self.secret_volume_name = self._expand_user_properties(
-            self.secret_volume_name_template
+        self.token_secret_name = self._expand_user_properties(
+            self.token_secret_name_template
         )
-        self.secret_sidecar_volume_name = f"{self.secret_volume_name}-sidecar"
+        self._token_secret_volume_name = self._expand_user_properties(
+            self.token_secret_volume_name_template
+        )
 
     # overriding this one to avoid long usernames as labels
     def _build_common_labels(self, extra_labels):
@@ -144,23 +145,23 @@ class EGISpawner(KubeSpawner):
         # depending on whether the mount_secrets_volume option, the user
         # will have the actual content or just an emptyDir
 
-        # make the secret available in the mounts for sidecars
+        user_secret_volume_name = f"{self._token_secret_volume_name}-user"
         # Remove the secret from mounts and re-add it
         # just to ensure we don't have it duplicated
         # We have a fake secret volume when we don't mount the actual secret
         new_volumes = list(
             filter(
                 lambda x: x["name"]
-                not in [self.secret_volume_name, self.secret_sidecar_volume_name],
+                not in [self._token_secret_volume_name, user_secret_volume_name],
                 self.volumes,
             )
         )
         sidecar_secret = {
-            "name": self.secret_sidecar_volume_name,
+            "name": self._token_secret_volume_name,
             "secret": {"secretName": self.token_secret_name},
         }
         new_volumes.append(sidecar_secret)
-        user_secret = {"name": self.secret_volume_name}
+        user_secret = {"name": user_secret_volume_name}
         if not self.mount_secrets_volume:
             user_secret.update({"emptyDir": {"medium": "Memory"}})
         else:
@@ -177,7 +178,7 @@ class EGISpawner(KubeSpawner):
         )
         new_mounts.append(
             {
-                "name": self.secret_volume_name,
+                "name": user_secret_volume_name,
                 "mountPath": self.token_mount_path,
                 # read only when is the real secret, otherwise not
                 "readOnly": self.mount_secrets_volume,

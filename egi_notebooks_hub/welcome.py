@@ -1,5 +1,4 @@
-"""Handler for a simple welcome page for EGI Notebooks
-"""
+"""Handler for a simple welcome page for EGI Notebooks"""
 
 from jupyterhub.handlers.base import BaseHandler
 from tornado.escape import url_escape
