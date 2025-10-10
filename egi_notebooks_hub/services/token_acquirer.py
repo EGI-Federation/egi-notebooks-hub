@@ -17,7 +17,7 @@ class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
     """Gets tokens from the auth_state.
 
     It requires the service to be configured with the right scopes:
-    `read:users` and `admin:auth_state`.
+    `read:users`, `admin:auth_state` and `read:tokens`.
 
      Sample configuration:
      ```
@@ -29,7 +29,7 @@ class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
          },
          {
              "name": "token-aquirer",
-             "scopes": ["read:users", "admin:auth_state"],
+             "scopes": ["read:users", "admin:auth_state", "read:tokens"],
              "services": ["token-acquirer"]
          }
      ]
@@ -49,7 +49,26 @@ class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
     def get(self):
         user_model = self.get_current_user()
         sync = True
-        data = self.hub_auth._call_coroutine(
+        token_info = self.hub_auth._call_coroutine(
+            sync,
+            self.hub_auth._api_request,
+            "GET",
+            url=url_path_join(
+                self.hub_auth.api_url,
+                "users",
+                user_model["name"],
+                "tokens",
+                user_model["token_id"],
+            ),
+            headers={"Authorization": "token " + self.hub_auth.api_token},
+        )
+        oauth_client = token_info.get("oauth_client", "")
+        session_id = token_info.get("session_id", None)
+        if not (session_id and oauth_client):
+            raise HTTPError(401, reason="Token not authorized")
+        if not oauth_client.lower().startswith("server at"):
+            raise HTTPError(401, reason="Token not authorized")
+        user_data = self.hub_auth._call_coroutine(
             sync,
             self.hub_auth._api_request,
             "GET",
@@ -60,9 +79,8 @@ class TokenAcquirerHandler(HubAuthenticated, RequestHandler):
             ),
             headers={"Authorization": "token " + self.hub_auth.api_token},
         )
-        # self.logger.debug(f"Getting token for {user_model['name']}")
         access_token = None
-        auth_state = data.get("auth_state", {})
+        auth_state = user_data.get("auth_state", {})
         if auth_state:
             access_token = auth_state.get("access_token", None)
         if not access_token:
