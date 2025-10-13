@@ -1,7 +1,5 @@
 <!-- htmlhint doctype-first:false -->
 {% extends "templates/token.html" %}
-{% block main%}
-{{ super() }}
 {% block expiration_options %}
 <select id="token-expiration-seconds" class="form-select">
   <!-- unit used for each value is `seconds` -->
@@ -11,4 +9,3 @@
   <option value="">Never</option>
 </select>
 {% endblock expiration_options %}
-{% endblock main %}
