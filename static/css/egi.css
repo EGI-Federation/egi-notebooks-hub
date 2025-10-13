@@ -47,3 +47,8 @@ address {
   /* Darker than SASS #212529 black color for better contrast in dark mode */
   background-color: #101010 !important;
 }
+
+/* FIXME: to be removed at next Hub release, tmp fix */
+.sr-only {
+  display: none;
+}
