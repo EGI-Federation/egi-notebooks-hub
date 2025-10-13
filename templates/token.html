@@ -1,0 +1,14 @@
+<!-- htmlhint doctype-first:false -->
+{% extends "templates/token.html" %}
+{% block main%}
+{{ super() }}
+{% block expiration_options %}
+<select id="token-expiration-seconds" class="form-select">
+  <!-- unit used for each value is `seconds` -->
+  <option value="3600" selected>1 Hour</option>
+  <option value="86400">1 Day</option>
+  <option value="604800">1 Week</option>
+  <option value="">Never</option>
+</select>
+{% endblock expiration_options %}
+{% endblock main %}

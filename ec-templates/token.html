@@ -4,7 +4,7 @@
 {% block main %}
 <div class="ecl-container ecl-u-mv-xl container-fix">
   <div class="row justify-content-center">
-  <h1 class="sr-only">Manage JupyterHub Tokens</h1>
+  <h1 class="ecl-u-sr-only">Manage JupyterHub Tokens</h1>
     <form id="request-token-form" class="col-md-offset-3 col-md-6">
       <div class="text-center">
         <button type="submit" class="ecl-button ecl-button--primary">
@@ -24,12 +24,12 @@
         <br /><br />
         <label for="token-expiration-seconds">Token expires in</label>
         {% block expiration_options %}
-        <select id="token-expiration-seconds" class="ecl-text-input ecl-u-width-100">
+        <select id="token-expiration-seconds" class="ecl-select ecl-u-width-100">
           <!-- unit used for each value is `seconds` -->
-          <option value="3600">1 Hour</option>
+          <option value="3600" selected>1 Hour</option>
           <option value="86400">1 Day</option>
           <option value="604800">1 Week</option>
-          <option value="" selected="selected">Never</option>
+          <option value="">Never</option>
         </select>
         {% endblock expiration_options %}
         <small id="note-expires-at" class="form-text text-muted">
