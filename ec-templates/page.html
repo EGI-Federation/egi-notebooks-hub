@@ -25,39 +25,52 @@ body {
 
 <link
   rel="stylesheet"
-  href="{{ static_url('css/ecl-ec-default.css') }}"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/optional/ecl-ec-default.css"
+  integrity="sha256-7XbRWz/KIVcK0oC0bwOCo+I2AudyAMkeyu3L5Wpa1wc= sha384-+KnRIij0RjiqhQ1MN6SG8J1tPISkjN4CghvhKRlobxy/hPbe6ZbO4UHBNmcFuWEO sha512-W7YFpSpRijcAESw/ScePE87EiYwk3kyM2UJhvW9D2eKCfqytMYrq2h8vVw9Ft41bQPXX+esTFR4/g3ykEiibCg=="
+  crossorigin="anonymous"
   media="screen"
 />
 <link
   rel="stylesheet"
-  href="{{ static_url('css/ecl-reset.css') }}"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/optional/ecl-reset.css"
+  integrity="sha256-kgkV2jwxAv9rV/pEZMO1ZIUGlOeYhR/sWNko+nQzL+U= sha384-V/h7UkJ4neaFSddbrlgsdHZ7Yli4BsWBEzbGY1bL9s//Dne2gMX3qBW2mtGsI7gA sha512-ztGS5PYfTTDqz0ywyhsqxupHv+yX0t2ajqocSE/xviVoxLRZVJj6TARDt25xytzQ/6jP4IEl7nkIL6Ypt4lUQQ=="
+  crossorigin="anonymous"
   media="screen"
 />
 <link
   rel="stylesheet"
-  href="{{ static_url('css/ecl-ec.css') }}"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/ecl-ec.css"
+  integrity="sha256-EWyRRzWds5Kll0v6q5hOpX/JF7OZ20oTOXC5wweVx1E= sha384-4Ni640a5KqYEDjSOoyKYiBhrHoX0nl8s7ZVTPtbkguA9cJJtWbkbmXm12UO71a0C sha384-pht7Ak0/atyGGU+sNdoGMoYPtcq5gJ9eOEiD8jhbqowXOp04VjhqALtBzjQO+xVa sha512-WxR2fEkr9aF9hu1vMMgSH7UcZZiuIxQJJ5x4T6WPlG5pJYcLywgeHN6rS0T94KoVTMfrC4IZB9rSsJgfXImo4g=="
+  crossorigin="anonymous"
   media="screen"
 />
 <link
   rel="stylesheet"
-  href="{{ static_url('css/ecl-ec-utilities.css') }}"
-  media="screen"
-/>
-<link
-  rel="stylesheet"
-  href="{{ static_url('css/ecl-ec-print.css') }}"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/ecl-ec-print.css"
+  integrity="sha256-+h9JpKfnsC8n6oaTvvrKOaLro9ki67E1HUFSgh+FxP4= sha384-vH3QMqdGG/7+vk2t/Ai2GZ8refpKk/xVlspeMbdG7WxjPEYIqKmvfRl3PJ6Zb+Kc sha512-3vSGPqgwLC+wl9k+xN+XsAoxvoQGSrGCN6iq/52pCl5daazWFA8QrQkJSmX4bydX8IdOr2d+7K4TKrvnO7OiOw=="
+  crossorigin="anonymous"
   media="print"
 />
 <link
   rel="stylesheet"
-  href="{{ static_url('css/ecl-ec-default-print.css') }}"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/optional/ecl-ec-default-print.css"
+  integrity="sha256-r2h4/l+cHzvLXT3QvfaB7jlmj3L0xwOM83Wo543HE0A= sha384-iE/iHAMCZzQX5+ukUTK7xPB87CoAlgklPyLndBuJlWvwd3JqXO5/GaO2ePOF1pAW
+  sha512-wGTofG2I7XVxGV7Lrnpizbzu0rHLtAzmWKpcCudLDJ0sfro2TBqZB1MwkxjTD6LGfkoiC5f5jssXNLHClOiGRQ=="
+  crossorigin="anonymous"
   media="print"
 />
+
+
+
 {% endblock stylesheet %}
 
 {% block script %}
 {{ super() }}
-<script src="{{ static_url('js/ecl-ec.js') }}"></script>
+<script
+  src="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/scripts/ecl-ec.js"
+  integrity="sha256-3ml+N1xH9anWmelzcIUcky/E/V29fpHAmvjc5qcHZzs= sha384-aR3Es/0z8R1Y4mve1kgTY0/X2DSqpmRmmvXgRpTYg0pwT2C8f4UrWMDLXyBYlmJC sha512-TqIr68oz3EDBP2P+W1N4V1k01NSaaVwcJWXNjPRxcQv5fO8iD281WyZkXaSVIp/bhA8SfEqI1QjJ6fjyWzYIJA=="
+  crossorigin="anonymous"
+></script>
 <script>
   ECL.autoInit();
 </script>
@@ -370,6 +383,13 @@ body {
                 >FAQs</a
               >
             </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/security-team"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >Security Team</a
+              >
+            </li>
           </ul>
         </div>
         <div class="ecl-site-footer__section">
@@ -377,9 +397,23 @@ body {
           <ul class="ecl-site-footer__list">
             <li class="ecl-site-footer__list-item">
               <a
-                href="https://open-science-cloud.ec.europa.eu/index.php/system/files?file=2024-04/EOSC-EU-Node-Acceptable-Use-Policy.pdf"
+                href="https://open-science-cloud.ec.europa.eu/support/acceptable-use-policy"
                 class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
                 >EOSC EU Node Acceptable Use Policy</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/support/user-access-policy"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >EOSC EU Node User Access Policy</a
+              >
+            </li>
+            <li class="ecl-site-footer__list-item">
+              <a
+                href="https://open-science-cloud.ec.europa.eu/privacy-statement"
+                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                >EOSC EU Node Privacy Statement</a
               >
             </li>
           </ul>
@@ -445,13 +479,6 @@ body {
                 >Resources for partners</a
               >
             </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/legal-notice/vulnerability-disclosure-policy_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Report an IT vulnerability</a
-              >
-            </li>
           </ul>
         </div>
       </div>
@@ -460,13 +487,6 @@ body {
           class="ecl-site-footer__section ecl-site-footer__section--split-list"
         >
           <ul class="ecl-site-footer__list">
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/language-policy_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Languages on our websites</a
-              >
-            </li>
             <li class="ecl-site-footer__list-item">
               <a
                 href="https://commission.europa.eu/cookies_en"
