@@ -203,7 +203,7 @@ class EGISpawner(KubeSpawner):
                 break
         vols = []
         # pylint: disable=access-member-before-definition
-        for v in self.volumes:
+        for v in self._sorted_dict_values(self.volumes):
             claim = v.get("persistentVolumeClaim", {})
             if claim.get("claimName", "").startswith("claim-"):
                 v["persistentVolumeClaim"]["claimName"] = self.pvc_name
