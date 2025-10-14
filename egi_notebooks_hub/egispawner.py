@@ -146,6 +146,7 @@ class EGISpawner(KubeSpawner):
         user_secret_volume_name = f"{self._token_secret_volume_name}-user"
         # Remove the secret from mounts and re-add it
         # just to ensure we don't have it duplicated
+        new_mounts = _volumes_as_dict(self.volume_mounts)
         new_mounts = list(
             filter(
                 lambda x: x["name"]
@@ -170,7 +171,7 @@ class EGISpawner(KubeSpawner):
             filter(
                 lambda x: x["name"]
                 not in [self._token_secret_volume_name, user_secret_volume_name],
-                self.volumes,
+                self._sorted_dict_values(self.volumes),
             )
         )
         sidecar_secret = {
