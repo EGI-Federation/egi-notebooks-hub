@@ -2,7 +2,7 @@
 {% extends "page.html" %}
 
 {% block main %}
-<div class="ecl-container ecl-u-mv-xl container-fix">
+<div class="ecl-container my-4 container-fix">
   <div class="row justify-content-center">
   <h1 class="ecl-u-sr-only">Manage JupyterHub Tokens</h1>
     <form id="request-token-form" class="col-md-offset-3 col-md-6">
@@ -15,7 +15,7 @@
         <label for="token-note">Note</label>
         <input
           id="token-note"
-          class="ecl-text-input ecl-u-width-100"
+          class="ecl-text-input w-100"
           placeholder="note to identify your new token"
         />
         <small id="note-note" class="form-text text-muted">
@@ -24,7 +24,7 @@
         <br /><br />
         <label for="token-expiration-seconds">Token expires in</label>
         {% block expiration_options %}
-        <select id="token-expiration-seconds" class="ecl-select ecl-u-width-100">
+        <select id="token-expiration-seconds" class="ecl-select w-100">
           <!-- unit used for each value is `seconds` -->
           <option value="3600" selected>1 Hour</option>
           <option value="86400">1 Day</option>
@@ -39,7 +39,7 @@
         {# Adapted from https://github.com/jupyterhub/jupyterhub/blob/a8500a31a9bc77a9829e903693462a7da38fee52/share/jupyterhub/templates/token.html #}
         <label for="token-scopes" class="form-label">Permissions</label>
         <input id="token-scopes"
-               class="ecl-text-input ecl-u-width-100"
+               class="ecl-text-input w-100"
                placeholder="list of scopes for the token to have, separated by space">
         <small id="note-token-scopes" class="form-text">
           You can limit the permissions of the token so it can only do what you want it to.
