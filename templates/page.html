@@ -1,7 +1,7 @@
 <!-- htmlhint doctype-first:false -->
 {% extends "templates/page.html" %}
 {% set service_name = service_name|default('Notebooks') %}
-{% set docs_url = service_name|default('https://docs.egi.eu/users/dev-env/notebooks/') %}
+{% set docs_url = docs_url|default('https://docs.egi.eu/users/dev-env/notebooks/') %}
 
 {% block stylesheet %}
 {{ super() }}
