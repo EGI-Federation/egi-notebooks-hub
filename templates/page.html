@@ -1,6 +1,7 @@
 <!-- htmlhint doctype-first:false -->
 {% extends "templates/page.html" %}
 {% set service_name = service_name|default('Notebooks') %}
+{% set docs_url = docs_url|default('https://docs.egi.eu/users/dev-env/notebooks/') %}
 
 {% block stylesheet %}
 {{ super() }}
@@ -43,7 +44,7 @@
         <a href="https://www.cesnet.cz/?lang=en">CESNET</a>
       </div>
       <div class="col-md-6 text-end">
-        <a href="https://docs.egi.eu/users/dev-env/notebooks/">User guide</a> |
+        <a href="{{ docs_url }}">User guide</a> |
         <a href="/policies/privacy-policy.html">Privacy Notice</a> |
         <a href="/policies/terms-of-use.html">Terms of Use</a>
       </div>
