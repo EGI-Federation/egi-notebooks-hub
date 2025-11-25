@@ -422,9 +422,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     async def refresh_user(self, user, handler=None):
         refresh_result = await super().refresh_user(user, handler)
         if refresh_result and callable(getattr(user.spawner, "set_access_token", None)):
-            await user.spawner.set_access_token(
-                token_info["access_token"], token_info.get("id_token", None)
-            )
+            if "auth_state" in refresh_result:
+                access_token = refresh_result["auth_state"]["access_token"]
+                id_token = refresh_result["auth_state"]["id_token"]
+                await user.spawner.set_access_token(access_token, id_token)
         return refresh_result
 
     def refresh_user_hook(self, authenticator, user, auth_state):
