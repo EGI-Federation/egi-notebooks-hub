@@ -420,19 +420,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     # Refresh auth data for user
     async def refresh_user(self, user, handler=None):
-        auth_state = await user.get_auth_state()
-        if not auth_state:
-            self.log.debug("No auth state, assuming user is valid")
-            return True
-
-        access_token = auth_state.get("access_token", None)
-
-        if not access_token:
-            self.log.debug(
-                "No access token, assuming user is not managed with Check-in"
+        refresh_result = await super().refresh_user(user, handler)
+        if refresh_result and callable(getattr(user.spawner, "set_access_token", None)):
+            await user.spawner.set_access_token(
+                token_info["access_token"], token_info.get("id_token", None)
             )
-            return True
+        return refresh_result
 
+    def refresh_user_hook(self, authenticator, user, auth_state):
+        access_token = auth_state.get("access_token", None)
+        if not access_token:
+            return None
         try:
             # We want to fall on the safe side for refreshing, hence using
             # the auth_refresh_age plus a configurable leeway
@@ -453,74 +451,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 self.log.debug("Access token is still good, no refresh needed")
                 return True
         except jwt.exceptions.InvalidTokenError as e:
-            self.log.debug(f"Invalid access token, will try to refresh: {e}")
-
-        refresh_token = auth_state.get("refresh_token", None)
-        if not refresh_token:
-            self.log.warn(f"No refresh token, not allowing {user} without re-login")
-            return False
-
-        # performing the refresh token call
-        self.log.debug("Perform refresh call to Check-in")
-        http_client = AsyncHTTPClient()
-        headers = {
-            "Accept": "application/json",
-            "User-Agent": "JupyterHub",
-        }
-        body = urlencode(
-            dict(
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-                grant_type="refresh_token",
-                refresh_token=refresh_token,
-                scope=" ".join(self.scope),
-            )
-        )
-        req = HTTPRequest(
-            self.token_url,
-            auth_username=self.client_id,
-            auth_password=self.client_secret,
-            headers=headers,
-            method="POST",
-            body=body,
-        )
-        try:
-            resp = await http_client.fetch(req)
-        except HTTPClientError as e:
-            self.log.warning("Unable to refresh token, maybe expired: %s", e)
-            if e.response:
-                self.log.warning("Response from server: %s", e.response.body)
-            # clear here the existing auth state so it's no longer valid
-            await user.save_auth_state(None)
-            return False
-        resp_body = resp.body.decode("utf8", "replace")
-        if not resp_body:
-            self.log.warning(f"Empty reply from refresh call for user {user}: {body}")
-            return False
-        token_info = json.loads(resp_body)
-        if "refresh_token" not in token_info:
-            self.log.debug("Will reuse refresh token or next user refresh")
-            token_info["refresh_token"] = refresh_token
-
-        # Do get again the user_info, as this may have changed from last time
-        user_info = await self.token_to_user(token_info)
-        # extract the username out of the user_info dict and normalize it
-        username = self.user_info_to_username(user_info)
-        username = self.normalize_username(username)
-        auth_state = self.build_auth_state_dict(token_info, user_info)
-
-        if callable(getattr(user.spawner, "set_access_token", None)):
-            await user.spawner.set_access_token(
-                token_info["access_token"], token_info.get("id_token", None)
-            )
-        auth_model = {
-            "name": user.name,
-            "admin": True if user.name in self.admin_users else None,
-            "auth_state": auth_state,
-        }
-        if self.manage_groups:
-            auth_model = await self._apply_managed_groups(auth_model)
-        return await self.update_auth_model(auth_model)
+            self.log.debug(f"Invalid access token, continue with usual refresh: {e}")
+        return None
 
     async def revoke_and_refresh_user(self, user, handler=None):
         return True
