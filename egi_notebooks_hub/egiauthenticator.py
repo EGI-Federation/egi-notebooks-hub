@@ -13,11 +13,40 @@ from urllib.parse import urlencode
 import jwt
 import jwt.exceptions
 from jupyterhub import orm
+from jupyterhub.apihandlers import APIHandler
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
 from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
 from traitlets import Bool, Int, List, Unicode, default, validate
+
+
+class TokenAcquirerHandler(APIHandler):
+    """Handler for getting access token and refreshing"""
+
+    async def get(self):
+        user = self.current_user
+        if user is None:
+            raise web.HTTPError(403, "Unknown user")
+
+        if self.authenticator.token_acquirer_scopes not in self.expanded_scopes:
+            raise web.HTTPError(
+                403, f"Missing scope {self.authenticator.token_acquirer_scopes}"
+            )
+
+        token = self.get_token()
+        if not (token.session_id and token.oauth_client):
+            raise web.HTTPError(403, "Token is not authorized")
+
+        auth_state = await user.get_auth_state()
+        if not auth_state:
+            raise web.HTTPError(404, "No user state")
+
+        access_token = auth_state.get("access_token", None)
+        if not access_token:
+            raise web.HTTPError(404, "No access token available")
+
+        self.write({"access_token": access_token})
 
 
 class JWTHandler(BaseHandler):
@@ -152,6 +181,7 @@ class JWTHandler(BaseHandler):
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
     jwt_handler = JWTHandler
+    acquirer_handler = TokenAcquirerHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
@@ -276,12 +306,18 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         config=True,
         help="""A prefix for the the anonymous users""",
     )
-
     auth_refresh_leeway = Int(
         60,
         config=True,
         help="""Additional leeway time (in seconds) on top
                 of the auth_refresh_age to renew tokens""",
+    )
+    token_acquirer_scopes = Unicode(
+        "custom:token-acquirer:read",
+        config=True,
+        help="""Expected scope to be available for the user
+                to get the access token from our dedicated
+                endpoint""",
     )
 
     @default("manage_groups")
@@ -486,10 +522,16 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             auth_model = await self._apply_managed_groups(auth_model)
         return await self.update_auth_model(auth_model)
 
+    async def revoke_and_refresh_user(self, user, handler=None):
+        return True
+
     def get_handlers(self, app):
         handlers = super().get_handlers(app)
-        handlers.append(
-            (r"/jwt_login", self.jwt_handler),
+        handlers.extend(
+            [
+                (r"/jwt_login", self.jwt_handler),
+                (r"/acquire_token", self.acquirer_handler),
+            ]
         )
         return handlers
 
