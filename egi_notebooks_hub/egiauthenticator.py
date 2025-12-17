@@ -23,7 +23,17 @@ from traitlets import Bool, Int, List, Unicode, default, validate
 class JWTHandler(BaseHandler):
     """Handler for authentication with JWT tokens"""
 
-    async def exchange_for_refresh_token(self, access_token):
+    async def exchange_for_refresh_token(
+        self, access_token, decoded_token, refresh_token
+    ):
+        token_info = await self.authenticator.introspect_token(refresh_token)
+        if not token_info or token_info.get("active", False):
+            # will the access token expire before refresh?
+            if (exp in token_info) and (exp in decoded_token):
+                if float(token_info["exp"]) > float(decoded_token["exp"]):
+                    # access token will expire before the refresh
+                    # all other cases need refresh
+                    return refresh_token
         self.log.debug("Exchanging access token for refresh")
         http_client = AsyncHTTPClient()
         headers = {
@@ -122,7 +132,9 @@ class JWTHandler(BaseHandler):
                 raise web.HTTPError(403, self.authenticator.custom_403_message)
             auth_state = await user.get_auth_state()
             if auth_state:
-                refresh_token = await self.exchange_for_refresh_token(jwt_token)
+                refresh_token = await self.exchange_for_refresh_token(
+                    jwt_token, decoded_token, auth_state.get("refresh_token", None)
+                )
                 if refresh_token:
                     self.log.debug("Got refresh token from exchange")
                     auth_state["refresh_token"] = refresh_token
@@ -315,9 +327,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             )
         return username
 
-    async def introspect_token(self, data):
-        if "access_token" not in data:
-            raise web.HTTPError(500, "No access token available")
+    async def introspect_token(self, token):
+        if not "token":
+            raise web.HTTPError(500, "No token available")
 
         # Taken from build_token_info_request_headers of oauthenticator
         headers = {
@@ -329,7 +341,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             bytes(f"{self.client_id}:{self.client_secret}", "utf8")
         )
         headers.update({"Authorization": f'Basic {b64key.decode("utf8")}'})
-        params = {"token": data["access_token"]}
+        params = {"token": token}
         return await self.httpfetch(
             self.introspect_url,
             label="Introspecting token...",
@@ -358,7 +370,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     async def token_to_user(self, token_info):
         if "introspect" in token_info:
-            return await self.introspect_token(token_info)
+            return await self.introspect_token(token_info.get("access_token", None))
         else:
             return await super().token_to_user(token_info)
 
