@@ -26,7 +26,9 @@ class JWTHandler(BaseHandler):
     async def exchange_for_refresh_token(
         self, access_token, decoded_token, refresh_token
     ):
-        token_info = await self.authenticator.introspect_token(refresh_token)
+        token_info = {}
+        if refresh_token:
+            token_info = await self.authenticator.introspect_token(refresh_token)
         if not token_info or token_info.get("active", False):
             # will the access token expire before refresh?
             if (exp in token_info) and (exp in decoded_token):
