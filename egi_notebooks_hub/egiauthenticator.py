@@ -121,8 +121,7 @@ class JWTHandler(BaseHandler):
             if user is None:
                 raise web.HTTPError(403, self.authenticator.custom_403_message)
             auth_state = await user.get_auth_state()
-            if auth_state and not auth_state.get("refresh_token", None):
-                self.log.debug("Refresh token is not available")
+            if auth_state:
                 refresh_token = await self.exchange_for_refresh_token(jwt_token)
                 if refresh_token:
                     self.log.debug("Got refresh token from exchange")
