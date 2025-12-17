@@ -328,7 +328,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         return username
 
     async def introspect_token(self, token):
-        if not "token":
+        if not token:
             raise web.HTTPError(500, "No token available")
 
         # Taken from build_token_info_request_headers of oauthenticator
