@@ -31,7 +31,7 @@ class JWTHandler(BaseHandler):
             token_info = await self.authenticator.introspect_token(refresh_token)
         if not token_info or token_info.get("active", False):
             # will the access token expire before refresh?
-            if (exp in token_info) and (exp in decoded_token):
+            if ("exp" in token_info) and ("exp" in decoded_token):
                 if float(token_info["exp"]) > float(decoded_token["exp"]):
                     # access token will expire before the refresh
                     # all other cases need refresh
