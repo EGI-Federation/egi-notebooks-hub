@@ -1,6 +1,6 @@
 <!-- htmlhint doctype-first:false,id-class-value:false -->
 {% extends "templates/page.html" %}
-{% set service_name = service_name|default('Notebooks') %}
+{% set service_name = service_name|default('European Open Science Cloud - EU Node Interactive Notebooks') %}
 
 {% block stylesheet %}
 {{ super() }}
@@ -76,7 +76,7 @@ body {
 </script>
 {% endblock script %}
 
-{% block title %}European Open Science Cloud - EU Node Interactive Notebooks{% endblock title %}
+{% block title %}{{ service_name }}{% endblock title %}
 
 {% block nav_bar %}
 <header
@@ -168,9 +168,7 @@ body {
     </div>
     <div class="ecl-site-header__banner">
       <div class="ecl-container">
-        <div class="ecl-site-header__site-name">
-          European Open Science Cloud - EU Node Interactive Notebooks
-        </div>
+        <div class="ecl-site-header__site-name">{{ service_name }}</div>
       </div>
     </div>
   </div>
@@ -346,9 +344,7 @@ body {
             <a
               href="{{ base_url }}"
               class="ecl-link ecl-link--standalone ecl-site-footer__title-link"
-            >
-              European Open Science Cloud - EU Node Interactive Notebooks</a
-            >
+            >{{ service_name }}</a>
           </div>
           <div class="ecl-site-footer__description">
             This site is managed by:<br />Directorate-General for
