@@ -249,8 +249,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         "client_id",
         config=True,
         help="""
-        Claim name to use for getting the name for services where the `aai_username_claim`
-        is not available. See also `allow_anonymous`.
+        Claim name to use for getting the name for services where
+        the `aai_username_claim` is not available. See also `allow_anonymous`.
         """,
     )
 
@@ -357,8 +357,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     # the AAI can give us.
     #
     # To not override `.authenticate()` from parent class, we override the
-    # functions called from there: `build_access_tokens_request_params`, `get_token_info`
-    # and `token_to_user`.
+    # functions called from there: `build_access_tokens_request_params`,
+    # `get_token_info` and `token_to_user`.
     #
 
     def build_access_tokens_request_params(self, handler, data=None):
