@@ -13,11 +13,50 @@ from urllib.parse import urlencode
 import jwt
 import jwt.exceptions
 from jupyterhub import orm
+from jupyterhub.apihandlers import APIHandler
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
 from traitlets import Bool, Int, List, Unicode, default, validate
+
+
+class TokenAcquirerHandler(APIHandler):
+    """Manages access tokens for the users"""
+
+    async def get(self):
+        """Exchanges a hub token for an access token
+
+        It only returns the access token if:
+        1. the hub token has the right scopes (configued in the authenticator),
+        2. the hub token is associated to a session, and
+        3. the user has not shared the server.
+        """
+        user = self.current_user
+        if user is None:
+            raise web.HTTPError(403, "Forbidden")
+        token = self.get_token()
+        if not token:
+            raise web.HTTPError(403, "Forbidden")
+        # First check: token has the right scopes
+        if self.authenticator.token_acquirer_scope not in self.expanded_scopes:
+            raise web.HTTPError(
+                403, f"Missing scope {self.authenticator.token_acquirer_scope}"
+            )
+        # Second check: there is an associated session with a spawner
+        if not (token.session_id and token.oauth_client and token_oauth_client.spawner):
+            raise web.HTTPError(403, "Forbidden")
+        # Third check: server is not shared
+        if token.oauth_client.spawner.shares or token.oauth_client.spawner.share_codes:
+            raise web.HTTPError(403, "Forbidden for shared server")
+        # if we arrived here, we can release the token
+        auth_state = await user.get_auth_state()
+        if not auth_state:
+            raise web.HTTPError(500, "No user state available")
+        access_token = auth_state.get("access_token", None)
+        if not access_token:
+            raise web.HTTPError(500, "No access token available")
+        self.write({"access_token": access_token})
 
 
 class JWTHandler(BaseHandler):
@@ -91,7 +130,7 @@ class JWTHandler(BaseHandler):
         jwt_token = self.get_auth_token()
         if not jwt_token:
             self.log.debug("No token found in header")
-            raise HTTPError(401)
+            raise web.HTTPError(401)
         try:
             decoded_token = jwt.decode(
                 jwt_token,
@@ -152,6 +191,7 @@ class JWTHandler(BaseHandler):
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
     jwt_handler = JWTHandler
+    token_acquirer_handler = TokenAcquirerHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
@@ -273,6 +313,14 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 of the auth_refresh_age to renew tokens""",
     )
 
+    token_acquirer_scope = Unicode(
+        "custom:token-acquirer:read",
+        config=True,
+        help="""Expected scope to be available for the user
+                to get the access token from our dedicated
+                endpoint""",
+    )
+
     @default("manage_groups")
     def _manage_groups_default(self):
         return True
@@ -299,7 +347,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     async def _token_to_auth_model(self, token_info):
         """Overriding this to add the `primary_group` information to the
         auth_state - useful for accounting purposes"""
-        auth_model = super()._token_to_auth_model(token_info)
+        auth_model = await super()._token_to_auth_model(token_info)
         auth_state = auth_model["auth_state"]
         first_group = self.get_primary_group(auth_model)
         self.log.info("Primary group: %s", first_group)
@@ -316,6 +364,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     async def refresh_user_hook(self, authenticator, user, auth_state):
         """Force the refresh if the current token is to expire soon"""
+        if not auth_state:
+            return True
         access_token = auth_state.get("access_token", None)
         if not access_token:
             self.log.debug(
@@ -410,8 +460,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     def get_handlers(self, app):
         handlers = super().get_handlers(app)
-        handlers.append(
-            (r"/jwt_login", self.jwt_handler),
+        handlers.extend(
+            [
+                (r"/jwt_login", self.jwt_handler),
+                (r"/token_aqcuirer", self.token_acquirer_handler),
+            ]
         )
         return handlers
 
