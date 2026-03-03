@@ -44,12 +44,16 @@ class TokenAcquirerHandler(APIHandler):
                 403, f"Missing scope {self.authenticator.token_acquirer_scope}"
             )
         # Second check: there is an associated session with a spawner
-        if not (token.session_id and token.oauth_client and token_oauth_client.spawner):
+        if not (token.session_id and token.oauth_client and token.oauth_client.spawner):
             raise web.HTTPError(403, "Forbidden")
         # Third check: server is not shared
         if token.oauth_client.spawner.shares or token.oauth_client.spawner.share_codes:
             raise web.HTTPError(403, "Forbidden for shared server")
         # if we arrived here, we can release the token
+        # this may return a soon to be revoked token or a "revoke" if the
+        # TokenRevokeHandler is called concurrently
+        # FIXME: we should not return the existing token between the revoke
+        #        and the sharing actually happens
         auth_state = await user.get_auth_state()
         if not auth_state:
             raise web.HTTPError(500, "No user state available")
@@ -57,6 +61,43 @@ class TokenAcquirerHandler(APIHandler):
         if not access_token:
             raise web.HTTPError(500, "No access token available")
         self.write({"access_token": access_token})
+
+
+class TokenRevokeHandler(APIHandler):
+    """Revokes tokens whenever needed by the sharing extension"""
+
+    async def post(self):
+        """Revokes current access token and creates a new valid one
+
+        This may cause two consecutive refreshes of the user, one
+        before the call and another within the call, assuming that's
+        ok for the AAI
+        """
+        user = self.current_user
+        if user is None:
+            raise web.HTTPError(403, "Forbidden")
+        # XXX Do we want to check any specific roles for the token like in the
+        #     acquirer?
+        auth_state = await user.get_auth_state()
+        if not auth_state:
+            raise web.HTTPError(500, "No user state available")
+        old_access_token = auth_state.get("access_token", None)
+        # here we set the access_token to something broken to avoid race conditions
+        # with the aqcuirer and to force the actual refresh below
+        auth_state.update({"access_token": "revoke"})
+        auth_state.get("token_response", {}).update({"access_token": "revoke"})
+        await user.save_auth_state(auth_state)
+        # refresh the user so we get a new token
+        # call the authenticator refresh directly to really force it
+        # as the refresh may have been called just before this call
+        # in the `.prepare()` method from the BaseHandler
+        auth_info = await self.authenticator.refresh_user(user, self)
+        auth_info["name"] = user.name
+        if "auth_state" not in auth_info:
+            auth_info["auth_state"] = auth_state
+        await self.auth_to_user(auth_info, user)
+        # finally revoke old_access_token
+        await self.authenticator.revoke_token(old_access_token)
 
 
 class JWTHandler(BaseHandler):
@@ -192,6 +233,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
     jwt_handler = JWTHandler
     token_acquirer_handler = TokenAcquirerHandler
+    token_revoke_handler = TokenRevokeHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
@@ -239,6 +281,24 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def _introspect_url_default(self):
         return (
             "https://%s/auth/realms/egi/protocol/openid-connect/token/introspect"
+            % self.checkin_host
+        )
+
+    revoke_url = Unicode(
+        config=True,
+        help="""
+        The URL to where this authenticator makes a request to
+        revoke user tokens
+
+        For more context, see `RFC7009
+        <https://datatracker.ietf.org/doc/html/rfc7009>`_.
+        """,
+    )
+
+    @default("revoke_url")
+    def _revoke_url_default(self):
+        return (
+            "https://%s/auth/realms/egi/protocol/openid-connect/revoke"
             % self.checkin_host
         )
 
@@ -362,6 +422,27 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         first_group = next((v for v in self.allowed_groups if v in groups), None)
         return first_group
 
+    async def revoke_token(self, token):
+        """Token revocation following rfc7009 Oauth 2.0 Token Revocation"""
+        self.log.debug("Revoking token")
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "JupyterHub",
+        }
+        body = urlencode(dict(token=token, token_type_hint="access_token"))
+        response = await self.httpfetch(
+            self.revoke_url,
+            label="Token revocation",
+            parse_json=False,
+            auth_username=self.client_id,
+            auth_password=self.client_secret,
+            headers=headers,
+            method="POST",
+            body=body,
+        )
+        # not caring about the response, assume it is ok
+        self.log.debug(f"Revocation response: {response.code}")
+
     async def refresh_user_hook(self, authenticator, user, auth_state):
         """Force the refresh if the current token is to expire soon"""
         if not auth_state:
@@ -372,6 +453,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 "No access token, assuming user is not managed with Check-in"
             )
             return True
+        if access_token == "revoke":
+            self.log.debug("Token is being revoked, force refresh")
+            return None
 
         try:
             # We want to fall on the safe side for refreshing, hence using
@@ -464,6 +548,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             [
                 (r"/jwt_login", self.jwt_handler),
                 (r"/token_aqcuirer", self.token_acquirer_handler),
+                (r"/token_revoke", self.token_revoke_handler),
             ]
         )
         return handlers
