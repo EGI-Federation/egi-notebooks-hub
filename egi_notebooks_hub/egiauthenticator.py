@@ -83,7 +83,7 @@ class TokenRevokeHandler(APIHandler):
             raise web.HTTPError(500, "No user state available")
         old_access_token = auth_state.get("access_token", None)
         # here we set the access_token to something broken to avoid race conditions
-        # with the aqcuirer and to force the actual refresh below
+        # with the acquirer and to force the actual refresh below
         auth_state.update({"access_token": "revoke"})
         auth_state.get("token_response", {}).update({"access_token": "revoke"})
         await user.save_auth_state(auth_state)
@@ -547,7 +547,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         handlers.extend(
             [
                 (r"/jwt_login", self.jwt_handler),
-                (r"/token_aqcuirer", self.token_acquirer_handler),
+                (r"/token_acquirer", self.token_acquirer_handler),
                 (r"/token_revoke", self.token_revoke_handler),
             ]
         )
