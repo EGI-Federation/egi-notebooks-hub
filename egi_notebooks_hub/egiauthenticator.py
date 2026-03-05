@@ -21,48 +21,6 @@ from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
 from traitlets import Bool, Int, List, Unicode, default, validate
 
 
-class TokenAcquirerHandler(APIHandler):
-    """Manages access tokens for the users"""
-
-    async def get(self):
-        """Exchanges a hub token for an access token
-
-        It only returns the access token if:
-        1. the hub token has the right scopes (configued in the authenticator),
-        2. the hub token is associated to a session, and
-        3. the user has not shared the server.
-        """
-        user = self.current_user
-        if user is None:
-            raise web.HTTPError(403, "Forbidden")
-        token = self.get_token()
-        if not token:
-            raise web.HTTPError(403, "Forbidden")
-        # First check: token has the right scopes
-        if self.authenticator.token_acquirer_scope not in self.expanded_scopes:
-            raise web.HTTPError(
-                403, f"Missing scope {self.authenticator.token_acquirer_scope}"
-            )
-        # Second check: there is an associated session with a spawner
-        if not (token.session_id and token.oauth_client and token.oauth_client.spawner):
-            raise web.HTTPError(403, "Forbidden")
-        # Third check: server is not shared
-        if token.oauth_client.spawner.shares or token.oauth_client.spawner.share_codes:
-            raise web.HTTPError(403, "Forbidden for shared server")
-        # if we arrived here, we can release the token
-        # this may return a soon to be revoked token or a "revoke" if the
-        # TokenRevokeHandler is called concurrently
-        # FIXME: we should not return the existing token between the revoke
-        #        and the sharing actually happens
-        auth_state = await user.get_auth_state()
-        if not auth_state:
-            raise web.HTTPError(500, "No user state available")
-        access_token = auth_state.get("access_token", None)
-        if not access_token:
-            raise web.HTTPError(500, "No access token available")
-        self.write({"access_token": access_token})
-
-
 class TokenRevokeHandler(APIHandler):
     """Revokes tokens whenever needed by the sharing extension"""
 
@@ -232,7 +190,6 @@ class JWTHandler(BaseHandler):
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
     jwt_handler = JWTHandler
-    token_acquirer_handler = TokenAcquirerHandler
     token_revoke_handler = TokenRevokeHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
@@ -547,7 +504,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         handlers.extend(
             [
                 (r"/jwt_login", self.jwt_handler),
-                (r"/token_acquirer", self.token_acquirer_handler),
                 (r"/token_revoke", self.token_revoke_handler),
             ]
         )
