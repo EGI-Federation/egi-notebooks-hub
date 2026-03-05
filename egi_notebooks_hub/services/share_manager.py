@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     jupyterhub_url: str = "http://localhost:8000/hub"
     api_timeout: float = 15.0
     api_token: str = "token"
+    token_acquirer_scope: str = "custom:token-acquirer:read"
 
 
 settings = Settings()
@@ -124,6 +125,10 @@ async def get_token(request: Request):
         path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
         token=user_token,
     )
+    if not settings.token_acquirer_scope in token_info["scopes"]:
+        raise HTTPException(
+            403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope!"
+        )
     server_name = get_server_name(token_info)
     if not server_name:
         raise HTTPException(403, detail="Forbidden, no server token!")
