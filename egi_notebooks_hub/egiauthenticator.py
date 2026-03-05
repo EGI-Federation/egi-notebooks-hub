@@ -13,11 +13,49 @@ from urllib.parse import urlencode
 import jwt
 import jwt.exceptions
 from jupyterhub import orm
+from jupyterhub.apihandlers import APIHandler
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPError, HTTPRequest
+from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
 from traitlets import Bool, Int, List, Unicode, default, validate
+
+
+class TokenRevokeHandler(APIHandler):
+    """Revokes tokens whenever needed by the sharing extension"""
+
+    async def post(self):
+        """Revokes current access token and creates a new valid one
+
+        This may cause two consecutive refreshes of the user, one
+        before the call and another within the call, assuming that's
+        ok for the AAI
+        """
+        user = self.current_user
+        if user is None:
+            raise web.HTTPError(403, "Forbidden")
+        # XXX Do we want to check any specific roles for the token like in the
+        #     acquirer?
+        auth_state = await user.get_auth_state()
+        if not auth_state:
+            raise web.HTTPError(500, "No user state available")
+        old_access_token = auth_state.get("access_token", None)
+        # here we set the access_token to something broken to avoid race conditions
+        # with the acquirer and to force the actual refresh below
+        auth_state.update({"access_token": "revoke"})
+        auth_state.get("token_response", {}).update({"access_token": "revoke"})
+        await user.save_auth_state(auth_state)
+        # refresh the user so we get a new token
+        # call the authenticator refresh directly to really force it
+        # as the refresh may have been called just before this call
+        # in the `.prepare()` method from the BaseHandler
+        auth_info = await self.authenticator.refresh_user(user, self)
+        auth_info["name"] = user.name
+        if "auth_state" not in auth_info:
+            auth_info["auth_state"] = auth_state
+        await self.auth_to_user(auth_info, user)
+        # finally revoke old_access_token
+        await self.authenticator.revoke_token(old_access_token)
 
 
 class JWTHandler(BaseHandler):
@@ -91,7 +129,7 @@ class JWTHandler(BaseHandler):
         jwt_token = self.get_auth_token()
         if not jwt_token:
             self.log.debug("No token found in header")
-            raise HTTPError(401)
+            raise web.HTTPError(401)
         try:
             decoded_token = jwt.decode(
                 jwt_token,
@@ -152,6 +190,7 @@ class JWTHandler(BaseHandler):
 class EGICheckinAuthenticator(GenericOAuthenticator):
     login_service = "EGI Check-in"
     jwt_handler = JWTHandler
+    token_revoke_handler = TokenRevokeHandler
 
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
@@ -202,19 +241,23 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             % self.checkin_host
         )
 
-    openid_configuration_url = Unicode(
-        config=True, help="""The OpenID configuration URL"""
+    revoke_url = Unicode(
+        config=True,
+        help="""
+        The URL to where this authenticator makes a request to
+        revoke user tokens
+
+        For more context, see `RFC7009
+        <https://datatracker.ietf.org/doc/html/rfc7009>`_.
+        """,
     )
 
-    @default("openid_configuration_url")
-    def _openid_configuration_url_default(self):
+    @default("revoke_url")
+    def _revoke_url_default(self):
         return (
-            "https://%s/auth/realms/egi/.well-known/openid-configuration"
+            "https://%s/auth/realms/egi/protocol/openid-connect/revoke"
             % self.checkin_host
         )
-
-    client_id_env = "EGICHECKIN_CLIENT_ID"
-    client_secret_env = "EGICHECKIN_CLIENT_SECRET"
 
     scope = List(
         Unicode(),
@@ -245,7 +288,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     # User name in Check-in comes in sub, but we are defaulting to
     # preferred_username as sub is too long to be used as id for
     # volumes
-    username_claim = Unicode(
+    # Note: this is `username_claim` in the OAuth2 Authenticator
+    #       but since we are overrinding this one, it needs a different
+    #       name
+    aai_username_claim = Unicode(
         "preferred_username",
         config=True,
         help="""
@@ -256,12 +302,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     # Service accounts may not have "sub", so this is an alternative
     # claim for those accounts
-    servicename_claim = Unicode(
+    aai_servicename_claim = Unicode(
         "client_id",
         config=True,
         help="""
-        Claim name to use for getting the name for services where the `username_claim`
-        is not available. See also `allow_anonymous`.
+        Claim name to use for getting the name for services where
+        the `aai_username_claim` is not available. See also `allow_anonymous`.
         """,
     )
 
@@ -288,25 +334,16 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def _manage_groups_default(self):
         return True
 
-    def user_info_to_username(self, user_info):
-        """Get the username or create one repeatable username
-        from the userinfo"""
-        if callable(self.username_claim):
-            username = self.username_claim(user_info)
-        else:
-            username = user_info.get(self.username_claim, None)
-        if not username:
-            # try with the service name claim
-            username = user_info.get(self.servicename_claim, None)
-        # last attempt, go anonymous
+    def username_claim(self, user_info):
+        """Customises the OAuth.username_claim to consider also
+        service accounts and potentially anonymous users"""
+        username = user_info.get(
+            self.aai_username_claim, user_info.get(self.aai_servicename_claim, None)
+        )
         if not username:
             if not self.allow_anonymous:
-                message = (
-                    f"No {self.username_claim} found in {user_info}"
-                    "and anonymous users not enabled"
-                )
-                self.log.error(message)
-                raise ValueError(message)
+                self.log.error("Anonymous users not enabled!")
+                return None
             # let's treat this as an anonymous user with a name
             # that's generated as a hash of user_info
             info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
@@ -315,6 +352,120 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 hashlib.sha256(info_str).hexdigest(),
             )
         return username
+
+    async def _token_to_auth_model(self, token_info):
+        """Overriding this to add the `primary_group` information to the
+        auth_state - useful for accounting purposes"""
+        auth_model = await super()._token_to_auth_model(token_info)
+        auth_state = auth_model["auth_state"]
+        first_group = self.get_primary_group(auth_model)
+        self.log.info("Primary group: %s", first_group)
+        if first_group:
+            auth_state["primary_group"] = first_group
+        return auth_model
+
+    def get_primary_group(self, user_info):
+        groups = user_info.get("groups", [])
+        # first group as the primary, priority is governed by ordering in
+        # Authenticator.allowed_groups
+        first_group = next((v for v in self.allowed_groups if v in groups), None)
+        return first_group
+
+    async def revoke_token(self, token):
+        """Token revocation following rfc7009 Oauth 2.0 Token Revocation"""
+        self.log.debug("Revoking token")
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "JupyterHub",
+        }
+        body = urlencode(dict(token=token, token_type_hint="access_token"))
+        response = await self.httpfetch(
+            self.revoke_url,
+            label="Token revocation",
+            parse_json=False,
+            auth_username=self.client_id,
+            auth_password=self.client_secret,
+            headers=headers,
+            method="POST",
+            body=body,
+        )
+        # not caring about the response, assume it is ok
+        self.log.debug(f"Revocation response: {response.code}")
+
+    async def refresh_user_hook(self, authenticator, user, auth_state):
+        """Force the refresh if the current token is to expire soon"""
+        if not auth_state:
+            return True
+        access_token = auth_state.get("access_token", None)
+        if not access_token:
+            self.log.debug(
+                "No access token, assuming user is not managed with Check-in"
+            )
+            return True
+        if access_token == "revoke":
+            self.log.debug("Token is being revoked, force refresh")
+            return None
+
+        try:
+            # We want to fall on the safe side for refreshing, hence using
+            # the auth_refresh_age plus a configurable leeway
+            # Set as negative as the code checks that the token is
+            # valid as of (now - leeway)
+            # See PyJWT code here:
+            # https://github.com/jpadilla/pyjwt/blob/868cf4ab2ca5a0a39da40e5a14dd740b203662b2/jwt/api_jwt.py#L306
+            leeway = -float(self.auth_refresh_age + self.auth_refresh_leeway)
+            if jwt.decode(
+                access_token,
+                options=dict(
+                    verify_signature=False,
+                    verify_exp=True,
+                ),
+                leeway=leeway,
+            ):
+                # access token is good, no need to keep going
+                self.log.debug("Access token is still good, no refresh needed")
+                return True
+        except jwt.exceptions.InvalidTokenError as e:
+            self.log.debug(f"Invalid access token, will try to refresh: {e}")
+
+        return None
+
+    #
+    # JWT auth and introspection
+    #
+    # The regular authentication flow (code grant) obtains the access token in the
+    # authentication process itself, but when dealing with JWTs directly we are not
+    # really doing authentication but re-using a previous authentication. In that
+    # case we want to introspect the token to obtain any additional information that
+    # the AAI can give us.
+    #
+    # To not override `.authenticate()` from parent class, we override the
+    # functions called from there: `build_access_tokens_request_params`,
+    # `get_token_info` and `token_to_user`.
+    #
+
+    def build_access_tokens_request_params(self, handler, data=None):
+        # "regular" authentication does not have any data, assume that if
+        # receive something in there, we are dealing with jwt, still if
+        # not successful keep trying the usual way
+        if data:
+            data["introspect"] = True
+            return {"data": data}
+        else:
+            return super().build_access_tokens_request_params(handler, data)
+
+    async def get_token_info(self, handler, params):
+        if "data" in params and params["data"]:
+            # access token is already here no need to do anything else
+            return params["data"]
+        else:
+            return await super().get_token_info(handler, params)
+
+    async def token_to_user(self, token_info):
+        if "introspect" in token_info:
+            return await self.introspect_token(token_info)
+        else:
+            return await super().token_to_user(token_info)
 
     async def introspect_token(self, data):
         if "access_token" not in data:
@@ -340,156 +491,13 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             validate_cert=self.validate_server_cert,
         )
 
-    def build_access_tokens_request_params(self, handler, data=None):
-        # "regular" authentication does not have any data, assume that if
-        # receive something in there, we are dealing with jwt, still if
-        # not successful keep trying the usual way
-        if data:
-            data["introspect"] = True
-            return {"data": data}
-        else:
-            return super().build_access_tokens_request_params(handler, data)
-
-    async def get_token_info(self, handler, params):
-        if "data" in params and params["data"]:
-            # access token is already here no need to do anything else
-            return params["data"]
-        else:
-            return await super().get_token_info(handler, params)
-
-    async def token_to_user(self, token_info):
-        if "introspect" in token_info:
-            return await self.introspect_token(token_info)
-        else:
-            return await super().token_to_user(token_info)
-
-    def get_primary_group(self, user_info):
-        groups = user_info.get("groups", [])
-        # first group as the primary, priority is governed by ordering in
-        # Authenticator.allowed_groups
-        first_group = next((v for v in self.allowed_groups if v in groups), None)
-        return first_group
-
-    async def authenticate(self, handler, data=None):
-        user_info = await super().authenticate(handler, data)
-        if user_info is None or self.claim_groups_key is None:
-            return user_info
-        auth_state = user_info.get("auth_state", {})
-        first_group = self.get_primary_group(user_info)
-        self.log.info("Primary group: %s", first_group)
-        if first_group:
-            auth_state["primary_group"] = first_group
-
-        return user_info
-
-    # Refresh auth data for user
-    async def refresh_user(self, user, handler=None):
-        auth_state = await user.get_auth_state()
-        if not auth_state:
-            self.log.debug("No auth state, assuming user is valid")
-            return True
-
-        access_token = auth_state.get("access_token", None)
-
-        if not access_token:
-            self.log.debug(
-                "No access token, assuming user is not managed with Check-in"
-            )
-            return True
-
-        try:
-            # We want to fall on the safe side for refreshing, hence using
-            # the auth_refresh_age plus a configurable leeway
-            # Set as negative as the code checks that the token is
-            # valid as of (now - leeway)
-            # See PyJWT code here:
-            # https://github.com/jpadilla/pyjwt/blob/868cf4ab2ca5a0a39da40e5a14dd740b203662b2/jwt/api_jwt.py#L306
-            leeway = -float(self.auth_refresh_age + self.auth_refresh_leeway)
-            if jwt.decode(
-                access_token,
-                options=dict(
-                    verify_signature=False,
-                    verify_exp=True,
-                ),
-                leeway=leeway,
-            ):
-                # access token is good, no need to keep going
-                self.log.debug("Access token is still good, no refresh needed")
-                return True
-        except jwt.exceptions.InvalidTokenError as e:
-            self.log.debug(f"Invalid access token, will try to refresh: {e}")
-
-        refresh_token = auth_state.get("refresh_token", None)
-        if not refresh_token:
-            self.log.warn(f"No refresh token, not allowing {user} without re-login")
-            return False
-
-        # performing the refresh token call
-        self.log.debug("Perform refresh call to Check-in")
-        http_client = AsyncHTTPClient()
-        headers = {
-            "Accept": "application/json",
-            "User-Agent": "JupyterHub",
-        }
-        body = urlencode(
-            dict(
-                client_id=self.client_id,
-                client_secret=self.client_secret,
-                grant_type="refresh_token",
-                refresh_token=refresh_token,
-                scope=" ".join(self.scope),
-            )
-        )
-        req = HTTPRequest(
-            self.token_url,
-            auth_username=self.client_id,
-            auth_password=self.client_secret,
-            headers=headers,
-            method="POST",
-            body=body,
-        )
-        try:
-            resp = await http_client.fetch(req)
-        except HTTPClientError as e:
-            self.log.warning("Unable to refresh token, maybe expired: %s", e)
-            if e.response:
-                self.log.warning("Response from server: %s", e.response.body)
-            # clear here the existing auth state so it's no longer valid
-            await user.save_auth_state(None)
-            return False
-        resp_body = resp.body.decode("utf8", "replace")
-        if not resp_body:
-            self.log.warning(f"Empty reply from refresh call for user {user}: {body}")
-            return False
-        token_info = json.loads(resp_body)
-        if "refresh_token" not in token_info:
-            self.log.debug("Will reuse refresh token or next user refresh")
-            token_info["refresh_token"] = refresh_token
-
-        # Do get again the user_info, as this may have changed from last time
-        user_info = await self.token_to_user(token_info)
-        # extract the username out of the user_info dict and normalize it
-        username = self.user_info_to_username(user_info)
-        username = self.normalize_username(username)
-        auth_state = self.build_auth_state_dict(token_info, user_info)
-
-        if callable(getattr(user.spawner, "set_access_token", None)):
-            await user.spawner.set_access_token(
-                token_info["access_token"], token_info.get("id_token", None)
-            )
-        auth_model = {
-            "name": user.name,
-            "admin": True if user.name in self.admin_users else None,
-            "auth_state": auth_state,
-        }
-        if self.manage_groups:
-            auth_model = await self._apply_managed_groups(auth_model)
-        return await self.update_auth_model(auth_model)
-
     def get_handlers(self, app):
         handlers = super().get_handlers(app)
-        handlers.append(
-            (r"/jwt_login", self.jwt_handler),
+        handlers.extend(
+            [
+                (r"/jwt_login", self.jwt_handler),
+                (r"/token_revoke", self.token_revoke_handler),
+            ]
         )
         return handlers
 
