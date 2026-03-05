@@ -40,12 +40,13 @@ def get_server_name(token_info: dict):
     oauth_client = token_info.get("oauth_client", "")
     session_id = token_info.get("session_id", None)
     logger.debug(
-        f"User {token_info['user']} with session {session_id} and oauth_client {oauth_client}"
+        f"User {token_info['user']} with session {session_id}"
+        f" and oauth_client {oauth_client}"
     )
     if not (session_id and oauth_client):
         return None
     if not oauth_client.lower().startswith("server at"):
-        raise None
+        return None
     # XXX parsing the oauth_client for the server name, this may break!
     server_name = ""
     server_path = oauth_client.rsplit(maxsplit=1)[-1].strip("/").split("/")
@@ -125,7 +126,7 @@ async def get_token(request: Request):
         path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
         token=user_token,
     )
-    if not settings.token_acquirer_scope in token_info["scopes"]:
+    if settings.token_acquirer_scope not in token_info["scopes"]:
         raise HTTPException(
             403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope!"
         )
