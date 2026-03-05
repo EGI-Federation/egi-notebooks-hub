@@ -330,14 +330,6 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 of the auth_refresh_age to renew tokens""",
     )
 
-    token_acquirer_scope = Unicode(
-        "custom:token-acquirer:read",
-        config=True,
-        help="""Expected scope to be available for the user
-                to get the access token from our dedicated
-                endpoint""",
-    )
-
     @default("manage_groups")
     def _manage_groups_default(self):
         return True
