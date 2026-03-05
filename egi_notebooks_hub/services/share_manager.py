@@ -1,12 +1,10 @@
 import logging
-import os.path
-
 from typing import List
+
 import httpx
 from fastapi import FastAPI, HTTPException, Request
-from pydantic_settings import BaseSettings
-
 from jupyterhub.utils import url_path_join
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -57,7 +55,12 @@ def get_server_name(token_info: dict):
 
 
 async def call_hub_api(
-    path, base_url=None, content=None, method="get", headers={}, token=None,
+    path,
+    base_url=None,
+    content=None,
+    method="get",
+    headers={},
+    token=None,
 ):
     if not base_url:
         base_url = settings.jupyterhub_api_url
@@ -154,7 +157,10 @@ async def create_share_code(request: Request, owner: str, server_name: str):
     if not shares.get("items", []):
         # First revoke the token as the server is shared
         await call_hub_api(
-            path="token_revoke", base_url=settings.jupyterhub_url, method="post", token=user_token
+            path="token_revoke",
+            base_url=settings.jupyterhub_url,
+            method="post",
+            token=user_token,
         )
     # 2. Then create sharing - just redirect the call
     resp = await call_hub_api(
@@ -166,9 +172,9 @@ async def create_share_code(request: Request, owner: str, server_name: str):
     )
     return resp
 
+
 async def call_wrapper(request: Request, path: str):
     logger.debug(f"Wrapping call to {path}")
-    user_token = get_user_token(request)
     resp = await call_hub_api(
         path=path,
         method=request.method.lower(),
@@ -178,9 +184,11 @@ async def call_wrapper(request: Request, path: str):
     )
     return resp
 
+
 @app.delete("/share-codes/{svc_path:path}")
 async def delete_share_codes(request: Request, svc_path: str):
     return await call_wrapper(request, f"share-codes/{svc_path}")
+
 
 @app.get("/shares/{svc_path:path}")
 @app.patch("/shares/{svc_path:path}")
