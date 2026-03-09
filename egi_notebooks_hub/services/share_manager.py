@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-app = FastAPI(root_path=settings.jupyterhub_service_prefix)
+app = FastAPI(root_path=settings.jupyterhub_service_prefix.rstrip("/"))
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
