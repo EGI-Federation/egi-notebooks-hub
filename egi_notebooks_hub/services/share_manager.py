@@ -13,8 +13,9 @@ class Settings(BaseSettings):
     jupyterhub_service_prefix: str = "/services/share-manager"
     jupyterhub_api_url: str = "http://localhost:8000/hub/api"
     jupyterhub_url: str = "http://localhost:8000/hub"
+    token_revoke_path: str = "/token_revoke"
     api_timeout: float = 15.0
-    api_token: str = "token"
+    jupyterhub_api_token: str = "token"
     token_acquirer_scope: str = "custom:token-acquirer:read"
 
 
@@ -124,7 +125,7 @@ async def get_token(request: Request):
     user_info = await call_hub_api(path="user", token=user_token)
     token_info = await call_hub_api(
         path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
-        token=user_token,
+        token=settings.jupyterhub_api_token,
     )
     if settings.token_acquirer_scope not in token_info["scopes"]:
         raise HTTPException(
@@ -135,13 +136,13 @@ async def get_token(request: Request):
         raise HTTPException(403, detail="Forbidden, no server token!")
     shares = await call_hub_api(
         path=f"shares/{user_info['name']}/{server_name}",
-        token=user_token,
+        token=setting.jupyterhub_api_token,
     )
     if shares.get("items", []):
         raise HTTPException(403, detail="Forbidden, server is shared!")
     user_data = await call_hub_api(
         path=f"users/{user_info['name']}",
-        token=settings.api_token,
+        token=settings.jupyterhub_api_token,
     )
     access_token = None
     auth_state = user_data.get("auth_state", {})
@@ -158,13 +159,14 @@ async def create_share_code(request: Request, owner: str, server_name: str):
     user_token = get_user_token(request)
     shares = await call_hub_api(
         path=f"shares/{owner}/{server_name}",
-        token=user_token,
+        token=setting.jupyterhub_api_token,
     )
+    hub_url = settings.jupyterhub_api_url.removesuffix("/api")
     if not shares.get("items", []):
         # First revoke the token as the server is shared
         await call_hub_api(
-            path="token_revoke",
-            base_url=settings.jupyterhub_url,
+            path=settings.token_revoke_path,
+            base_url=revoke_url,
             method="post",
             token=user_token,
         )
@@ -174,7 +176,7 @@ async def create_share_code(request: Request, owner: str, server_name: str):
         method="post",
         content=await request.body(),
         headers=dict(request.headers),
-        token=settings.api_token,
+        token=settings.jupyterhub_api_token,
     )
     return resp
 
@@ -186,7 +188,7 @@ async def call_wrapper(request: Request, path: str):
         method=request.method.lower(),
         content=await request.body(),
         headers=dict(request.headers),
-        token=settings.api_token,
+        token=settings.jupyterhub_api_token,
     )
     return resp
 
