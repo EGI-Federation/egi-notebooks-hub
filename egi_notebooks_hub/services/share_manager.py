@@ -136,7 +136,7 @@ async def get_token(request: Request):
         raise HTTPException(403, detail="Forbidden, no server token!")
     shares = await call_hub_api(
         path=f"shares/{user_info['name']}/{server_name}",
-        token=setting.jupyterhub_api_token,
+        token=settings.jupyterhub_api_token,
     )
     if shares.get("items", []):
         raise HTTPException(403, detail="Forbidden, server is shared!")
@@ -159,14 +159,14 @@ async def create_share_code(request: Request, owner: str, server_name: str):
     user_token = get_user_token(request)
     shares = await call_hub_api(
         path=f"shares/{owner}/{server_name}",
-        token=setting.jupyterhub_api_token,
+        token=settings.jupyterhub_api_token,
     )
     hub_url = settings.jupyterhub_api_url.removesuffix("/api")
     if not shares.get("items", []):
         # First revoke the token as the server is shared
         await call_hub_api(
             path=settings.token_revoke_path,
-            base_url=revoke_url,
+            base_url=hub_url,
             method="post",
             token=user_token,
         )
