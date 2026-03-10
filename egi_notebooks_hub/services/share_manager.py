@@ -1,5 +1,43 @@
+"""
+A service to manage shares and release access tokens for running servers
+
+It wraps some of the sharing functions of the Hub API with extra checks to
+ensure access tokens cannot be obtained when the server is shared.
+
+It requires the service to be configured with the right scopes:
+* `read:users` to get information about the users
+* `read:tokens` to get information about the tokens from the jupyter server
+* `admin:auth_state` to read the access token available in `auth_state`
+* `shares` to manage the user shares
+
+Sample configuration:
+```
+c.JupyterHub.load_roles = [
+    {
+        'name': 'user',
+        'description': 'Grant users access to hub services',
+        'scopes': ["access:services", "self"],
+    },
+    {
+        "name": "token-aquirer",
+        "scopes": ["read:users", "admin:auth_state", "read:tokens", "shares"],
+        "services": ["token-acquirer"]
+    }
+]
+
+c.JupyterHub.services = [
+    {
+        'name': 'token-acquirer',
+        'command': ['python3', '-m', 'egi_notebooks_hub.services.token_acquirer'],
+        # the service will listen on whatever is configured here
+        'url': 'http://127.0.0.1:8090',
+    }
+]
+```
+"""
+
 import logging
-from typing import List
+from typing import List, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -52,9 +90,9 @@ def get_server_name(token_info: dict):
     server_name = ""
     server_path = oauth_client.rsplit(maxsplit=1)[-1].strip("/").split("/")
     if len(server_path) > 2:
-        logger.debug(f"Server name is `{server_name}`")
-        return server_path[-1]
-    return None
+        server_name = server_path[-1]
+    logger.debug(f"Server name is `{server_name}`")
+    return server_name
 
 
 async def call_hub_api(
@@ -88,35 +126,12 @@ async def call_hub_api(
 
 @app.get("/token")
 async def get_token(request: Request):
-    """Gets tokens from the auth_state.
+    """Gets access token from the auth_state.
 
-    It requires the service to be configured with the right scopes:
-    `read:users`, `admin:auth_state` and `read:tokens`.
-
-     Sample configuration:
-     ```
-     c.JupyterHub.load_roles = [
-         {
-             'name': 'user',
-             'description': 'Grant users access to hub services',
-             'scopes': ["access:services", "self"],
-         },
-         {
-             "name": "token-aquirer",
-             "scopes": ["read:users", "admin:auth_state", "read:tokens"],
-             "services": ["token-acquirer"]
-         }
-     ]
-
-     c.JupyterHub.services = [
-         {
-             'name': 'token-acquirer',
-             'command': ['python3', '-m', 'egi_notebooks_hub.services.token_acquirer'],
-             # the service will listen on whatever is configured here
-             'url': 'http://127.0.0.1:8090',
-         }
-     ]
-     ```
+    It will return the access token if:
+    1. the calling token has the scope configured in `token_acquirer_scope`
+    2. the calling token is associated to a running server
+    3. the server is not shared
     """
     logger.debug("Get token called")
     user_token = get_user_token(request)
@@ -132,13 +147,19 @@ async def get_token(request: Request):
             403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope!"
         )
     server_name = get_server_name(token_info)
-    if not server_name:
+    if server_name is None:
         raise HTTPException(403, detail="Forbidden, no server token!")
     shares = await call_hub_api(
         path=f"shares/{user_info['name']}/{server_name}",
         token=settings.jupyterhub_api_token,
     )
     if shares.get("items", []):
+        raise HTTPException(403, detail="Forbidden, server is shared!")
+    share_codes = await call_hub_api(
+        path=f"share-codes/{user_info['name']}/{server_name}",
+        token=settings.jupyterhub_api_token,
+    )
+    if share_codes.get("items", []):
         raise HTTPException(403, detail="Forbidden, server is shared!")
     user_data = await call_hub_api(
         path=f"users/{user_info['name']}",
@@ -153,15 +174,36 @@ async def get_token(request: Request):
     return {"access_token": access_token}
 
 
+async def call_wrapper(request: Request, path: str):
+    """Wraps calls the the HUP API using our token"""
+    logger.debug(f"Wrapping call to {path}")
+    resp = await call_hub_api(
+        path=path,
+        method=request.method.lower(),
+        content=await request.body(),
+        headers=dict(request.headers),
+        token=settings.jupyterhub_api_token,
+    )
+    return resp
+
+
+@app.post("/share-codes/{owner:str}/")
 @app.post("/share-codes/{owner:str}/{server_name:str}")
-async def create_share_code(request: Request, owner: str, server_name: str):
+async def create_share_code(
+    request: Request, owner: str, server_name: Optional[str] = ""
+):
+    """Creates a share code for an owner and server.
+
+    Wraps the JupyterHub API call for creating a share code by
+    revoking first access tokens of the user.
+    """
     logger.debug("Share code post called")
     user_token = get_user_token(request)
     shares = await call_hub_api(
         path=f"shares/{owner}/{server_name}",
         token=settings.jupyterhub_api_token,
     )
-    hub_url = settings.jupyterhub_api_url.removesuffix("/api")
+    hub_url = settings.jupyterhub_api_url.removesuffix("/hub/api")
     if not shares.get("items", []):
         # First revoke the token as the server is shared
         await call_hub_api(
@@ -174,18 +216,6 @@ async def create_share_code(request: Request, owner: str, server_name: str):
     resp = await call_hub_api(
         path=f"/share-codes/{owner}/{server_name}",
         method="post",
-        content=await request.body(),
-        headers=dict(request.headers),
-        token=settings.jupyterhub_api_token,
-    )
-    return resp
-
-
-async def call_wrapper(request: Request, path: str):
-    logger.debug(f"Wrapping call to {path}")
-    resp = await call_hub_api(
-        path=path,
-        method=request.method.lower(),
         content=await request.body(),
         headers=dict(request.headers),
         token=settings.jupyterhub_api_token,
