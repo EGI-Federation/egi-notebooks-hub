@@ -19,20 +19,27 @@ c.JupyterHub.load_roles = [
         'scopes': ["access:services", "self"],
     },
     {
-        "name": "token-aquirer",
+        "name": "share-manager",
         "scopes": ["read:users", "admin:auth_state", "read:tokens", "shares"],
-        "services": ["token-acquirer"]
+        "services": ["share-manager"]
     }
 ]
 
 c.JupyterHub.services = [
     {
-        'name': 'token-acquirer',
-        'command': ['python3', '-m', 'egi_notebooks_hub.services.token_acquirer'],
-        # the service will listen on whatever is configured here
-        'url': 'http://127.0.0.1:8090',
+        'name': 'share-manager',
+        # tune the port and host to listen on with --port and --host options
+        'command': ['fastapi', 'run', '-e', 'egi_notebooks_hub.services.share_manager:app'],
     }
 ]
+```
+
+Only tokens with the scope configured in `Settings.token_acquirer_scope` will be able
+to obtain the access_token, e.g. for adding this scope in the browser token:
+
+```
+# custom:token-acquirer:read is the default value
+c.Spawner.oauth_client_allowed_scopes = ["custom:token-acquirer:read"]
 ```
 """
 
