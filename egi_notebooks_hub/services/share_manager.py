@@ -29,7 +29,12 @@ c.JupyterHub.services = [
     {
         'name': 'share-manager',
         # tune the port and host to listen on with --port and --host options
-        'command': ['fastapi', 'run', '-e', 'egi_notebooks_hub.services.share_manager:app'],
+        'command': [
+            'fastapi',
+            'run',
+            '-e',
+            'egi_notebooks_hub.services.share_manager:app',
+        ],
     }
 ]
 ```
