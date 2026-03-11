@@ -288,10 +288,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     # User name in Check-in comes in sub, but we are defaulting to
     # preferred_username as sub is too long to be used as id for
     # volumes
-    # Note: this is `username_claim` in the OAuth2 Authenticator
-    #       but since we are overrinding this one, it needs a different
-    #       name
-    aai_username_claim = Unicode(
+    username_claim = Unicode(
         "preferred_username",
         config=True,
         help="""
@@ -302,12 +299,12 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     # Service accounts may not have "sub", so this is an alternative
     # claim for those accounts
-    aai_servicename_claim = Unicode(
+    servicename_claim = Unicode(
         "client_id",
         config=True,
         help="""
         Claim name to use for getting the name for services where
-        the `aai_username_claim` is not available. See also `allow_anonymous`.
+        the `username_claim` is not available. See also `allow_anonymous`.
         """,
     )
 
@@ -334,24 +331,28 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def _manage_groups_default(self):
         return True
 
-    def username_claim(self, user_info):
-        """Customises the OAuth.username_claim to consider also
+    def user_info_to_username(self, user_info):
+        """Customises the OAuth.user_info_to_username to consider also
         service accounts and potentially anonymous users"""
-        username = user_info.get(
-            self.aai_username_claim, user_info.get(self.aai_servicename_claim, None)
-        )
-        if not username:
-            if not self.allow_anonymous:
-                self.log.error("Anonymous users not enabled!")
-                return None
-            # let's treat this as an anonymous user with a name
-            # that's generated as a hash of user_info
-            info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
-            username = "{0}-{1}".format(
-                self.anonymous_username_prefix,
-                hashlib.sha256(info_str).hexdigest(),
-            )
-        return username
+        try:
+            username = super().user_info_to_username(user_info)
+        except ValueError:
+            username = user_info.get(self.servicename_claim, None)
+            if not username:
+                if not self.allow_anonymous:
+                    message = (
+                        f"No {self.username_claim} found in {user_info}"
+                        " and anonymous users not enabled"
+                    )
+                    raise ValueError(message)
+                # let's treat this as an anonymous user with a name
+                # that's generated as a hash of user_info
+                info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
+                username = "{0}-{1}".format(
+                    self.anonymous_username_prefix,
+                    hashlib.sha256(info_str).hexdigest(),
+                )
+            return username
 
     async def _token_to_auth_model(self, token_info):
         """Overriding this to add the `primary_group` information to the
