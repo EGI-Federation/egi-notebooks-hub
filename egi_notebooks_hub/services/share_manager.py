@@ -213,9 +213,13 @@ async def create_share_code(
         path=f"shares/{owner}/{server_name}",
         token=settings.jupyterhub_api_token,
     )
-    hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
-    if not shares.get("items", []):
+    share_codes = await call_hub_api(
+        path=f"share-codes/{owner}/{server_name}",
+        token=settings.jupyterhub_api_token,
+    )
+    if not (shares.get("items", []) or share_codes.get("items", [])):
         # First revoke the token as the server is shared
+        hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
         await call_hub_api(
             path=settings.token_revoke_path,
             base_url=hub_url,
