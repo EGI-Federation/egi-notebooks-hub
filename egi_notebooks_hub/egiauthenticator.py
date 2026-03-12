@@ -335,7 +335,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         """Customises the OAuth.user_info_to_username to consider also
         service accounts and potentially anonymous users"""
         try:
-            username = super().user_info_to_username(user_info)
+            return super().user_info_to_username(user_info)
         except ValueError:
             username = user_info.get(self.servicename_claim, None)
             if not username:
