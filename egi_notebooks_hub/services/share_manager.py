@@ -170,10 +170,8 @@ async def get_token(request: Request):
         token=settings.jupyterhub_api_token,
     )
     if shares.get("items", []) or share_codes.get("items", []):
-        raise HTTPException(
-            403,
-            detail="You have shared access to your server, remove it to issue access_token",
-        )
+        msg = "You have shared access to your server, remove it to issue access_token"
+        raise HTTPException(403, detail=msg)
     user_data = await call_hub_api(
         path=f"users/{user_info['name']}",
         token=settings.jupyterhub_api_token,
