@@ -44,11 +44,17 @@ to obtain the access_token, e.g. for adding this scope in the browser token:
 
 ```
 # custom:token-acquirer:read is the default value
+c.JupyterHub.custom_scopes = {
+    "custom:token-acquirer:read": {
+        "description": "Access to token acquirer",
+    },
+}
 c.Spawner.oauth_client_allowed_scopes = ["custom:token-acquirer:read"]
 ```
 """
 
 import logging
+import re
 from typing import List, Optional
 
 import httpx
@@ -135,20 +141,30 @@ async def call_hub_api(
             return r.content
 
 
+async def get_user_info(request: Request):
+    user_token = get_user_token(request)
+    user_info = await call_hub_api(path="user", token=user_token)
+    access_scope_re = re.compile(f"access:servers!server={user_info['name']}/.*")
+    if not any(access_scope_re.match(scope) for scope in user_info.get("scopes", [])):
+        raise HTTPException(
+            403, detail="Forbidden, server access does not match token owner!"
+        )
+    return user_info, user_token
+
+
 @app.get("/token")
 async def get_token(request: Request):
     """Gets access token from the auth_state.
 
     It will return the access token if:
+    1. the calling token owner is the same as the server owner
     1. the calling token has the scope configured in `token_acquirer_scope`
     2. the calling token is associated to a running server
     3. the server is not shared
     """
-    logger.debug("Get token called")
-    user_token = get_user_token(request)
+    logger.debug("Get token request")
+    user_info, user_token = await get_user_info(request)
 
-    # get the token info
-    user_info = await call_hub_api(path="user", token=user_token)
     token_info = await call_hub_api(
         path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
         token=settings.jupyterhub_api_token,
@@ -187,6 +203,7 @@ async def get_token(request: Request):
 async def call_wrapper(request: Request, path: str):
     """Wraps calls the the HUP API using our token"""
     logger.debug(f"Wrapping call to {path}")
+    _, user_token = await get_user_info(request)
     resp = await call_hub_api(
         path=path,
         method=request.method.lower(),
@@ -208,7 +225,7 @@ async def create_share_code(
     revoking first access tokens of the user.
     """
     logger.debug("Share code post called")
-    user_token = get_user_token(request)
+    _, user_token = await get_user_info(request)
     shares = await call_hub_api(
         path=f"shares/{owner}/{server_name}",
         token=settings.jupyterhub_api_token,
