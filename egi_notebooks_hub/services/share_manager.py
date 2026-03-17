@@ -59,6 +59,7 @@ from typing import List, Optional
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 from jupyterhub.utils import url_path_join
 from pydantic_settings import BaseSettings
 
@@ -81,6 +82,14 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 logger.info(f"Targetting {settings.jupyterhub_api_url} as API URL")
 logger.info(f"Service listening under {settings.jupyterhub_service_prefix}")
+
+
+# mimic jupyterhub where errors are shown with "message"
+@app.exception_handler(HTTPException)
+async def custom_http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code, content={"message": str(exc.detail)}
+    )
 
 
 def get_user_token(request: Request):
