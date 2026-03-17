@@ -150,14 +150,15 @@ async def call_hub_api(
             return r.content
 
 
-async def get_user_info(request: Request):
+async def get_user_info(request: Request, check_ownership: bool = True):
     user_token = get_user_token(request)
     user_info = await call_hub_api(path="user", token=user_token)
-    access_scope_re = re.compile(f"access:servers!server={user_info['name']}/.*")
-    if not any(access_scope_re.match(scope) for scope in user_info.get("scopes", [])):
-        raise HTTPException(
-            403, detail="Forbidden, server access does not match token owner!"
-        )
+    if check_ownership:
+        access_scope_re = re.compile(f"access:servers!server={user_info['name']}/.*")
+        if not any(access_scope_re.match(scope) for scope in user_info.get("scopes", [])):
+            raise HTTPException(
+                403, detail="Forbidden, server access does not match token owner!"
+            )
     return user_info, user_token
 
 
