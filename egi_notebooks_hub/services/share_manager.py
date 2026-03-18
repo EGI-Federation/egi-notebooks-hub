@@ -161,6 +161,26 @@ async def get_user_info(request: Request, check_ownership: bool = True):
             )
     return user_info, user_token
 
+@app.get("/token_details")
+async def get_token(request: Request):
+    """Gets access token details.
+    """
+    logger.debug("Get token details request")
+    # we allow the owner of the requestor token to get their own details
+    user_info, user_token = await get_user_info(request, check_ownership=False)
+
+    user_data = await call_hub_api(
+        path=f"users/{user_info['name']}",
+        token=settings.jupyterhub_api_token,
+    )
+    access_token = None
+    auth_state = user_data.get("auth_state", {})
+    if auth_state:
+        access_token = auth_state.get("access_token", None)
+    if not access_token:
+        raise HTTPException(404, detail="No access token available for the user")
+    return {"garbage": "indeed"}
+
 
 @app.get("/token")
 async def get_token(request: Request):
@@ -168,9 +188,8 @@ async def get_token(request: Request):
 
     It will return the access token if:
     1. the calling token owner is the same as the server owner
-    1. the calling token has the scope configured in `token_acquirer_scope`
-    2. the calling token is associated to a running server
-    3. the server is not shared
+    2. the calling token has the scope configured in `token_acquirer_scope`
+    3. the calling token is associated to a running server
     """
     logger.debug("Get token request")
     user_info, user_token = await get_user_info(request)
@@ -186,17 +205,6 @@ async def get_token(request: Request):
     server_name = get_server_name(token_info)
     if server_name is None:
         raise HTTPException(403, detail="Forbidden, no server token!")
-    shares = await call_hub_api(
-        path=f"shares/{user_info['name']}/{server_name}",
-        token=settings.jupyterhub_api_token,
-    )
-    share_codes = await call_hub_api(
-        path=f"share-codes/{user_info['name']}/{server_name}",
-        token=settings.jupyterhub_api_token,
-    )
-    if shares.get("items", []) or share_codes.get("items", []):
-        msg = "You have shared access to your server, remove it to issue access_token"
-        raise HTTPException(403, detail=msg)
     user_data = await call_hub_api(
         path=f"users/{user_info['name']}",
         token=settings.jupyterhub_api_token,
