@@ -3,17 +3,12 @@ FROM quay.io/jupyterhub/k8s-hub:4.3.0
 
 USER root
 
-RUN apt-get update && apt-get install -y npm && npm install -g configurable-http-proxy
-RUN pip3 install jupyter jupyter-collaboration==4.0.1
-
 # Do installation in 2 phases to cache dependendencies
 COPY requirements.txt /egi-notebooks-hub/
 RUN pip3 install --no-cache-dir -r /egi-notebooks-hub/requirements.txt
 
 # Now install the code itself
 COPY . /egi-notebooks-hub/
-#RUN pip3 install -e /egi-notebooks-hub/user-sharing-extension
-#RUN jupyter server extension enable user_sharing_extension
 # hadolint ignore=DL3013
 RUN pip3 install --no-cache-dir /egi-notebooks-hub
 
