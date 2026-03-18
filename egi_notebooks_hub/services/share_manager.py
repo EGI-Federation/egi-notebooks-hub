@@ -155,16 +155,18 @@ async def get_user_info(request: Request, check_ownership: bool = True):
     user_info = await call_hub_api(path="user", token=user_token)
     if check_ownership:
         access_scope_re = re.compile(f"access:servers!server={user_info['name']}/.*")
-        if not any(access_scope_re.match(scope) for scope in user_info.get("scopes", [])):
+        if not any(
+            access_scope_re.match(scope) for scope in user_info.get("scopes", [])
+        ):
             raise HTTPException(
                 403, detail="Forbidden, server access does not match token owner!"
             )
     return user_info, user_token
 
+
 @app.get("/token_details")
-async def get_token(request: Request):
-    """Gets access token details.
-    """
+async def get_token_details(request: Request):
+    """Gets access token details."""
     logger.debug("Get token details request")
     # we allow the owner of the requestor token to get their own details
     user_info, user_token = await get_user_info(request, check_ownership=False)
