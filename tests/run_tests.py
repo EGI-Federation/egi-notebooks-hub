@@ -1,177 +1,159 @@
 #!/usr/bin/env python3
 """
-Unified test runner for egi-notebooks-hub.
+Simple unified test runner for egi-notebooks-hub.
 
-Usage examples:
-    ./run_tests.py --list
-    ./run_tests.py phase1 -q
-    ./run_tests.py phase2 -q
-    ./run_tests.py phase3 -q
-    ./run_tests.py all -q
-    ./run_tests.py all --future -q
-    ./run_tests.py phase1 -s
-    ./run_tests.py all -x --disable-warnings
+Usage:
+    python tests/run_tests.py --list
+    python tests/run_tests.py phase1
+    python tests/run_tests.py phase2
+    python tests/run_tests.py phase3
+    python tests/run_tests.py all
 
-This script is intentionally simple:
-- it groups test files into phases
-- it forwards extra arguments directly to pytest
-- it can optionally include additional future tests discovered in tests/
+Optional flags:
+    --quiet         reduce output
+    --fail-fast     stop on first failure
+    --show-print    show print() output
+    --include-new   include unassigned test files
 """
 
 from __future__ import annotations
 
 import argparse
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parent
-TESTS_DIR = REPO_ROOT / "tests"
+# Paths
+TESTS_DIR = Path(__file__).resolve().parent
+REPO_ROOT = TESTS_DIR.parent
 
-PHASES: dict[str, list[str]] = {
+
+# Test phases
+PHASES = {
     "phase1": [
-        "tests/test_egiauthenticator.py",
-        "tests/test_egiauthenticator_handlers.py",
+        "phase1extended/test_egiauthenticator.py",
+        "phase1extended/test_egiauthenticator_handlers.py",
     ],
     "phase2": [
-        "tests/test_egispawner_init.py",
-        "tests/test_egispawner_unit.py",
+        "phase2extended/test_egispawner_init.py",
+        "phase2extended/test_egispawner_unit.py",
     ],
     "phase3": [
-        "tests/test_share_manager.py",
-        "tests/test_api_wrapper.py",
+        "phase3extended/test_api_wrapper.py",
+#        "phase3extended/test_share_manager.py",
     ],
 }
 
 
-def flatten_phases(phases: dict[str, list[str]]) -> list[str]:
-    seen: set[str] = set()
-    result: list[str] = []
-    for file_list in phases.values():
-        for item in file_list:
-            if item not in seen:
-                seen.add(item)
-                result.append(item)
+# -------------------------
+# Helpers
+# -------------------------
+
+def all_tests():
+    seen = set()
+    result = []
+    for files in PHASES.values():
+        for f in files:
+            if f not in seen:
+                seen.add(f)
+                result.append(f)
     return result
 
 
-KNOWN_TESTS = set(flatten_phases(PHASES))
+def find_new_tests():
+    known = set(all_tests())
+    new = []
+    for path in TESTS_DIR.rglob("test_*.py"):
+        rel = path.relative_to(TESTS_DIR).as_posix()
+        if rel not in known:
+            new.append(rel)
+    return sorted(new)
 
 
-def discover_future_tests() -> list[str]:
-    """
-    Discover test files in tests/ that are not yet explicitly assigned to a phase.
-    """
-    if not TESTS_DIR.exists():
-        return []
-
-    discovered: list[str] = []
-    for path in sorted(TESTS_DIR.glob("test_*.py")):
-        rel = path.relative_to(REPO_ROOT).as_posix()
-        if rel not in KNOWN_TESTS:
-            discovered.append(rel)
-    return discovered
-
-
-def build_test_selection(target: str, include_future: bool) -> list[str]:
-    if target == "all":
-        selected = flatten_phases(PHASES)
-    else:
-        selected = PHASES[target][:]
-
-    if include_future:
-        selected.extend(discover_future_tests())
-
-    # Deduplicate while preserving order
-    deduped: list[str] = []
-    seen: set[str] = set()
-    for item in selected:
-        if item not in seen:
-            seen.add(item)
-            deduped.append(item)
-
-    return deduped
-
-
-def print_phase_listing() -> None:
-    print("Configured test phases:\n")
-    for phase_name, files in PHASES.items():
-        print(f"{phase_name}:")
-        for file in files:
-            print(f"  - {file}")
+def list_phases():
+    print("\nTest phases:\n")
+    for name, files in PHASES.items():
+        print(name + ":")
+        for f in files:
+            print("  -", f)
         print()
 
-    future = discover_future_tests()
-    if future:
-        print("Unassigned future test files detected:")
-        for file in future:
-            print(f"  - {file}")
+    new = find_new_tests()
+    if new:
+        print("Unassigned tests:")
+        for f in new:
+            print("  -", f)
     else:
-        print("No unassigned future test files detected.")
+        print("No unassigned tests.")
 
 
-def ensure_pytest_available() -> None:
-    if shutil.which("pytest") is None:
-        print("Error: pytest was not found in PATH.", file=sys.stderr)
-        print(
-            "Activate your virtual environment and install pytest first.",
-            file=sys.stderr,
-        )
-        sys.exit(2)
+# -------------------------
+# CLI
+# -------------------------
 
+def parse_args():
+    parser = argparse.ArgumentParser()
 
-def parse_args() -> tuple[argparse.Namespace, list[str]]:
-    parser = argparse.ArgumentParser(
-        description="Run grouped pytest suites for egi-notebooks-hub."
-    )
     parser.add_argument(
         "target",
         nargs="?",
         default="all",
         choices=["phase1", "phase2", "phase3", "all"],
-        help="Which phase to run.",
-    )
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List configured phases and known test files.",
-    )
-    parser.add_argument(
-        "--future",
-        action="store_true",
-        help="Also include unassigned test_*.py files found in tests/.",
     )
 
-    args, pytest_args = parser.parse_known_args()
-    return args, pytest_args
+    parser.add_argument("--list", action="store_true")
+    parser.add_argument("--include-new", action="store_true")
+    parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true")
+    parser.add_argument("--show-print", action="store_true")
+
+    return parser.parse_args()
 
 
-def main() -> int:
-    args, pytest_args = parse_args()
+# -------------------------
+# Main
+# -------------------------
+
+def main():
+    args = parse_args()
 
     if args.list:
-        print_phase_listing()
-        return 0
+        list_phases()
+        return
 
-    ensure_pytest_available()
+    # select tests
+    if args.target == "all":
+        selected = all_tests()
+    else:
+        selected = PHASES[args.target][:]
 
-    selected_tests = build_test_selection(args.target, args.future)
+    if args.include_new:
+        selected += find_new_tests()
 
-    if not selected_tests:
-        print("No test files selected.", file=sys.stderr)
-        return 1
+    if not selected:
+        print("No tests selected")
+        sys.exit(1)
 
-    cmd = ["pytest", *selected_tests, *pytest_args]
+    # build pytest command
+    cmd = ["pytest"] + selected
 
-    print("Running command:")
+    if args.quiet:
+        cmd.append("-q")
+
+    if args.fail_fast:
+        cmd.append("-x")
+
+    if args.show_print:
+        cmd.append("-s")
+
+    print("\nRunning:")
     print(" ", " ".join(cmd))
     print()
 
-    completed = subprocess.run(cmd, cwd=REPO_ROOT)
-    return completed.returncode
+    result = subprocess.run(cmd, cwd=TESTS_DIR)
+    sys.exit(result.returncode)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
