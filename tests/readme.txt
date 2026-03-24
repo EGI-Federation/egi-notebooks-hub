@@ -1,100 +1,122 @@
-=== Running /tests from scratch ===
+# === Running /tests from scratch ===
 
-# Preparation
+## Preparation
 
-```bash
-git clone https://github.com/nikl11/egi-notebooks-hub.git
-cd egi-notebooks-hub
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt
-pip install pytest pytest-asyncio
-pip install -e .
-```
+git clone https://github.com/nikl11/egi-notebooks-hub.git  
+cd egi-notebooks-hub  
+python3 -m venv .venv  
+source .venv/bin/activate  
+pip install -U pip  
+pip install -r requirements.txt  
+pip install pytest pytest-asyncio  
+pip install -e .  
 
-# Running individual set of tests
+---
 
-```bash
-pytest -q tests/test_egiauthenticator.py
-```
+# Running tests
+
+## Direct pytest usage (optional)
+
+You can still run tests manually using pytest:
+
+pytest -q tests/phase1extended/test_egiauthenticator.py
+
+---
 
 # EGI Hub test runner
 
-This small helper script provides one stable command for running the whole  test suite or its individual parts.
+We provide a helper script to simplify running tests:
+
+python tests/run_tests.py
+
+This script wraps pytest and provides structured execution of test phases.
+
+---
 
 ## Basic usage
 
-Run all currently mapped phases:
+Run all test phases:
 
-```bash
-./run_tests.py all -q
-```
+python tests/run_tests.py all
 
 Run a single phase:
 
-```bash
-./run_tests.py phase1 -q
-./run_tests.py phase2 -q
-./run_tests.py phase3 -q
-```
+python tests/run_tests.py phase1  
+python tests/run_tests.py phase2  
+python tests/run_tests.py phase3  
 
-Run a specific test file:
+---
 
-```bash
-./run_tests.py tests/test_egiauthenticator.py -q
-```
+## List all phases and files
 
-Show known phase mapping:
+python tests/run_tests.py --list
 
-```bash
-./run_tests.py --list
-```
+This shows:
+- which files belong to each phase
+- any unassigned test files
 
-Also include any future files matching `tests/test_*.py`:
+---
 
-```bash
-./run_tests.py all --future -q
-```
+## Include new (unmapped) tests
 
-## Useful pytest passthrough options
+python tests/run_tests.py all --include-new
 
-Show print output:
+This will include any test_*.py files not yet assigned to a phase.
 
-```bash
-./run_tests.py phase1 -s
-```
+---
 
-Stop after first failure:
+# Useful options
 
-```bash
-./run_tests.py all -x
-```
+These options are passed through to pytest:
 
-Hide warnings:
+Quiet output:
 
-```bash
-./run_tests.py all -q --disable-warnings
-```
+python tests/run_tests.py all --quiet
 
-Filter by keyword:
+Stop on first failure:
 
-```bash
-./run_tests.py all -k primary_group -q
-```
+python tests/run_tests.py all --fail-fast
 
-## How to extend in the future
+Show print() output:
 
-Edit `run_tests.py` and add a new phase entry to the `PHASES` mapping, for example:
+python tests/run_tests.py all --show-print
 
-```python
-PHASES["phase4"] = ["tests/test_something_new.py"]
-```
+---
 
-If you do not want to maintain the mapping immediately, you can still place a new file into `tests/` with the name pattern `test_*.py` and run:
+## Combining options
 
-```bash
-./run_tests.py all --future -q
-```
+python tests/run_tests.py phase1 --quiet --show-print
 
-That will automatically include it.
+---
+
+# Important differences from older version
+
+The CLI flags were renamed:
+
+- -q → --quiet  
+- -x → --fail-fast  
+- -s → --show-print  
+- --future → --include-new  
+
+---
+
+# Test phase structure
+
+Defined in run_tests.py:
+
+PHASES = {  
+    "phase1": [...],  
+    "phase2": [...],  
+    "phase3": [...],  
+}
+
+To add a new phase:
+
+PHASES["phase4"] = ["phase4extended/test_new_feature.py"]
+
+---
+
+# Notes
+
+- The script runs pytest with cwd=tests/, so paths are relative to tests/  
+- Always use: python tests/run_tests.py  
