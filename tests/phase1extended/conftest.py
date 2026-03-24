@@ -1,3 +1,7 @@
+# Phase 1 fixtures for EGICheckinAuthenticator and related handler tests.
+# These helpers are intentionally kept small and stable so individual tests can focus
+# on one behavior at a time without repeatedly rebuilding the same configuration.
+
 import pytest
 from traitlets.config import Config
 
