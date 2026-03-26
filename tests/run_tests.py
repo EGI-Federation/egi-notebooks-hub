@@ -41,6 +41,7 @@ PHASES = {
     ],
     "phase3": [
         "phase3extended/test_api_wrapper.py",
+        "phase3extended/test_token_acquirer.py",
 #        "phase3extended/test_share_manager.py",
     ],
 }
