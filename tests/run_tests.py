@@ -44,6 +44,10 @@ PHASES = {
         "phase3extended/test_token_acquirer.py",
 #        "phase3extended/test_share_manager.py",
     ],
+    "phase4": [
+        "phase4/test_auth_integration.py",
+        "phase4/test_services_integration.py",
+    ],    
 }
 
 
@@ -100,7 +104,7 @@ def parse_args():
         "target",
         nargs="?",
         default="all",
-        choices=["phase1", "phase2", "phase3", "all"],
+        choices=["phase1", "phase2", "phase3", "phase4", "all"],
     )
 
     parser.add_argument("--list", action="store_true")
