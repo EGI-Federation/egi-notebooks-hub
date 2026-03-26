@@ -1,0 +1,57 @@
+name: EGI Hub Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - "**"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: ${{ matrix.phase }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        phase: [phase1, phase2, phase3, phase4]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Create virtual environment
+        run: |
+          python -m venv .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Upgrade pip
+        run: |
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+
+      - name: Install project dependencies
+        run: |
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio
+          pip install -e .
+
+      - name: Show mapped test phases
+        run: |
+          source .venv/bin/activate
+          python tests/run_tests.py --list
+
+      - name: Run selected phase
+        run: |
+          source .venv/bin/activate
+          python tests/run_tests.py ${{ matrix.phase }} --show-print
