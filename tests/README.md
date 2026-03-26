@@ -5,6 +5,7 @@
 ```bash
 git clone https://github.com/nikl11/egi-notebooks-hub.git  
 cd egi-notebooks-hub  
+git switch tests #for now
 python3 -m venv .venv  
 source .venv/bin/activate  
 pip install -U pip  
