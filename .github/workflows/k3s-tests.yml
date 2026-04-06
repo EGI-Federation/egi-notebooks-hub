@@ -1,0 +1,53 @@
+name: EGI Hub K3s Tests
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+jobs:
+  k3s-tests:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Start local k3s cluster
+        uses: jupyterhub/action-k3s-helm@v4
+        with:
+          k3s-channel: latest
+
+      - name: Wait for cluster
+        run: |
+          echo "KUBECONFIG=$KUBECONFIG"
+          kubectl get nodes
+          kubectl wait --for=condition=Ready nodes --all --timeout=120s
+
+      - name: Show cluster info
+        run: |
+          kubectl version
+          kubectl get nodes -o wide
+          kubectl get pods -A
+
+      - name: Create virtual environment
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: |
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio kubernetes-asyncio
+          pip install -e .
+
+      - name: Run Phase 5 tests
+        run: |
+          source .venv/bin/activate
+          pytest tests/phase5-k3s/test_spawner_k3s.py -s

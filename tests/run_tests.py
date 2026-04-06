@@ -7,6 +7,8 @@ Usage:
     python tests/run_tests.py phase1
     python tests/run_tests.py phase2
     python tests/run_tests.py phase3
+    python tests/run_tests.py phase4
+    python tests/run_tests.py phase5    
     python tests/run_tests.py all
 
 Optional flags:
@@ -47,7 +49,10 @@ PHASES = {
     "phase4": [
         "phase4/test_auth_integration.py",
         "phase4/test_services_integration.py",
-    ],    
+    ],
+    "phase5": [
+        "phase5-k3s/test_spawner_k3s.py",
+    ],
 }
 
 
@@ -69,10 +74,17 @@ def all_tests():
 def find_new_tests():
     known = set(all_tests())
     new = []
+
     for path in TESTS_DIR.rglob("test_*.py"):
         rel = path.relative_to(TESTS_DIR).as_posix()
+
+        parts = path.parts
+        if ".venv" in parts or "site-packages" in parts or "__pycache__" in parts:
+            continue
+
         if rel not in known:
             new.append(rel)
+
     return sorted(new)
 
 
@@ -104,7 +116,7 @@ def parse_args():
         "target",
         nargs="?",
         default="all",
-        choices=["phase1", "phase2", "phase3", "phase4", "all"],
+        choices=["phase1", "phase2", "phase3", "phase4", "phase5", "all"],
     )
 
     parser.add_argument("--list", action="store_true")
