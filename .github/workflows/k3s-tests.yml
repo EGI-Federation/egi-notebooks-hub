@@ -1,5 +1,8 @@
 name: EGI Hub K3s Tests
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
