@@ -1,5 +1,8 @@
 name: EGI Hub Tests
 
+permissions:
+  contents: read
+
 on:
   push:
     branches:
