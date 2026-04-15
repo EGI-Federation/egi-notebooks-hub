@@ -175,7 +175,6 @@ async def get_token_details(request: Request):
         path=f"users/{user_info['name']}",
         token=settings.jupyterhub_api_token,
     )
-    access_token = None
     oauth_user = user_data.get("auth_state", {}).get("oauth_user", {})
     if not oauth_user:
         raise HTTPException(404, detail="No user data available")
