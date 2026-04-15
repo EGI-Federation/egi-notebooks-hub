@@ -176,12 +176,11 @@ async def get_token_details(request: Request):
         token=settings.jupyterhub_api_token,
     )
     access_token = None
-    auth_state = user_data.get("auth_state", {})
-    if auth_state:
-        access_token = auth_state.get("access_token", None)
-    if not access_token:
-        raise HTTPException(404, detail="No access token available for the user")
-    return {"garbage": "indeed"}
+    oauth_user = user_data.get("auth_state", {}).get("oauth_user", {})
+    if not oauth_user:
+        raise HTTPException(404, detail="No user data available")
+    # FIXME: do we need to filter anything here?
+    return oauth_user
 
 
 @app.get("/token")
