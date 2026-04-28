@@ -5,9 +5,7 @@ Phase 5 Kubernetes-backed tests for EGI spawner-related behavior.
 These tests run against a real temporary k3s cluster provided by GitHub Actions
 or against a real local Kubernetes cluster when kubeconfig is available.
 
-Unlike the earlier phases, Kubernetes itself is not mocked here.
-
-The goal is not to spawn a full notebook server yet. Instead, the tests focus on
+The tests focus on
 the first high-value cluster interactions:
 - cluster accessibility
 - real Secret creation/update through EGISpawner._update_secret
