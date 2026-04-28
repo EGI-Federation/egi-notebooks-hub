@@ -1,6 +1,8 @@
-# Running /tests from scratch
+# README
+README.md for ```/tests```
+## Running /tests from scratch
 
-## Preparation
+### Preparation
 
 ```bash
 git clone https://github.com/nikl11/egi-notebooks-hub.git  
@@ -16,9 +18,9 @@ pip install -e .
 
 ---
 
-# Running tests
+## Running tests
 
-## Direct pytest usage (optional)
+### Direct pytest usage (optional)
 
 You can still run tests manually using pytest:
 
@@ -28,7 +30,7 @@ pytest -q tests/phase1extended/test_egiauthenticator.py
 
 ---
 
-# EGI Hub test runner
+## EGI Hub test runner
 
 We provide a helper script to simplify running tests:
 
@@ -40,7 +42,7 @@ This script wraps pytest and provides structured execution of test phases.
 
 ---
 
-## Basic usage
+### Basic usage
 
 Run all test phases:
 
@@ -60,7 +62,7 @@ python tests/run_tests.py phase5
 
 ---
 
-## List all phases and files
+### List all phases and files
 
 ```bash
 python tests/run_tests.py --list
@@ -72,7 +74,7 @@ This shows:
 
 ---
 
-## Include new (unmapped) tests
+### Include new (unmapped) tests
 
 ```bash
 python tests/run_tests.py all --include-new
@@ -82,7 +84,7 @@ This will include any test_*.py files not yet assigned to a phase.
 
 ---
 
-# Useful options
+## Useful options
 
 These options are passed through to pytest:
 
@@ -106,7 +108,7 @@ python tests/run_tests.py all --show-print
 
 ---
 
-## Combining options
+### Combining options
 
 ```bash
 python tests/run_tests.py phase1 --quiet --show-print
@@ -114,7 +116,7 @@ python tests/run_tests.py phase1 --quiet --show-print
 
 ---
 
-# Important differences from older version
+## Important differences from older version
 
 The CLI flags were renamed:
 
@@ -127,7 +129,7 @@ The CLI flags were renamed:
 
 ---
 
-# Test phase structure
+## Test phase structure
 
 Defined in run_tests.py:
 
@@ -149,10 +151,10 @@ PHASES["phase999"] = ["phase999/test_new_feature.py"]
 
 ---
 
-# Notes
+## Notes
 
-- The script runs pytest with cwd=tests/, so paths are relative to tests/
-- Always recommended to use: python tests/run_tests.py --show-print
+- The script runs pytest with ```cwd=tests/```, so paths are relative to ```tests/```
+- Always recommended to use: ```python tests/run_tests.py all --show-print```
 
 ## Test phase overview
 
