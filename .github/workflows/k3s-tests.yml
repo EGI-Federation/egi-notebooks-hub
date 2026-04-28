@@ -1,3 +1,4 @@
+
 name: EGI Hub K3s Tests
 
 permissions:
@@ -11,6 +12,9 @@ on:
 jobs:
   k3s-tests:
     runs-on: ubuntu-22.04
+
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
@@ -38,6 +42,20 @@ jobs:
           kubectl version
           kubectl get nodes -o wide
           kubectl get pods -A
+          kubectl get storageclass
+
+      - name: Check Kubernetes permissions
+        run: |
+          kubectl auth can-i create namespaces
+          kubectl auth can-i delete namespaces
+          kubectl auth can-i create secrets --all-namespaces
+          kubectl auth can-i get secrets --all-namespaces
+          kubectl auth can-i update secrets --all-namespaces
+          kubectl auth can-i create persistentvolumeclaims --all-namespaces
+          kubectl auth can-i list persistentvolumeclaims --all-namespaces
+          kubectl auth can-i create pods --all-namespaces
+          kubectl auth can-i get pods --all-namespaces
+          kubectl auth can-i get pods/log --all-namespaces
 
       - name: Create virtual environment
         run: python -m venv .venv
@@ -53,4 +71,14 @@ jobs:
       - name: Run Phase 5 tests
         run: |
           source .venv/bin/activate
-          pytest tests/phase5-k3s/test_spawner_k3s.py -s
+          python -m pytest             tests/phase5-k3s/test_spawner_k3s.py             tests/phase5-k3s/test_spawner_k3s_additional.py             tests/phase5-k3s/test_spawner_k3s_pods.py             tests/phase5-k3s/test_spawner_k3s_edge.py             -s
+
+      - name: Show remaining Phase 5 namespaces
+        if: always()
+        run: |
+          kubectl get ns | grep -E 'phase5|phase5-extra|phase5-pod|phase5-edge' || true
+
+      - name: Show remaining Phase 5 Pods
+        if: always()
+        run: |
+          kubectl get pods -A | grep -E 'phase5|phase5-extra|phase5-pod|phase5-edge' || true

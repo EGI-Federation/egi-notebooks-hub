@@ -40,6 +40,7 @@ PHASES = {
     "phase2": [
         "phase2extended/test_egispawner_init.py",
         "phase2extended/test_egispawner_unit.py",
+        "phase2extended/test_egispawner_manifest_config.py",
     ],
     "phase3": [
         "phase3extended/test_api_wrapper.py",
@@ -49,9 +50,13 @@ PHASES = {
     "phase4": [
         "phase4/test_auth_integration.py",
         "phase4/test_services_integration.py",
+        "phase4/test_spawner_integration_config.py",
     ],
     "phase5": [
         "phase5-k3s/test_spawner_k3s.py",
+        "phase5-k3s/test_spawner_k3s_additional.py",
+        "phase5-k3s/test_spawner_k3s_pods.py",
+        "phase5-k3s/test_spawner_k3s_edge.py",
     ],
 }
 
