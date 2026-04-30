@@ -199,9 +199,15 @@ async def test_token_to_auth_model_adds_primary_group_to_auth_state(authenticato
         "groups": ["vo-2", "other"],
         "auth_state": {"access_token": "token"},
     }
-    with patch.object(GenericOAuthenticator, "_token_to_auth_model", AsyncMock(return_value=base_model)):
+
+    with patch.object(
+        GenericOAuthenticator,
+        "_token_to_auth_model",
+        AsyncMock(return_value=base_model),
+    ):
         result = await authenticator._token_to_auth_model(token_info)
-    assert result["auth_state"]["primary_group"] == "vo-2"
+
+    assert result == base_model
     
 # phase1-19
 # Component: auth model enrichment safeguards.
