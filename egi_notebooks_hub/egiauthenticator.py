@@ -366,8 +366,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     def get_primary_group(self, user_info):
         groups = user_info.get("groups", [])
         # first group as the primary, priority is governed by ordering in
-        # Authenticator.allowed_groups
-        first_group = next((v for v in self.allowed_groups if v in groups), None)
+        # group attribute in IdP user_info
+        first_group = next((v for v in groups if v in self.allowed_groups), None)
         return first_group
 
     async def authenticate(self, handler, data=None):
