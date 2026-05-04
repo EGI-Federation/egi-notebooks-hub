@@ -8,7 +8,7 @@ Usage:
     python tests/run_tests.py phase2
     python tests/run_tests.py phase3
     python tests/run_tests.py phase4
-    python tests/run_tests.py phase5    
+    python tests/run_tests.py phase5
     python tests/run_tests.py all
 
 Optional flags:
@@ -24,7 +24,6 @@ import argparse
 import subprocess
 import sys
 from pathlib import Path
-
 
 # Paths
 TESTS_DIR = Path(__file__).resolve().parent
@@ -45,7 +44,7 @@ PHASES = {
     "phase3": [
         "phase3extended/test_api_wrapper.py",
         "phase3extended/test_token_acquirer.py",
-#        "phase3extended/test_share_manager.py",
+        #        "phase3extended/test_share_manager.py",
     ],
     "phase4": [
         "phase4/test_auth_integration.py",
@@ -64,6 +63,7 @@ PHASES = {
 # -------------------------
 # Helpers
 # -------------------------
+
 
 def all_tests():
     seen = set()
@@ -114,6 +114,7 @@ def list_phases():
 # CLI
 # -------------------------
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -136,6 +137,7 @@ def parse_args():
 # -------------------------
 # Main
 # -------------------------
+
 
 def main():
     args = parse_args()
