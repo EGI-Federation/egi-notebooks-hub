@@ -1,5 +1,13 @@
-# README
-README.md for ```/tests```
+# Test suite for egi-notebooks-hub
+
+This directory contains a comprehensive test suite for the egi-notebooks-hub repository.
+
+The tests cover both:
+- source code validation (unit and integration-style tests)
+- execution in a real k3s Kubernetes cluster
+
+All tests can be run locally and are also executed automatically via GitHub Actions.
+
 ## Running /tests from scratch
 
 ### Preparation
