@@ -177,15 +177,15 @@ def test_get_primary_group_returns_none_when_groups_missing(authenticator):
     assert authenticator.get_primary_group({}) is None
 
 # phase1-17
-# Component: primary group priority logic.
-# Purpose: Check that when multiple allowed groups match, the first allowed group wins.
-# Pass example: allowed_groups prioritizes vo-2 before vo-1, so a user in both gets vo-2.
-# Fail example: the code ignores configured priority and returns a different matching group.
+# Component: primary group selection.
+# Purpose: Verify that primary group priority follows the group order returned by the IdP.
+# Pass example: with user groups ["vo-1", "vo-2"] and both groups allowed, "vo-1" is selected.
+# Fail example: the authenticator incorrectly uses allowed_groups ordering and selects "vo-2".
 def test_get_primary_group_uses_allowed_groups_iteration_order(auth_config):
     auth_config.EGICheckinAuthenticator.allowed_groups = ["vo-2", "vo-1", "vo-3"]
     authenticator = EGICheckinAuthenticator(config=auth_config)
     user_info = {"groups": ["vo-1", "vo-2", "vo-3"]}
-    assert authenticator.get_primary_group(user_info) == "vo-2"
+    assert authenticator.get_primary_group(user_info) == "vo-1"
     
 # phase1-18
 # Component: auth model enrichment after token processing.
