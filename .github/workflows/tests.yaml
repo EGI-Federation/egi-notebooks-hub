@@ -29,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.x"
           cache: "pip"
 
       - name: Create virtual environment
@@ -46,7 +46,7 @@ jobs:
         run: |
           source .venv/bin/activate
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio
+          pip install -r requirements-test.txt
           pip install -e .
 
       - name: Show mapped test phases

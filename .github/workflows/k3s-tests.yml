@@ -11,7 +11,7 @@ on:
 
 jobs:
   k3s-tests:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-26.04
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -23,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.x"
           cache: "pip"
 
       - name: Start local k3s cluster
@@ -33,7 +33,6 @@ jobs:
 
       - name: Wait for cluster
         run: |
-          echo "KUBECONFIG=$KUBECONFIG"
           kubectl get nodes
           kubectl wait --for=condition=Ready nodes --all --timeout=120s
 
@@ -65,13 +64,13 @@ jobs:
           source .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio kubernetes-asyncio
+          pip install -r requirements-test.txt
           pip install -e .
 
       - name: Run Phase 5 tests
         run: |
           source .venv/bin/activate
-          python -m pytest             tests/phase5-k3s/test_spawner_k3s.py             tests/phase5-k3s/test_spawner_k3s_additional.py             tests/phase5-k3s/test_spawner_k3s_pods.py             tests/phase5-k3s/test_spawner_k3s_edge.py             -s
+          python -m pytest tests/phase5-k3s/test_spawner_k3s.py tests/phase5-k3s/test_spawner_k3s_additional.py tests/phase5-k3s/test_spawner_k3s_pods.py tests/phase5-k3s/test_spawner_k3s_edge.py -s
 
       - name: Show remaining Phase 5 namespaces
         if: always()
