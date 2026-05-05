@@ -7,10 +7,6 @@ and production-like labels and annotations.
 """
 
 import asyncio
-import warnings
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="traitlets")
-
 import types
 import uuid
 from types import SimpleNamespace

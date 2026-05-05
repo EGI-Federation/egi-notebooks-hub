@@ -16,10 +16,6 @@ first Phase 5 file with coverage for:
 
 """
 
-import warnings
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="traitlets")
-
 import types
 import uuid
 from types import SimpleNamespace

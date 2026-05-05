@@ -7,10 +7,6 @@ volume mounts are usable by Kubernetes.
 """
 
 import asyncio
-import warnings
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="traitlets")
-
 import types
 import uuid
 from types import SimpleNamespace
@@ -481,7 +477,11 @@ async def test_pod_uses_configure_secret_volumes_emptydir_mount(
         kube,
         namespace,
         "configured-emptydir-mount",
-        "echo mounted=$SECRETS_VOLUME_MOUNTED; echo ok > /egi-empty/file; cat /egi-empty/file",
+        (
+            "echo mounted=$SECRETS_VOLUME_MOUNTED; "
+            "echo ok > /egi-empty/file; "
+            "cat /egi-empty/file"
+        ),
         volumes=volumes,
         volume_mounts=mounts,
         env=env,

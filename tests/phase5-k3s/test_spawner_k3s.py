@@ -13,10 +13,6 @@ the first high-value cluster interactions:
 This keeps the first k3s layer small, understandable, and CI-friendly.
 """
 
-import warnings
-
-warnings.filterwarnings("ignore", category=DeprecationWarning, module="traitlets")
-
 import uuid
 from types import SimpleNamespace
 
@@ -426,7 +422,8 @@ async def test_configure_user_volumes_falls_back_to_default_pvc_name_without_mat
 # - non-claim PVC names remain unchanged
 # - non-PVC volumes are left untouched
 # Example pass:
-# - claim-placeholder becomes claim-alice, while workspace-static and configMap stay unchanged.
+# - claim-placeholder becomes claim-alice, while workspace-static and configMap stay
+# unchanged.
 # Example fail:
 # - the method rewrites every volume blindly or mutates unrelated volume definitions.
 @pytest.mark.asyncio
