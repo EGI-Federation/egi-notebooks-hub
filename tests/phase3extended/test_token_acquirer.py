@@ -9,7 +9,6 @@ JSON payload or HTTP error in each scenario.
 """
 
 import json
-import os
 from types import SimpleNamespace
 from unittest.mock import Mock
 

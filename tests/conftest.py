@@ -1,4 +1,3 @@
-import os
 
 import pytest
 from traitlets.config import Config

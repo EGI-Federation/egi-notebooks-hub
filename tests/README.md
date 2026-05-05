@@ -3,6 +3,7 @@
 This directory contains a comprehensive test suite for the egi-notebooks-hub repository.
 
 The tests cover both:
+
 - source code validation (unit and integration-style tests)
 - execution in a real k3s Kubernetes cluster
 
@@ -13,15 +14,15 @@ All tests can be run locally and are also executed automatically via GitHub Acti
 ### Preparation
 
 ```bash
-git clone https://github.com/nikl11/egi-notebooks-hub.git  
-cd egi-notebooks-hub  
+git clone https://github.com/nikl11/egi-notebooks-hub.git
+cd egi-notebooks-hub
 git switch tests #for now
-python3 -m venv .venv  
-source .venv/bin/activate  
-pip install -U pip  
-pip install -r requirements.txt  
-pip install -r requirements-test.txt  
-pip install -e .  
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+pip install -r requirements-test.txt
+pip install -e .
 ```
 
 ---
@@ -61,9 +62,9 @@ python tests/run_tests.py all
 Run a single phase:
 
 ```bash
-python tests/run_tests.py phase1  
-python tests/run_tests.py phase2  
-python tests/run_tests.py phase3  
+python tests/run_tests.py phase1
+python tests/run_tests.py phase2
+python tests/run_tests.py phase3
 python tests/run_tests.py phase4
 python tests/run_tests.py phase5
 ```
@@ -77,6 +78,7 @@ python tests/run_tests.py --list
 ```
 
 This shows:
+
 - which files belong to each phase
 - any unassigned test files
 
@@ -88,7 +90,7 @@ This shows:
 python tests/run_tests.py all --include-new
 ```
 
-This will include any test_*.py files not yet assigned to a phase.
+This will include any test\_\*.py files not yet assigned to a phase.
 
 ---
 
@@ -129,10 +131,10 @@ python tests/run_tests.py phase1 --quiet --show-print
 The CLI flags were renamed:
 
 ```bash
-- -q → --quiet  
-- -x → --fail-fast  
-- -s → --show-print  
-- --future → --include-new  
+- -q → --quiet
+- -x → --fail-fast
+- -s → --show-print
+- --future → --include-new
 ```
 
 ---
@@ -142,12 +144,12 @@ The CLI flags were renamed:
 Defined in run_tests.py:
 
 ```bash
-PHASES = {  
-    "phase1": [...],  
-    "phase2": [...],  
-    "phase3": [...], 
-    "phase4": [...],  
-    "phase5": [...],    
+PHASES = {
+    "phase1": [...],
+    "phase2": [...],
+    "phase3": [...],
+    "phase4": [...],
+    "phase5": [...],
 }
 ```
 
@@ -161,8 +163,8 @@ PHASES["phase999"] = ["phase999/test_new_feature.py"]
 
 ## Notes
 
-- The script runs pytest with ```cwd=tests/```, so paths are relative to ```tests/```
-- Always recommended to use: ```python tests/run_tests.py all --show-print```
+- The script runs pytest with `cwd=tests/`, so paths are relative to `tests/`
+- Always recommended to use: `python tests/run_tests.py all --show-print`
 
 ## Test phase overview
 
@@ -172,6 +174,7 @@ regressions early, while Kubernetes-backed tests verify real cluster behavior.
 ### Phase 1: Authenticator unit tests
 
 Files:
+
 - `phase1extended/test_egiauthenticator.py`
 - `phase1extended/test_egiauthenticator_handlers.py`
 
@@ -185,6 +188,7 @@ test data and mocks.
 ### Phase 2: Spawner unit and configuration tests
 
 Files:
+
 - `phase2extended/test_egispawner_init.py`
 - `phase2extended/test_egispawner_unit.py`
 - `phase2extended/test_egispawner_manifest_config.py`
@@ -198,6 +202,7 @@ groups, `auth_state_hook`, `set_access_token`, and `pre_spawn_hook` sequencing.
 ### Phase 3: Service tests
 
 Files:
+
 - `phase3extended/test_api_wrapper.py`
 - `phase3extended/test_token_acquirer.py`
 
@@ -209,6 +214,7 @@ error paths for missing or unauthorized tokens.
 ### Phase 4: Integration tests without Kubernetes
 
 Files:
+
 - `phase4/test_auth_integration.py`
 - `phase4/test_services_integration.py`
 - `phase4/test_spawner_integration_config.py`
@@ -221,6 +227,7 @@ Spawner configuration flows using an in-memory Kubernetes API replacement.
 ### Phase 5: Kubernetes/k3s tests
 
 Files:
+
 - `phase5-k3s/test_spawner_k3s.py`
 - `phase5-k3s/test_spawner_k3s_additional.py`
 - `phase5-k3s/test_spawner_k3s_pods.py`
