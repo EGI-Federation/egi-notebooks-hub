@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 from kubernetes_asyncio.client.rest import ApiException
+from kubespawner import KubeSpawner
 
 from egi_notebooks_hub.egispawner import EGISpawner
-from kubespawner import KubeSpawner
 
 
 @pytest.fixture

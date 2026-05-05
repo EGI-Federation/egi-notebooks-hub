@@ -2,10 +2,11 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from egi_notebooks_hub.egiauthenticator import JWTHandler
 from jupyterhub import orm
 from tornado.httpclient import HTTPClientError
 from tornado.web import HTTPError
+
+from egi_notebooks_hub.egiauthenticator import JWTHandler
 
 
 class DummyResponse:
