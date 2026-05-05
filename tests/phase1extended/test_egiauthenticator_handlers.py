@@ -1,18 +1,21 @@
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
+from egi_notebooks_hub.egiauthenticator import JWTHandler
 from jupyterhub import orm
 from tornado.httpclient import HTTPClientError
 from tornado.web import HTTPError
-from egi_notebooks_hub.egiauthenticator import JWTHandler
 
 
 class DummyResponse:
+
     def __init__(self, body):
         self.body = body
 
 
 class DummyUser:
+
     def __init__(self, auth_state=None, name="alice"):
         self._auth_state = auth_state
         self.saved_auth_state = None
@@ -50,7 +53,8 @@ async def test_exchange_for_refresh_token_returns_none_for_invalid_json(authenti
 
 # phase1-33
 # Component: JWTHandler refresh-token exchange network error handling.
-# Purpose: Verify that provider-side HTTP failures are converted into a safe None result.
+# Purpose: Verify that provider-side HTTP failures are converted into a safe None
+# result.
 # Pass example: HTTP 500 from AsyncHTTPClient leads to None.
 # Fail example: transient provider errors bubble up and crash the handler.
 async def test_exchange_for_refresh_token_returns_none_on_http_error(authenticator):
@@ -79,8 +83,10 @@ def test_get_token_raises_401_when_header_missing():
 
 # phase1-35
 # Component: JWTHandler token decoding.
-# Purpose: Verify that _get_token returns both the original raw token and its decoded payload.
-# Pass example: a valid signed JWT yields the same raw string plus a decoded dict with preferred_username.
+# Purpose: Verify that _get_token returns both the original raw token and its decoded
+# payload.
+# Pass example: a valid signed JWT yields the same raw string plus a decoded dict with
+# preferred_username.
 # Fail example: the helper loses the raw token or decodes the payload incorrectly.
 def test_get_token_returns_original_and_decoded_token():
     from jwt import encode
@@ -109,7 +115,8 @@ async def test_get_previous_hub_token_returns_none_without_user():
 
 # phase1-37
 # Component: reuse of previously minted Hub API tokens.
-# Purpose: Ensure an old Hub API token is only reused if it belongs to the same upstream JWT access token.
+# Purpose: Ensure an old Hub API token is only reused if it belongs to the same upstream
+# JWT access token.
 # Pass example: stored access_token differs from current jwt-token, so reuse is denied.
 # Fail example: a Hub API token from a previous login session is incorrectly reused.
 async def test_get_previous_hub_token_returns_none_when_access_token_does_not_match():
@@ -135,7 +142,8 @@ async def test_get_previous_hub_token_returns_none_when_api_token_missing():
 
 # phase1-39
 # Component: reuse of previously minted Hub API tokens.
-# Purpose: Confirm that the helper fails safely if the stored token cannot be found in the Hub database.
+# Purpose: Confirm that the helper fails safely if the stored token cannot be found in
+# the Hub database.
 # Pass example: orm.APIToken.find returns None and reuse is rejected.
 # Fail example: the code assumes the DB token exists and dereferences None.
 async def test_get_previous_hub_token_returns_none_when_orm_token_missing():
@@ -182,9 +190,12 @@ async def test_get_previous_hub_token_reuses_existing_valid_token():
 
 # phase1-42
 # Component: JWTHandler main GET flow.
-# Purpose: Confirm that the handler returns an already-valid Hub API token instead of logging in again.
-# Pass example: _get_previous_hub_token returns "api-token" and finish() receives it for user "alice".
-# Fail example: the handler ignores reusable tokens and performs unnecessary authentication work.
+# Purpose: Confirm that the handler returns an already-valid Hub API token instead of
+# logging in again.
+# Pass example: _get_previous_hub_token returns "api-token" and finish() receives it for
+# user "alice".
+# Fail example: the handler ignores reusable tokens and performs
+# unnecessary authentication work.
 async def test_jwt_get_reuses_previous_hub_token(authenticator):
     user = DummyUser(
         auth_state={"access_token": "jwt-token", "jwt_api_token": "api-token"},
@@ -206,9 +217,12 @@ async def test_jwt_get_reuses_previous_hub_token(authenticator):
 
 # phase1-43
 # Component: JWTHandler main GET flow for first-time or non-reusable logins.
-# Purpose: Verify that the handler logs in the user, creates a Hub API token, saves it, and returns it.
-# Pass example: no previous Hub token exists, so login_user is awaited and user.new_api_token is called.
-# Fail example: the handler authenticates successfully but never persists or returns a usable Hub token.
+# Purpose: Verify that the handler logs in the user, creates a Hub API token, saves it,
+# and returns it.
+# Pass example: no previous Hub token exists, so login_user is awaited and
+# user.new_api_token is called.
+# Fail example: the handler authenticates successfully but never persists
+# or returns a usable Hub token.
 async def test_jwt_get_logs_in_user_and_creates_new_api_token(authenticator):
     user = DummyUser(auth_state={"access_token": "jwt-token"}, name="alice")
     finished = {}
@@ -238,9 +252,12 @@ async def test_jwt_get_logs_in_user_and_creates_new_api_token(authenticator):
 
 # phase1-44
 # Component: JWTHandler main GET flow refresh-token recovery.
-# Purpose: Ensure the handler tries to obtain and store a refresh token when auth_state lacks one.
-# Pass example: exchange_for_refresh_token returns "refresh-123", which is then saved into auth_state.
-# Fail example: login succeeds but refresh capabilities are silently omitted for JWT-only sessions.
+# Purpose: Ensure the handler tries to obtain and store a refresh token when auth_state
+# lacks one.
+# Pass example: exchange_for_refresh_token returns "refresh-123", which is then saved
+# into auth_state.
+# Fail example: login succeeds but refresh capabilities are silently
+# omitted for JWT-only sessions.
 async def test_jwt_get_exchanges_for_refresh_token_when_missing(authenticator):
     user = DummyUser(auth_state={"access_token": "jwt-token"}, name="alice")
     finished = {}
@@ -292,7 +309,8 @@ async def test_jwt_get_returns_403_when_login_fails():
 # Component: JWTHandler Authorization header parsing.
 # Purpose: Ensure obviously invalid JWT strings are rejected.
 # Pass example: "not-a-jwt" raises HTTP 401.
-# Fail example: malformed tokens reach later code paths and produce harder-to-debug errors.
+# Fail example: malformed tokens reach later code paths and produce
+# harder-to-debug errors.
 def test_get_token_raises_401_for_invalid_jwt():
     handler = SimpleNamespace(get_auth_token=lambda: "not-a-jwt", log=Mock())
     with pytest.raises(HTTPError) as exc_info:
@@ -302,9 +320,12 @@ def test_get_token_raises_401_for_invalid_jwt():
 
 # phase1-27
 # Component: JWTHandler refresh-token exchange helper.
-# Purpose: Verify that the handler can exchange a JWT-style access token for a refresh token.
-# Pass example: the IdP responds with {"refresh_token": "..."} and the helper returns that value.
-# Fail example: the helper ignores the response body or posts to the wrong token endpoint.
+# Purpose: Verify that the handler can exchange a JWT-style access token for a refresh
+# token.
+# Pass example: the IdP responds with {"refresh_token": "..."} and the helper returns
+# that value.
+# Fail example: the helper ignores the response body or posts to the wrong
+# token endpoint.
 async def test_exchange_for_refresh_token_returns_refresh_token(authenticator):
     handler = SimpleNamespace(log=Mock(), authenticator=authenticator)
     fake_client = SimpleNamespace(
@@ -324,9 +345,12 @@ async def test_exchange_for_refresh_token_returns_refresh_token(authenticator):
 
 # phase1-48
 # Component: JWTHandler refresh-token exchange compatibility behavior.
-# Purpose: Ensure the helper still works if a provider returns the token in access_token rather than refresh_token.
-# Pass example: {"access_token": "refresh-in-access-field"} is accepted as a usable fallback.
-# Fail example: the helper rejects otherwise workable provider responses due to strict field expectations.
+# Purpose: Ensure the helper still works if a provider returns the token in access_token
+# rather than refresh_token.
+# Pass example: {"access_token": "refresh-in-access-field"} is accepted as a usable
+# fallback.
+# Fail example: the helper rejects otherwise workable provider responses
+# due to strict field expectations.
 async def test_exchange_for_refresh_token_falls_back_to_access_token_field(
     authenticator,
 ):
