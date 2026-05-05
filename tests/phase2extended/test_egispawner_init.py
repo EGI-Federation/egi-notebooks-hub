@@ -10,9 +10,8 @@ import logging
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from kubespawner import KubeSpawner
-
 from egi_notebooks_hub.egispawner import EGISpawner
+from kubespawner import KubeSpawner
 
 
 def install_fake_kubespawner_init(
@@ -83,7 +82,8 @@ def test_init_forwards_args_and_kwargs_to_kubespawner(monkeypatch):
 
 # phase2-init-2
 # Component: EGISpawner.__init__
-# Purpose: Verify the original profile list is stored before profile_list becomes a filter method.
+# Purpose: Verify the original profile list is stored before profile_list becomes a
+# filter method.
 # Example pass: _profile_config is the exact original list object.
 # Example fail: original profile configuration is lost during initialization.
 def test_init_preserves_original_profile_list_object(monkeypatch):
@@ -105,9 +105,12 @@ def test_init_preserves_original_profile_list_object(monkeypatch):
 
 # phase2-init-3
 # Component: EGISpawner.__init__ + _profile_filter
-# Purpose: Verify the installed profile_list filter remains callable after initialization.
-# Example pass: calling spawner.profile_list(spawner) returns profiles allowed for the user.
-# Example fail: profile_list is not callable or does not use the stored profile configuration.
+# Purpose: Verify the installed profile_list filter remains callable after
+# initialization.
+# Example pass: calling spawner.profile_list(spawner) returns profiles allowed for the
+# user.
+# Example fail: profile_list is not callable or does not use the stored profile
+# configuration.
 def test_init_installs_callable_profile_filter(monkeypatch):
     profiles = [
         {"display_name": "Default"},
@@ -248,7 +251,8 @@ def test_init_stores_username_expanded_secret_names(monkeypatch):
 
 # phase2-init-9
 # Component: EGISpawner.__init__
-# Purpose: Verify default token mount configuration remains available after initialization.
+# Purpose: Verify default token mount configuration remains available after
+# initialization.
 # Example pass: token_mount_path and mount_secrets_volume retain class defaults.
 # Example fail: initialization overwrites token mount defaults.
 def test_init_preserves_default_token_mount_settings(monkeypatch):
@@ -295,7 +299,8 @@ def test_init_preserves_custom_token_mount_settings(monkeypatch):
 # phase2-init-11
 # Component: EGISpawner.__init__
 # Purpose: Verify base spawner attributes initialized by KubeSpawner are preserved.
-# Example pass: namespace, user, log, volumes, mounts, environment, annotations remain usable.
+# Example pass: namespace, user, log, volumes, mounts, environment, annotations remain
+# usable.
 # Example fail: EGISpawner initialization clears base attributes needed by later hooks.
 def test_init_preserves_base_spawner_runtime_attributes(monkeypatch):
     install_fake_kubespawner_init(monkeypatch, username="alice", namespace="custom-ns")
@@ -375,9 +380,11 @@ def test_initialized_spawner_get_args_adds_token_acquirer_path(monkeypatch):
 
 # phase2-init-14
 # Component: EGISpawner.__init__ + get_args
-# Purpose: Verify initialized spawner skips token-acquirer argument when real Secret mount is enabled.
+# Purpose: Verify initialized spawner skips token-acquirer argument when real Secret
+# mount is enabled.
 # Example pass: mount_secrets_volume=True returns only base args.
-# Example fail: token acquirer is still configured even though the real Secret is mounted.
+# Example fail: token acquirer is still configured even though the real Secret is
+# mounted.
 def test_initialized_spawner_get_args_skips_token_acquirer_when_secret_is_mounted(
     monkeypatch,
 ):

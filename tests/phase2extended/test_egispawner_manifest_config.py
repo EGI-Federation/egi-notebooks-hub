@@ -11,9 +11,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from kubernetes_asyncio.client.rest import ApiException
-
 from egi_notebooks_hub.egispawner import EGISpawner
+from kubernetes_asyncio.client.rest import ApiException
 
 
 class DummyLog:
@@ -310,7 +309,8 @@ async def test_configure_user_volumes_rewrites_only_claim_prefixed_references():
 
 # phase2-manifest-10
 # Component: EGISpawner.auth_state_hook
-# Purpose: Verify tokens are delegated to set_access_token and primary_group is annotated.
+# Purpose: Verify tokens are delegated to set_access_token and primary_group is
+# annotated.
 # Example pass: set_access_token receives access/id tokens and annotation is set.
 # Example fail: primary group is lost before pod annotation generation.
 @pytest.mark.asyncio
@@ -393,7 +393,8 @@ def test_profile_filter_keeps_matching_vo_profiles():
 # phase2-manifest-14
 # Component: EGISpawner.pre_spawn_hook
 # Purpose: Verify pre-spawn hook calls the expected configuration steps in order.
-# Example pass: load_user_options, configure_user_volumes, configure_secret_volumes are awaited.
+# Example pass: load_user_options, configure_user_volumes, configure_secret_volumes are
+# awaited.
 # Example fail: hook skips one of the required setup steps.
 @pytest.mark.asyncio
 async def test_pre_spawn_hook_runs_expected_setup_steps():
