@@ -1,3 +1,5 @@
+from typing import Any, ClassVar
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -6,6 +8,7 @@ from egi_notebooks_hub.services import api_wrapper
 
 
 class DummyResponse:
+
     def __init__(self, status_code=200, json_data=None, content=b"", text=""):
         self.status_code = status_code
         self._json_data = json_data
@@ -33,7 +36,7 @@ class FakeAsyncClient:
         status_code=200, json_data={"token": "hub-user-token"}
     )
     forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
-    calls = []
+    calls: ClassVar[list[dict[str, Any]]] = []
 
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
@@ -148,11 +151,13 @@ def forwarded_call():
 # phase3-27
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify the main success path for Bearer-authenticated requests: exchange the
-# incoming JWT for a Hub token via /jwt_login, then forward the original API request with
+# incoming JWT for a Hub token via /jwt_login, then forward the original API request
+# with
 # 'Authorization: token <hub-token>'.
 # Example pass case: /jwt_login returns {'token': 'hub-user-token'} and the forwarded
 # request uses that token against the Hub API URL.
-# Example fail case: the wrapper forwards the original bearer token unchanged, forgets to
+# Example fail case: the wrapper forwards the original bearer token unchanged, forgets
+# to
 # call /jwt_login, or targets the wrong URL.
 def test_wrapper_exchanges_bearer_for_hub_token(client):
     response = client.get(
@@ -194,7 +199,8 @@ def test_wrapper_passes_request_through_when_jwt_login_returns_403(client):
 
 # phase3-29
 # Component: api_wrapper generic forwarding endpoint
-# Purpose: Ensure that unexpected jwt_login failures (for example 500) are surfaced to the
+# Purpose: Ensure that unexpected jwt_login failures (for example 500) are surfaced to
+# the
 # caller instead of silently ignored.
 # Example pass case: /jwt_login returns 500 and the wrapper responds with 500.
 # Example fail case: all login failures are treated like 403 and passed through.
@@ -211,7 +217,8 @@ def test_wrapper_returns_error_for_non_403_login_failure(client):
 
 # phase3-30
 # Component: api_wrapper generic forwarding endpoint
-# Purpose: Verify that requests without Authorization do not trigger a jwt_login attempt.
+# Purpose: Verify that requests without Authorization do not trigger a jwt_login
+# attempt.
 # Example pass case: no Authorization header is present, /jwt_login is never called, and
 # the original request is forwarded as-is.
 # Example fail case: the wrapper still attempts login or injects unexpected auth data.
@@ -233,7 +240,8 @@ def test_wrapper_skips_login_when_authorization_header_missing(client):
 # Purpose: Confirm that only Bearer tokens trigger the JWT login exchange. Other schemes
 # should pass through unchanged.
 # Example pass case: Authorization: Token existing-hub-token does not call /jwt_login.
-# Example fail case: any Authorization header is treated as a JWT that must be exchanged.
+# Example fail case: any Authorization header is treated as a JWT that must be
+# exchanged.
 def test_wrapper_skips_login_for_non_bearer_authorization(client):
     response = client.get(
         "/services/jwt/users/alice",
@@ -251,7 +259,8 @@ def test_wrapper_skips_login_for_non_bearer_authorization(client):
 
 # phase3-32
 # Component: api_wrapper generic forwarding endpoint
-# Purpose: Check that after a 403 jwt_login result, the original Bearer header is removed
+# Purpose: Check that after a 403 jwt_login result, the original Bearer header is
+# removed
 # before the request is forwarded upstream.
 # Example pass case: X-Other remains, Authorization disappears.
 # Example fail case: the forbidden bearer token leaks to the upstream Hub API.
@@ -424,7 +433,8 @@ def test_wrapper_returns_raw_content_when_upstream_is_not_json(client):
 # Component: api_wrapper HTTP client creation
 # Purpose: Verify that the wrapper passes the configured api_timeout into the async HTTP
 # client so slow upstream calls are bounded consistently.
-# Example pass case: AsyncClient is constructed with timeout equal to settings.api_timeout.
+# Example pass case: AsyncClient is constructed with timeout equal to
+# settings.api_timeout.
 # Example fail case: timeout is omitted, hardcoded elsewhere, or differs from settings.
 def test_wrapper_uses_configured_timeout_for_upstream_client(client):
     client.get(
@@ -442,10 +452,12 @@ def test_wrapper_uses_configured_timeout_for_upstream_client(client):
 # phase3-41
 # Component: api_wrapper path rewriting
 # Purpose: Check that the service-specific prefix (/services/jwt/) is removed before the
-# request is forwarded to the Hub API. The upstream should see only the logical Hub path.
+# request is forwarded to the Hub API. The upstream should see only the logical Hub
+# path.
 # Example pass case: '/services/jwt/shares/alice/server1' becomes
 # 'http://localhost:8000/hub/api/shares/alice/server1'.
-# Example fail case: the forwarded URL still contains the service prefix or loses part of
+# Example fail case: the forwarded URL still contains the service prefix or loses part
+# of
 # the remaining path.
 def test_wrapper_removes_service_prefix_from_path_before_forwarding(client):
     response = client.get(

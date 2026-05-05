@@ -1,3 +1,5 @@
+from typing import Any, ClassVar
+
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -141,7 +143,8 @@ def test_get_server_name_returns_none_when_session_missing():
 
 # phase3-10
 # Component: share_manager.get_server_name
-# Purpose: Ensure tokens without oauth_client metadata are rejected as non-server tokens.
+# Purpose: Ensure tokens without oauth_client metadata are rejected as non-server
+# tokens.
 # Example pass case: oauth_client is missing and the helper returns None.
 # Example fail case: the helper crashes on a missing field or guesses a server name.
 def test_get_server_name_returns_none_when_oauth_client_missing():
@@ -181,7 +184,7 @@ def test_get_server_name_accepts_case_insensitive_prefix():
 
 class FakeAsyncClient:
     response = None
-    calls = []
+    calls: ClassVar[list[dict[str, Any]]] = []
 
     def __init__(self, *args, **kwargs):
         self.kwargs = kwargs
@@ -202,6 +205,7 @@ class FakeAsyncClient:
 
 
 class FakeResponse:
+
     def __init__(self, status_code=200, json_data=None, content=b""):
         self.status_code = status_code
         self._json_data = json_data
@@ -215,11 +219,14 @@ class FakeResponse:
 
 # phase3-13
 # Component: share_manager.call_hub_api
-# Purpose: Verify the common successful call path: build the outgoing request, attach the
+# Purpose: Verify the common successful call path: build the outgoing request, attach
+# the
 # bearer token, and parse a JSON response.
-# Example pass case: the upstream returns status 200 with JSON and the helper returns the
+# Example pass case: the upstream returns status 200 with JSON and the helper returns
+# the
 # decoded object.
-# Example fail case: the Authorization header is missing, the wrong URL is called, or the
+# Example fail case: the Authorization header is missing, the wrong URL is called, or
+# the
 # response is not decoded from JSON.
 @pytest.mark.asyncio
 async def test_call_hub_api_sends_bearer_token_and_returns_json(monkeypatch):
@@ -239,7 +246,8 @@ async def test_call_hub_api_sends_bearer_token_and_returns_json(monkeypatch):
 
 # phase3-14
 # Component: share_manager.call_hub_api
-# Purpose: Ensure non-JSON successful responses are returned as raw bytes/content instead
+# Purpose: Ensure non-JSON successful responses are returned as raw bytes/content
+# instead
 # of causing JSON decode errors.
 # Example pass case: upstream returns 200 with plain bytes and the helper returns those
 # bytes unchanged.
@@ -257,7 +265,8 @@ async def test_call_hub_api_returns_raw_content_for_non_json(monkeypatch):
 
 # phase3-15
 # Component: share_manager.call_hub_api
-# Purpose: Confirm that upstream failures are surfaced as HTTPException rather than being
+# Purpose: Confirm that upstream failures are surfaced as HTTPException rather than
+# being
 # silently converted into empty responses.
 # Example pass case: upstream returns 403 or 500 and the helper raises an exception with
 # the same status information.
@@ -317,7 +326,7 @@ async def test_call_hub_api_uses_custom_base_url_and_content(monkeypatch):
 # Example fail case: the endpoint rejects a valid non-shared server token or queries the
 # wrong Hub API resources.
 def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatch):
-    calls = []
+    calls: ClassVar[list[dict[str, Any]]] = []
 
     async def fake_call_hub_api(
         path, base_url=None, content=None, method="get", headers=None, token=None
@@ -519,7 +528,7 @@ def test_get_token_returns_404_when_access_token_missing(client, monkeypatch):
 # Example fail case: revoke is skipped on the first share or the forwarded share-code
 # request loses its payload.
 def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
-    calls = []
+    calls: ClassVar[list[dict[str, Any]]] = []
 
     async def fake_call_hub_api(
         path, base_url=None, content=None, method="get", headers=None, token=None
@@ -569,11 +578,12 @@ def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
 # Component: share_manager POST /share-codes/{owner}/{server_name}
 # Purpose: Confirm that once a server is already shared, the service does not revoke the
 # token again unnecessarily.
-# Example pass case: shares list is non-empty, no revoke call is made, and the share code
+# Example pass case: shares list is non-empty, no revoke call is made, and the share
+# code
 # is created directly.
 # Example fail case: every share-code request triggers an unnecessary revoke.
 def test_create_share_code_skips_revoke_when_server_already_shared(client, monkeypatch):
-    calls = []
+    calls: ClassVar[list[dict[str, Any]]] = []
 
     async def fake_call_hub_api(
         path, base_url=None, content=None, method="get", headers=None, token=None

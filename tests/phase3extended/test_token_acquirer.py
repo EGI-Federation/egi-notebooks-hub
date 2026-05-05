@@ -17,6 +17,7 @@ from tornado.web import HTTPError
 
 from egi_notebooks_hub.services import token_acquirer
 
+
 # The handler is written as a Tornado RequestHandler method. In tests we want to
 # call the underlying implementation directly with a lightweight fake handler
 # object instead of constructing a full Tornado application and request cycle.
@@ -415,10 +416,12 @@ def test_main_registers_service_prefix_and_fallback_route(monkeypatch):
     captured = {}
 
     class DummyApplication:
+
         def __init__(self, handlers):
             captured["handlers"] = handlers
 
     class DummyHTTPServer:
+
         def __init__(self, app):
             captured["app"] = app
 
@@ -426,6 +429,7 @@ def test_main_registers_service_prefix_and_fallback_route(monkeypatch):
             captured["listen"] = (port, host)
 
     class DummyLoop:
+
         def start(self):
             captured["started"] = True
 
@@ -459,10 +463,12 @@ def test_main_parses_hostname_and_port_from_service_url(monkeypatch):
     captured = {}
 
     class DummyApplication:
+
         def __init__(self, handlers):
             captured["handlers"] = handlers
 
     class DummyHTTPServer:
+
         def __init__(self, app):
             captured["app"] = app
 
@@ -470,6 +476,7 @@ def test_main_parses_hostname_and_port_from_service_url(monkeypatch):
             captured["listen"] = (port, host)
 
     class DummyLoop:
+
         def start(self):
             captured["started"] = True
 
