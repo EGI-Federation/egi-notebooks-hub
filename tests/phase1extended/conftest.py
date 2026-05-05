@@ -5,7 +5,10 @@
 import pytest
 from traitlets.config import Config
 
-from egi_notebooks_hub.egiauthenticator import EGICheckinAuthenticator, EOSCNodeAuthenticator
+from egi_notebooks_hub.egiauthenticator import (
+    EGICheckinAuthenticator,
+    EOSCNodeAuthenticator,
+)
 
 
 @pytest.fixture(autouse=True)

@@ -1,4 +1,3 @@
-
 """
 Phase 5 Kubernetes Pod smoke tests for EGISpawner-generated Kubernetes objects.
 
@@ -39,7 +38,9 @@ class AsyncCoreV1Api:
         )
 
     async def create_namespaced_secret(self, namespace, body):
-        return await self.core_v1.create_namespaced_secret(namespace=namespace, body=body)
+        return await self.core_v1.create_namespaced_secret(
+            namespace=namespace, body=body
+        )
 
     async def list_namespaced_persistent_volume_claim(self, namespace):
         return await self.core_v1.list_namespaced_persistent_volume_claim(
@@ -486,7 +487,9 @@ async def test_pod_uses_configure_secret_volumes_emptydir_mount(
         env=env,
     )
 
-    await wait_for_pod_phase(kube, namespace, "configured-emptydir-mount", {"Succeeded"})
+    await wait_for_pod_phase(
+        kube, namespace, "configured-emptydir-mount", {"Succeeded"}
+    )
     log = await kube.read_namespaced_pod_log("configured-emptydir-mount", namespace)
 
     assert "mounted=0" in log
@@ -513,7 +516,10 @@ async def test_pod_mounts_pvc_selected_by_configure_user_volumes(
 
     spawner = make_spawner(async_api, namespace)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
     await EGISpawner.configure_user_volumes(spawner)
 
@@ -555,7 +561,10 @@ async def test_pvc_selected_by_configure_user_volumes_persists_between_pods(
 
     spawner = make_spawner(async_api, namespace)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
     await EGISpawner.configure_user_volumes(spawner)
 
@@ -646,7 +655,9 @@ async def test_pod_reports_config_error_for_missing_secret(kube, namespace):
         )
     ]
 
-    await create_pod(kube, namespace, "missing-secret-ref", "echo should-not-run", env=env)
+    await create_pod(
+        kube, namespace, "missing-secret-ref", "echo should-not-run", env=env
+    )
 
     pod = await wait_for_container_waiting_reason(
         kube,
@@ -686,7 +697,10 @@ async def test_pod_uses_combined_spawner_secret_and_pvc_configuration(
         token_mount_path="/egi-secrets",
     )
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await EGISpawner.set_access_token(spawner, "abc", None)

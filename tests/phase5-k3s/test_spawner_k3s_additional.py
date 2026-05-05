@@ -1,4 +1,3 @@
-
 """
 Additional Phase 5 Kubernetes-backed tests for EGISpawner behavior.
 
@@ -54,7 +53,9 @@ class AsyncCoreV1Api:
         )
 
     async def create_namespaced_secret(self, namespace, body):
-        return await self.core_v1.create_namespaced_secret(namespace=namespace, body=body)
+        return await self.core_v1.create_namespaced_secret(
+            namespace=namespace, body=body
+        )
 
     async def list_namespaced_persistent_volume_claim(self, namespace):
         return await self.core_v1.list_namespaced_persistent_volume_claim(
@@ -347,7 +348,11 @@ async def test_configure_secret_volumes_preserves_unrelated_existing_entries(
     await EGISpawner.configure_secret_volumes(spawner)
 
     assert {"name": "config", "configMap": {"name": "settings"}} in spawner.volumes
-    assert {"name": "data", "mountPath": "/data", "readOnly": False} in spawner.volume_mounts
+    assert {
+        "name": "data",
+        "mountPath": "/data",
+        "readOnly": False,
+    } in spawner.volume_mounts
 
 
 # phase5-extra-7
@@ -468,7 +473,10 @@ async def test_pre_spawn_hook_runs_minimal_k8s_sequence(async_api, kube, namespa
 
     spawner = make_spawner(async_api, namespace, mount_secrets_volume=False)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
     spawner.load_user_options = AsyncMock()
 
@@ -509,7 +517,10 @@ async def test_configure_user_volumes_handles_pvc_without_annotations(
 
     spawner = make_spawner(async_api, namespace, username="alice")
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await EGISpawner.configure_user_volumes(spawner)

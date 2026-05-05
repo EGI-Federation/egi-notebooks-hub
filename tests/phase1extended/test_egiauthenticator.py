@@ -9,10 +9,16 @@ from egi_notebooks_hub.egiauthenticator import (
     EOSCNodeAuthenticator,
     JWTHandler,
 )
+
+
 # Retained helper for JWT-related tests in this module.
 def make_jwt(payload):
     import jwt
-    return jwt.encode(payload, "this-is-a-safely-long-test-secret-key", algorithm="HS256")
+
+    return jwt.encode(
+        payload, "this-is-a-safely-long-test-secret-key", algorithm="HS256"
+    )
+
 
 # phase1-1
 # Component: EGICheckinAuthenticator configuration defaults.
@@ -21,6 +27,7 @@ def make_jwt(payload):
 # Fail example: a refactor accidentally changes the default host string or leaves it unset.
 def test_checkin_host_default(authenticator):
     assert authenticator.checkin_host == "aai.egi.eu"
+
 
 # phase1-2
 # Component: EGICheckinAuthenticator configuration loading from environment variables.
@@ -32,6 +39,7 @@ def test_checkin_host_from_env(monkeypatch, auth_config):
     authenticator = EGICheckinAuthenticator(config=auth_config)
     assert authenticator.checkin_host == "checkin.dev.example"
 
+
 # phase1-3
 # Component: EGICheckinAuthenticator configuration precedence.
 # Purpose: Confirm that explicit traitlets config wins over the environment variable.
@@ -42,6 +50,7 @@ def test_explicit_checkin_host_overrides_env(monkeypatch, auth_config):
     auth_config.EGICheckinAuthenticator.checkin_host = "from-config.example"
     authenticator = EGICheckinAuthenticator(config=auth_config)
     assert authenticator.checkin_host == "from-config.example"
+
 
 # phase1-4
 # Component: EGICheckinAuthenticator OpenID Connect endpoint construction.
@@ -57,6 +66,7 @@ def test_default_urls_are_derived_from_checkin_host(auth_config):
     assert authenticator.userdata_url == f"{base}/userinfo"
     assert authenticator.introspect_url == f"{base}/token/introspect"
 
+
 # phase1-5
 # Component: EGICheckinAuthenticator scope validation.
 # Purpose: Verify that "openid" is automatically inserted when a custom scope omits it.
@@ -66,6 +76,7 @@ def test_scope_validator_inserts_openid_when_missing(auth_config):
     auth_config.EGICheckinAuthenticator.scope = ["profile", "offline_access"]
     authenticator = EGICheckinAuthenticator(config=auth_config)
     assert authenticator.scope == ["openid", "profile", "offline_access"]
+
 
 # phase1-6
 # Component: EGICheckinAuthenticator scope validation.
@@ -77,6 +88,7 @@ def test_scope_validator_keeps_existing_openid(auth_config):
     authenticator = EGICheckinAuthenticator(config=auth_config)
     assert authenticator.scope == ["openid", "profile", "offline_access"]
 
+
 # phase1-7
 # Component: EGICheckinAuthenticator scope validation.
 # Purpose: Make sure even an empty scope still results in the minimal valid OIDC scope.
@@ -87,6 +99,7 @@ def test_scope_validator_turns_empty_scope_into_openid_only(auth_config):
     authenticator = EGICheckinAuthenticator(config=auth_config)
     assert authenticator.scope == ["openid"]
 
+
 # phase1-8
 # Component: group management behavior in EGICheckinAuthenticator.
 # Purpose: Check that group synchronization is enabled by default.
@@ -94,6 +107,7 @@ def test_scope_validator_turns_empty_scope_into_openid_only(auth_config):
 # Fail example: a default change disables group management and downstream group-based logic stops working.
 def test_manage_groups_defaults_to_true(authenticator):
     assert authenticator.manage_groups is True
+
 
 # phase1-9
 # Component: username extraction from user info.
@@ -104,6 +118,7 @@ def test_username_claim_uses_preferred_username(authenticator):
     user_info = {"preferred_username": "alice", "client_id": "service-account-name"}
     assert authenticator.user_info_to_username(user_info) == "alice"
 
+
 # phase1-10
 # Component: username extraction fallback logic.
 # Purpose: Ensure that service or machine identities can still get a username when preferred_username is absent.
@@ -112,6 +127,7 @@ def test_username_claim_uses_preferred_username(authenticator):
 def test_username_claim_falls_back_to_client_id(authenticator):
     user_info = {"client_id": "service-account-name"}
     assert authenticator.user_info_to_username(user_info) == "service-account-name"
+
 
 # phase1-11
 # Component: configurable claim names for username extraction.
@@ -124,6 +140,7 @@ def test_username_claim_respects_custom_claim_names(auth_config):
     authenticator = EGICheckinAuthenticator(config=auth_config)
     user_info = {"custom_name": "renamed-user", "service_name": "fallback-service"}
     assert authenticator.user_info_to_username(user_info) == "renamed-user"
+
 
 # phase1-12
 # Component: anonymous username generation.
@@ -138,6 +155,7 @@ def test_username_claim_generates_stable_anonymous_name(authenticator):
     assert first.startswith(f"{authenticator.anonymous_username_prefix}-")
     assert len(first.split("-", 1)[1]) == 64
 
+
 # phase1-13
 # Component: anonymous username customization.
 # Purpose: Ensure that deployments can change the visible prefix used for anonymous accounts.
@@ -148,6 +166,7 @@ def test_username_claim_respects_custom_anonymous_prefix(auth_config):
     authenticator = EGICheckinAuthenticator(config=auth_config)
     username = authenticator.user_info_to_username({"sub": "no-visible-name"})
     assert username.startswith("guest-")
+
 
 # phase1-14
 # Component: anonymous-login policy enforcement.
@@ -160,6 +179,7 @@ def test_username_claim_returns_value_error_when_anonymous_disabled(auth_config)
     with pytest.raises(ValueError):
         authenticator.user_info_to_username({"sub": "missing-usable-claims"})
 
+
 # phase1-15
 # Component: primary group selection.
 # Purpose: Verify that no primary group is chosen when user groups do not intersect with allowed_groups.
@@ -168,6 +188,7 @@ def test_username_claim_returns_value_error_when_anonymous_disabled(auth_config)
 def test_get_primary_group_returns_none_when_no_groups_match(authenticator):
     assert authenticator.get_primary_group({"groups": ["other-vo"]}) is None
 
+
 # phase1-16
 # Component: primary group selection input handling.
 # Purpose: Ensure that missing group information is handled safely and simply returns None.
@@ -175,6 +196,7 @@ def test_get_primary_group_returns_none_when_no_groups_match(authenticator):
 # Fail example: the method crashes on users whose token does not contain a groups field.
 def test_get_primary_group_returns_none_when_groups_missing(authenticator):
     assert authenticator.get_primary_group({}) is None
+
 
 # phase1-17
 # Component: primary group selection.
@@ -186,7 +208,8 @@ def test_get_primary_group_uses_allowed_groups_iteration_order(auth_config):
     authenticator = EGICheckinAuthenticator(config=auth_config)
     user_info = {"groups": ["vo-1", "vo-2", "vo-3"]}
     assert authenticator.get_primary_group(user_info) == "vo-1"
-    
+
+
 # phase1-18
 # Component: auth model enrichment after token processing.
 # Purpose: Verify that the computed primary group is stored in auth_state for later consumers.
@@ -208,17 +231,29 @@ async def test_token_to_auth_model_adds_primary_group_to_auth_state(authenticato
         result = await authenticator._token_to_auth_model(token_info)
 
     assert result == base_model
-    
+
+
 # phase1-19
 # Component: auth model enrichment safeguards.
 # Purpose: Ensure that primary_group is only written when a meaningful matching group exists.
 # Pass example: a user with only unrelated groups keeps auth_state unchanged.
 # Fail example: the code adds a bogus primary_group key even when no eligible group exists.
-async def test_token_to_auth_model_leaves_auth_state_untouched_without_matching_group(authenticator):
-    base_model = {"name": "alice", "groups": ["other"], "auth_state": {"access_token": "token"}}
-    with patch.object(GenericOAuthenticator, "_token_to_auth_model", AsyncMock(return_value=base_model)):
+async def test_token_to_auth_model_leaves_auth_state_untouched_without_matching_group(
+    authenticator,
+):
+    base_model = {
+        "name": "alice",
+        "groups": ["other"],
+        "auth_state": {"access_token": "token"},
+    }
+    with patch.object(
+        GenericOAuthenticator,
+        "_token_to_auth_model",
+        AsyncMock(return_value=base_model),
+    ):
         result = await authenticator._token_to_auth_model({"access_token": "token"})
     assert "primary_group" not in result["auth_state"]
+
 
 # phase1-20
 # Component: token request parameter construction for JWT login.
@@ -228,19 +263,35 @@ async def test_token_to_auth_model_leaves_auth_state_untouched_without_matching_
 def test_build_access_tokens_request_params_marks_jwt_introspection(authenticator):
     data = {"access_token": "jwt-token", "token_type": "bearer"}
     params = authenticator.build_access_tokens_request_params(handler=None, data=data)
-    assert params == {"data": {"access_token": "jwt-token", "token_type": "bearer", "introspect": True}}
+    assert params == {
+        "data": {
+            "access_token": "jwt-token",
+            "token_type": "bearer",
+            "introspect": True,
+        }
+    }
+
 
 # phase1-21
 # Component: integration with GenericOAuthenticator defaults.
 # Purpose: Confirm that the EGI override only changes the custom path and otherwise delegates to the parent class.
 # Pass example: when data=None, the parent implementation is called exactly once.
 # Fail example: the override breaks standard OAuth behavior by bypassing the parent logic.
-def test_build_access_tokens_request_params_delegates_to_parent_without_data(authenticator):
-    with patch.object(GenericOAuthenticator, "build_access_tokens_request_params", return_value={"parent": True}) as patched:
-        params = authenticator.build_access_tokens_request_params(handler="handler", data=None)
+def test_build_access_tokens_request_params_delegates_to_parent_without_data(
+    authenticator,
+):
+    with patch.object(
+        GenericOAuthenticator,
+        "build_access_tokens_request_params",
+        return_value={"parent": True},
+    ) as patched:
+        params = authenticator.build_access_tokens_request_params(
+            handler="handler", data=None
+        )
     patched.assert_called_once_with("handler", None)
     assert params == {"parent": True}
-    
+
+
 # phase1-22
 # Component: token info extraction in JWT mode.
 # Purpose: Check that when JWT mode is active, the provided token data is already the token info source of truth.
@@ -250,7 +301,8 @@ async def test_get_token_info_returns_data_directly_for_jwt(authenticator):
     params = {"data": {"access_token": "jwt-token", "introspect": True}}
     token_info = await authenticator.get_token_info(handler=None, params=params)
     assert token_info == params["data"]
-    
+
+
 # phase1-23
 # Component: conversion from token info to user info in JWT mode.
 # Purpose: Verify that JWT login uses introspection and passes the token_info payload through to it.
@@ -258,12 +310,15 @@ async def test_get_token_info_returns_data_directly_for_jwt(authenticator):
 # Fail example: JWT tokens are treated like standard OAuth tokens and skip the custom introspection path.
 async def test_token_to_user_uses_introspection_for_jwt(authenticator):
     token_info = {"access_token": "jwt-token", "introspect": True}
+
     async def fake_introspect(data):
         return {"active": True, "sub": "user-1", "received": data}
+
     authenticator.introspect_token = fake_introspect
     user = await authenticator.token_to_user(token_info)
     assert user == {"active": True, "sub": "user-1", "received": token_info}
-    
+
+
 # phase1-24
 # Component: conversion from token info to user info in normal OAuth mode.
 # Purpose: Confirm that regular access tokens still use the parent class implementation.
@@ -271,11 +326,16 @@ async def test_token_to_user_uses_introspection_for_jwt(authenticator):
 # Fail example: the override hijacks all token flows, even the ones it should not customize.
 async def test_token_to_user_delegates_to_parent_for_regular_flow(authenticator):
     token_info = {"access_token": "oauth-token"}
-    with patch.object(GenericOAuthenticator, "token_to_user", AsyncMock(return_value={"sub": "user-1"})) as patched:
+    with patch.object(
+        GenericOAuthenticator,
+        "token_to_user",
+        AsyncMock(return_value={"sub": "user-1"}),
+    ) as patched:
         user = await authenticator.token_to_user(token_info)
     patched.assert_awaited_once_with(token_info)
     assert user == {"sub": "user-1"}
-    
+
+
 # phase1-25
 # Component: introspection input validation.
 # Purpose: Ensure introspect_token fails loudly if required token data is missing.
@@ -286,6 +346,7 @@ async def test_introspect_token_raises_if_access_token_missing(authenticator):
         await authenticator.introspect_token({"introspect": True})
     assert exc_info.value.status_code == 500
 
+
 # phase1-26
 # Component: authenticator HTTP route registration.
 # Purpose: Confirm that EGI-specific routes are appended without losing parent routes.
@@ -293,13 +354,16 @@ async def test_introspect_token_raises_if_access_token_missing(authenticator):
 # Fail example: custom routes are missing or the parent routes are accidentally discarded.
 def test_get_handlers_appends_custom_routes(authenticator):
     base_handlers = [(r"/oauth_callback", object())]
-    with patch.object(GenericOAuthenticator, "get_handlers", return_value=list(base_handlers)):
+    with patch.object(
+        GenericOAuthenticator, "get_handlers", return_value=list(base_handlers)
+    ):
         handlers = authenticator.get_handlers(app=None)
     routes = [route for route, _handler in handlers]
     assert "/oauth_callback" in routes
     assert "/jwt_login" in routes
     handler_map = dict(handlers)
     assert handler_map["/jwt_login"] is JWTHandler
+
 
 # phase1-27
 # Component: EOSCNodeAuthenticator personal project extraction.
@@ -310,6 +374,7 @@ def test_eosc_primary_group_returns_personal_project_name(eosc_authenticator):
     user_info = {"groups": ["urn:geant:eosc-federation.eu:group:pp-123456", "vo-1"]}
     assert eosc_authenticator.get_primary_group(user_info) == "pp-123456"
 
+
 # phase1-28
 # Component: EOSCNodeAuthenticator custom regex handling.
 # Purpose: Verify that custom regexes still work even when they do not define an explicit capturing group.
@@ -317,6 +382,7 @@ def test_eosc_primary_group_returns_personal_project_name(eosc_authenticator):
 # Fail example: custom patterns only work when they contain a capture group, reducing configurability.
 def test_eosc_primary_group_respects_custom_regex_without_capturing_group():
     from traitlets.config import Config
+
     c = Config()
     c.EOSCNodeAuthenticator = Config(
         {
@@ -326,19 +392,28 @@ def test_eosc_primary_group_respects_custom_regex_without_capturing_group():
         }
     )
     authenticator = EOSCNodeAuthenticator(config=c)
-    assert authenticator.get_primary_group({"groups": ["special-group"]}) == "special-group"
-    
+    assert (
+        authenticator.get_primary_group({"groups": ["special-group"]})
+        == "special-group"
+    )
+
+
 # phase1-29
 # Component: token info extraction in normal OAuth mode.
 # Purpose: Ensure standard flows still use the inherited GenericOAuthenticator behavior.
 # Pass example: with no JWT-style data present, the parent get_token_info is awaited.
 # Fail example: normal OAuth logins break because the EGI override never delegates back.
 async def test_get_token_info_delegates_to_parent_without_data(authenticator):
-    with patch.object(GenericOAuthenticator, "get_token_info", AsyncMock(return_value={"parent": True})) as patched:
+    with patch.object(
+        GenericOAuthenticator,
+        "get_token_info",
+        AsyncMock(return_value={"parent": True}),
+    ) as patched:
         token_info = await authenticator.get_token_info(handler="handler", params={})
     patched.assert_awaited_once_with("handler", {})
-    assert token_info == {"parent": True} 
-    
+    assert token_info == {"parent": True}
+
+
 # phase1-30
 # Component: EOSCNodeAuthenticator personal project detection.
 # Purpose: Ensure the EOSC-specific helper does not invent a project when none matches the regex.
@@ -346,8 +421,9 @@ async def test_get_token_info_delegates_to_parent_without_data(authenticator):
 # Fail example: unrelated groups are misclassified as personal project identifiers.
 def test_eosc_primary_group_returns_none_without_personal_project(eosc_authenticator):
     user_info = {"groups": ["vo-1", "vo-2"]}
-    assert eosc_authenticator.get_primary_group(user_info) is None  
-    
+    assert eosc_authenticator.get_primary_group(user_info) is None
+
+
 # phase1-31
 # Component: token introspection request generation.
 # Purpose: Verify the exact HTTP request sent to the introspection endpoint, including Basic Auth.
@@ -364,4 +440,4 @@ async def test_introspect_token_builds_expected_http_request(authenticator):
     assert kwargs["body"] == b"token=jwt-token"
     auth_header = kwargs["headers"]["Authorization"]
     expected_basic = base64.b64encode(b"test-client:test-secret").decode("utf8")
-    assert auth_header == f"Basic {expected_basic}"    
+    assert auth_header == f"Basic {expected_basic}"

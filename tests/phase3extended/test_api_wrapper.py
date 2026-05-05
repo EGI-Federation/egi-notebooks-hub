@@ -11,7 +11,9 @@ class DummyResponse:
         self._json_data = json_data
         self.content = content
         self.text = text or (
-            content.decode() if isinstance(content, (bytes, bytearray)) else str(content)
+            content.decode()
+            if isinstance(content, (bytes, bytearray))
+            else str(content)
         )
 
     def json(self):
@@ -27,7 +29,9 @@ class DummyResponse:
 
 
 class FakeAsyncClient:
-    login_response = DummyResponse(status_code=200, json_data={"token": "hub-user-token"})
+    login_response = DummyResponse(
+        status_code=200, json_data={"token": "hub-user-token"}
+    )
     forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
     calls = []
 
@@ -42,53 +46,104 @@ class FakeAsyncClient:
         return False
 
     async def get(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "get", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {"method": "get", "url": url, "content": content, "headers": headers or {}}
+        )
         if url.endswith(api_wrapper.settings.jwt_login_suffix):
             return FakeAsyncClient.login_response
         return FakeAsyncClient.forwarded_response
 
     async def post(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "post", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {"method": "post", "url": url, "content": content, "headers": headers or {}}
+        )
         return FakeAsyncClient.forwarded_response
 
     async def delete(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "delete", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {
+                "method": "delete",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+            }
+        )
         return FakeAsyncClient.forwarded_response
 
     async def patch(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "patch", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {
+                "method": "patch",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+            }
+        )
         return FakeAsyncClient.forwarded_response
 
     async def put(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "put", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {"method": "put", "url": url, "content": content, "headers": headers or {}}
+        )
         return FakeAsyncClient.forwarded_response
 
     async def options(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "options", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {
+                "method": "options",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+            }
+        )
         return FakeAsyncClient.forwarded_response
 
     async def head(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "head", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {"method": "head", "url": url, "content": content, "headers": headers or {}}
+        )
         return FakeAsyncClient.forwarded_response
 
     async def trace(self, url, content=None, headers=None):
-        FakeAsyncClient.calls.append({"method": "trace", "url": url, "content": content, "headers": headers or {}})
+        FakeAsyncClient.calls.append(
+            {
+                "method": "trace",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+            }
+        )
         return FakeAsyncClient.forwarded_response
+
 
 @pytest.fixture
 def client(monkeypatch):
     FakeAsyncClient.calls = []
-    FakeAsyncClient.login_response = DummyResponse(status_code=200, json_data={"token": "hub-user-token"})
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
+    FakeAsyncClient.login_response = DummyResponse(
+        status_code=200, json_data={"token": "hub-user-token"}
+    )
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"ok": True}
+    )
     monkeypatch.setattr(api_wrapper.httpx, "AsyncClient", FakeAsyncClient)
     return TestClient(api_wrapper.app)
 
 
 def forwarded_call():
     for call in reversed(FakeAsyncClient.calls):
-        if call.get("method") in {"get", "post", "delete", "patch", "put", "options", "head", "trace"} and not call["url"].endswith(api_wrapper.settings.jwt_login_suffix):
+        if call.get("method") in {
+            "get",
+            "post",
+            "delete",
+            "patch",
+            "put",
+            "options",
+            "head",
+            "trace",
+        } and not call["url"].endswith(api_wrapper.settings.jwt_login_suffix):
             return call
     raise AssertionError("No forwarded call recorded")
+
 
 # phase3-27
 # Component: api_wrapper generic forwarding endpoint
@@ -116,6 +171,7 @@ def test_wrapper_exchanges_bearer_for_hub_token(client):
     assert upstream_call["headers"]["authorization"] == "token hub-user-token"
     assert upstream_call["headers"]["x-test"] == "1"
 
+
 # phase3-28
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Document the fallback behavior when JWT login explicitly denies access with
@@ -135,6 +191,7 @@ def test_wrapper_passes_request_through_when_jwt_login_returns_403(client):
     assert response.json() == {"ok": True}
     assert "authorization" not in forwarded_call()["headers"]
 
+
 # phase3-29
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Ensure that unexpected jwt_login failures (for example 500) are surfaced to the
@@ -151,6 +208,7 @@ def test_wrapper_returns_error_for_non_403_login_failure(client):
     assert response.status_code == 500
     assert "boom" in response.text
 
+
 # phase3-30
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify that requests without Authorization do not trigger a jwt_login attempt.
@@ -162,8 +220,13 @@ def test_wrapper_skips_login_when_authorization_header_missing(client):
 
     assert response.status_code == 200
     assert response.json() == {"ok": True}
-    assert all(not c.get("url", "").endswith(api_wrapper.settings.jwt_login_suffix) for c in FakeAsyncClient.calls if c.get("method") == "get")
+    assert all(
+        not c.get("url", "").endswith(api_wrapper.settings.jwt_login_suffix)
+        for c in FakeAsyncClient.calls
+        if c.get("method") == "get"
+    )
     assert forwarded_call()["headers"]["x-test"] == "1"
+
 
 # phase3-31
 # Component: api_wrapper generic forwarding endpoint
@@ -178,8 +241,13 @@ def test_wrapper_skips_login_for_non_bearer_authorization(client):
     )
 
     assert response.status_code == 200
-    assert all(not c.get("url", "").endswith(api_wrapper.settings.jwt_login_suffix) for c in FakeAsyncClient.calls if c.get("method") == "get")
+    assert all(
+        not c.get("url", "").endswith(api_wrapper.settings.jwt_login_suffix)
+        for c in FakeAsyncClient.calls
+        if c.get("method") == "get"
+    )
     assert "authorization" not in forwarded_call()["headers"]
+
 
 # phase3-32
 # Component: api_wrapper generic forwarding endpoint
@@ -187,7 +255,9 @@ def test_wrapper_skips_login_for_non_bearer_authorization(client):
 # before the request is forwarded upstream.
 # Example pass case: X-Other remains, Authorization disappears.
 # Example fail case: the forbidden bearer token leaks to the upstream Hub API.
-def test_wrapper_strips_original_auth_header_before_forwarding_when_login_fails_403(client):
+def test_wrapper_strips_original_auth_header_before_forwarding_when_login_fails_403(
+    client,
+):
     FakeAsyncClient.login_response = DummyResponse(status_code=403, text="forbidden")
     response = client.get(
         "/services/jwt/users/alice",
@@ -199,6 +269,7 @@ def test_wrapper_strips_original_auth_header_before_forwarding_when_login_fails_
     assert "authorization" not in upstream_call["headers"]
     assert upstream_call["headers"]["x-other"] == "2"
 
+
 # phase3-33
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Ensure PATCH requests keep their method, body, and custom headers during the
@@ -208,10 +279,16 @@ def test_wrapper_strips_original_auth_header_before_forwarding_when_login_fails_
 # Example fail case: PATCH is converted to another method, body is lost, or headers are
 # dropped.
 def test_wrapper_preserves_method_body_and_headers_for_patch(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"patched": True})
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"patched": True}
+    )
     response = client.patch(
         "/services/jwt/hub/api/shares/alice/server1",
-        headers={"Authorization": "Bearer jwt-token", "Content-Type": "application/json", "X-Test": "1"},
+        headers={
+            "Authorization": "Bearer jwt-token",
+            "Content-Type": "application/json",
+            "X-Test": "1",
+        },
         content=b'{"enabled": true}',
     )
 
@@ -223,6 +300,7 @@ def test_wrapper_preserves_method_body_and_headers_for_patch(client):
     assert upstream_call["headers"]["authorization"] == "token hub-user-token"
     assert upstream_call["headers"]["x-test"] == "1"
 
+
 # phase3-34
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify that PUT requests are forwarded with the correct method and payload.
@@ -230,7 +308,9 @@ def test_wrapper_preserves_method_body_and_headers_for_patch(client):
 # Example fail case: method mapping is incomplete and PUT either fails or is sent as
 # POST/GET.
 def test_wrapper_forwards_put_method(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"put": True})
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"put": True}
+    )
     response = client.put(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -242,13 +322,16 @@ def test_wrapper_forwards_put_method(client):
     assert forwarded_call()["method"] == "put"
     assert forwarded_call()["content"] == b"payload"
 
+
 # phase3-35
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify forwarding support for DELETE requests.
 # Example pass case: a DELETE request is forwarded as DELETE.
 # Example fail case: the wrapper lacks delete support or forwards with the wrong method.
 def test_wrapper_forwards_delete_method(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"deleted": True})
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"deleted": True}
+    )
     response = client.delete(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -258,13 +341,16 @@ def test_wrapper_forwards_delete_method(client):
     assert response.json() == {"deleted": True}
     assert forwarded_call()["method"] == "delete"
 
+
 # phase3-36
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify forwarding support for OPTIONS requests.
 # Example pass case: an OPTIONS request is forwarded as OPTIONS.
 # Example fail case: preflight-style requests are blocked or mapped incorrectly.
 def test_wrapper_forwards_options_method(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"options": True})
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"options": True}
+    )
     response = client.options(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -274,6 +360,7 @@ def test_wrapper_forwards_options_method(client):
     assert response.json() == {"options": True}
     assert forwarded_call()["method"] == "options"
 
+
 # phase3-37
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify forwarding support for HEAD requests.
@@ -281,7 +368,9 @@ def test_wrapper_forwards_options_method(client):
 # Example fail case: the wrapper tries to parse a HEAD body like JSON or routes it via
 # GET instead.
 def test_wrapper_forwards_head_method(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, content=b"", text="")
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, content=b"", text=""
+    )
     response = client.head(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -290,13 +379,16 @@ def test_wrapper_forwards_head_method(client):
     assert response.status_code == 200
     assert forwarded_call()["method"] == "head"
 
+
 # phase3-38
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Verify forwarding support for TRACE requests.
 # Example pass case: TRACE is sent upstream as TRACE and the JSON response is returned.
 # Example fail case: unusual HTTP verbs are not supported and TRACE fails unexpectedly.
 def test_wrapper_forwards_trace_method(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"trace": True})
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"trace": True}
+    )
     response = client.request(
         "TRACE",
         "/services/jwt/users/alice",
@@ -307,6 +399,7 @@ def test_wrapper_forwards_trace_method(client):
     assert response.json() == {"trace": True}
     assert forwarded_call()["method"] == "trace"
 
+
 # phase3-39
 # Component: api_wrapper generic forwarding endpoint
 # Purpose: Ensure successful upstream responses that are not JSON are returned in a raw
@@ -315,7 +408,9 @@ def test_wrapper_forwards_trace_method(client):
 # Example fail case: the wrapper always forces JSON decoding and breaks on binary/plain
 # text content.
 def test_wrapper_returns_raw_content_when_upstream_is_not_json(client):
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, content=b"raw-response")
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, content=b"raw-response"
+    )
     response = client.get(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -323,6 +418,7 @@ def test_wrapper_returns_raw_content_when_upstream_is_not_json(client):
 
     assert response.status_code == 200
     assert response.json() == "raw-response"
+
 
 # phase3-40
 # Component: api_wrapper HTTP client creation
@@ -337,7 +433,11 @@ def test_wrapper_uses_configured_timeout_for_upstream_client(client):
     )
 
     enter_events = [c for c in FakeAsyncClient.calls if c.get("event") == "enter"]
-    assert any(e["kwargs"].get("timeout") == api_wrapper.settings.api_timeout for e in enter_events)
+    assert any(
+        e["kwargs"].get("timeout") == api_wrapper.settings.api_timeout
+        for e in enter_events
+    )
+
 
 # phase3-41
 # Component: api_wrapper path rewriting
@@ -354,4 +454,6 @@ def test_wrapper_removes_service_prefix_from_path_before_forwarding(client):
     )
 
     assert response.status_code == 200
-    assert forwarded_call()["url"] == "http://localhost:8000/hub/api/shares/alice/server1"
+    assert (
+        forwarded_call()["url"] == "http://localhost:8000/hub/api/shares/alice/server1"
+    )

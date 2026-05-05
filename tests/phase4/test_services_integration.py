@@ -35,12 +35,18 @@ class DummyResponse:
         self.status_code = status_code
         self._json_data = json_data
         self.content = content
-        self.text = content.decode("utf-8", "replace") if isinstance(content, bytes) else str(content)
+        self.text = (
+            content.decode("utf-8", "replace")
+            if isinstance(content, bytes)
+            else str(content)
+        )
 
     def raise_for_status(self):
         if self.status_code >= 400:
             request = httpx.Request("GET", "http://dummy")
-            response = httpx.Response(self.status_code, request=request, content=self.content)
+            response = httpx.Response(
+                self.status_code, request=request, content=self.content
+            )
             raise httpx.HTTPStatusError("error", request=request, response=response)
 
     def json(self):
@@ -62,7 +68,9 @@ class FakeAsyncClient:
     """
 
     calls = []
-    login_response = DummyResponse(status_code=200, json_data={"token": "hub-user-token"})
+    login_response = DummyResponse(
+        status_code=200, json_data={"token": "hub-user-token"}
+    )
     forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
 
     def __init__(self, *args, **kwargs):
@@ -77,7 +85,9 @@ class FakeAsyncClient:
     @classmethod
     def reset(cls):
         cls.calls = []
-        cls.login_response = DummyResponse(status_code=200, json_data={"token": "hub-user-token"})
+        cls.login_response = DummyResponse(
+            status_code=200, json_data={"token": "hub-user-token"}
+        )
         cls.forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
 
     async def get(self, url, headers=None, **kwargs):
@@ -90,13 +100,25 @@ class FakeAsyncClient:
 
     async def post(self, url, content=None, headers=None, **kwargs):
         FakeAsyncClient.calls.append(
-            {"method": "POST", "url": url, "content": content, "headers": headers or {}, "kwargs": kwargs}
+            {
+                "method": "POST",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+                "kwargs": kwargs,
+            }
         )
         return FakeAsyncClient.forwarded_response
 
     async def put(self, url, content=None, headers=None, **kwargs):
         FakeAsyncClient.calls.append(
-            {"method": "PUT", "url": url, "content": content, "headers": headers or {}, "kwargs": kwargs}
+            {
+                "method": "PUT",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+                "kwargs": kwargs,
+            }
         )
         return FakeAsyncClient.forwarded_response
 
@@ -108,13 +130,24 @@ class FakeAsyncClient:
 
     async def patch(self, url, content=None, headers=None, **kwargs):
         FakeAsyncClient.calls.append(
-            {"method": "PATCH", "url": url, "content": content, "headers": headers or {}, "kwargs": kwargs}
+            {
+                "method": "PATCH",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+                "kwargs": kwargs,
+            }
         )
         return FakeAsyncClient.forwarded_response
 
     async def options(self, url, headers=None, **kwargs):
         FakeAsyncClient.calls.append(
-            {"method": "OPTIONS", "url": url, "headers": headers or {}, "kwargs": kwargs}
+            {
+                "method": "OPTIONS",
+                "url": url,
+                "headers": headers or {},
+                "kwargs": kwargs,
+            }
         )
         return FakeAsyncClient.forwarded_response
 
@@ -216,7 +249,9 @@ def test_wrapper_falls_back_to_plain_forwarding_on_403_from_jwt_login(api_client
     - wrapper does not fail hard
     - wrapper forwards request without injected Hub token
     """
-    FakeAsyncClient.login_response = DummyResponse(status_code=403, content=b"forbidden")
+    FakeAsyncClient.login_response = DummyResponse(
+        status_code=403, content=b"forbidden"
+    )
     response = api_client.get(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -246,7 +281,9 @@ def test_wrapper_returns_error_for_non_403_jwt_login_failure(api_client):
     - wrapper must propagate the failure as an HTTP error instead of silently
       forwarding the request
     """
-    FakeAsyncClient.login_response = DummyResponse(status_code=500, content=b"hub login failed")
+    FakeAsyncClient.login_response = DummyResponse(
+        status_code=500, content=b"hub login failed"
+    )
     response = api_client.get(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -274,10 +311,15 @@ def test_wrapper_forwards_post_body_after_successful_login(api_client):
     - wrapper authenticates through jwt_login
     - then forwards a POST request with its original body intact
     """
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, json_data={"accepted": True})
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, json_data={"accepted": True}
+    )
     response = api_client.post(
         "/services/jwt/users/alice",
-        headers={"Authorization": "Bearer jwt-token", "Content-Type": "application/json"},
+        headers={
+            "Authorization": "Bearer jwt-token",
+            "Content-Type": "application/json",
+        },
         json={"hello": "world"},
     )
 
@@ -286,7 +328,10 @@ def test_wrapper_forwards_post_body_after_successful_login(api_client):
     upstream_call = forwarded_call()
     assert upstream_call["method"] == "POST"
     assert upstream_call["url"] == "http://localhost:8000/hub/api/users/alice"
-    assert b'"hello":"world"' in upstream_call["content"] or b'"hello": "world"' in upstream_call["content"]
+    assert (
+        b'"hello":"world"' in upstream_call["content"]
+        or b'"hello": "world"' in upstream_call["content"]
+    )
 
 
 # phase4-services-5
@@ -307,7 +352,9 @@ def test_wrapper_returns_json_string_for_non_json_upstream_payload(api_client):
     if upstream content is not JSON, FastAPI serializes the returned bytes-like
     fallback as a JSON string.
     """
-    FakeAsyncClient.forwarded_response = DummyResponse(status_code=200, content=b"raw-response")
+    FakeAsyncClient.forwarded_response = DummyResponse(
+        status_code=200, content=b"raw-response"
+    )
     response = api_client.get(
         "/services/jwt/users/alice",
         headers={"Authorization": "Bearer jwt-token"},
@@ -366,8 +413,12 @@ def make_token_handler(token_info=None, user_data=None, current_user=None):
     headers = []
     handler = SimpleNamespace()
     handler.hub_auth = RecordingHubAuth(token_info=token_info, user_data=user_data)
-    handler.get_current_user = Mock(return_value=current_user or {"name": "alice", "token_id": "tok-1"})
-    handler.set_header = Mock(side_effect=lambda name, value: headers.append((name, value)))
+    handler.get_current_user = Mock(
+        return_value=current_user or {"name": "alice", "token_id": "tok-1"}
+    )
+    handler.set_header = Mock(
+        side_effect=lambda name, value: headers.append((name, value))
+    )
     handler.write = Mock(side_effect=lambda payload: writes.append(payload))
     handler._writes = writes
     handler._headers = headers
@@ -416,7 +467,10 @@ def test_token_acquirer_full_flow_returns_access_token_json():
 
     GET_IMPL(handler)
 
-    assert handler.hub_auth.calls[0]["url"] == "http://hub.example/api/users/alice/tokens/tok-1"
+    assert (
+        handler.hub_auth.calls[0]["url"]
+        == "http://hub.example/api/users/alice/tokens/tok-1"
+    )
     assert handler.hub_auth.calls[1]["url"] == "http://hub.example/api/users/alice"
     assert json.loads(handler._writes[0]) == {"access_token": "egi-access-token"}
 

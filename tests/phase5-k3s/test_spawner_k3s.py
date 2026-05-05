@@ -1,4 +1,3 @@
-
 """
 Phase 5 Kubernetes-backed tests for EGI spawner-related behavior.
 
@@ -50,10 +49,14 @@ class AsyncCoreV1Api:
         )
 
     async def create_namespaced_secret(self, namespace, body):
-        return await self.core_v1.create_namespaced_secret(namespace=namespace, body=body)
+        return await self.core_v1.create_namespaced_secret(
+            namespace=namespace, body=body
+        )
 
     async def list_namespaced_persistent_volume_claim(self, namespace):
-        return await self.core_v1.list_namespaced_persistent_volume_claim(namespace=namespace)
+        return await self.core_v1.list_namespaced_persistent_volume_claim(
+            namespace=namespace
+        )
 
 
 @pytest_asyncio.fixture
@@ -180,7 +183,9 @@ async def test_update_secret_creates_real_secret_in_k3s(async_api, kube, namespa
 
     await EGISpawner._update_secret(spawner, {"access_token": "abc", "id_token": "xyz"})
 
-    secret = await kube.read_namespaced_secret(name="access-token-alice", namespace=namespace)
+    secret = await kube.read_namespaced_secret(
+        name="access-token-alice", namespace=namespace
+    )
     assert secret.metadata.name == "access-token-alice"
     assert secret.data["access_token"] == "YWJj"
     assert secret.data["id_token"] == "eHl6"
@@ -205,7 +210,9 @@ async def test_update_secret_updates_existing_secret_in_k3s(async_api, kube, nam
     await kube.create_namespaced_secret(
         namespace=namespace,
         body=client.V1Secret(
-            metadata=client.V1ObjectMeta(name="access-token-alice", namespace=namespace),
+            metadata=client.V1ObjectMeta(
+                name="access-token-alice", namespace=namespace
+            ),
             type="Opaque",
             data={"old": "b2xk", "empty": ""},
         ),
@@ -214,7 +221,9 @@ async def test_update_secret_updates_existing_secret_in_k3s(async_api, kube, nam
 
     await EGISpawner._update_secret(spawner, {"access_token": "abc", "id_token": None})
 
-    secret = await kube.read_namespaced_secret(name="access-token-alice", namespace=namespace)
+    secret = await kube.read_namespaced_secret(
+        name="access-token-alice", namespace=namespace
+    )
     assert secret.data["old"] == "b2xk"
     assert secret.data["access_token"] == "YWJj"
     assert "id_token" not in (secret.data or {})
@@ -235,7 +244,9 @@ async def test_update_secret_updates_existing_secret_in_k3s(async_api, kube, nam
 # - the method fails to query PVCs, leaves the placeholder claim unchanged, or
 #   rewrites to the wrong PVC.
 @pytest.mark.asyncio
-async def test_configure_user_volumes_rewrites_claim_name_using_real_pvc(async_api, kube, namespace):
+async def test_configure_user_volumes_rewrites_claim_name_using_real_pvc(
+    async_api, kube, namespace
+):
     await kube.create_namespaced_persistent_volume_claim(
         namespace=namespace,
         body=client.V1PersistentVolumeClaim(
@@ -246,7 +257,9 @@ async def test_configure_user_volumes_rewrites_claim_name_using_real_pvc(async_a
             ),
             spec=client.V1PersistentVolumeClaimSpec(
                 access_modes=["ReadWriteOnce"],
-                resources=client.V1VolumeResourceRequirements(requests={"storage": "1Gi"}),
+                resources=client.V1VolumeResourceRequirements(
+                    requests={"storage": "1Gi"}
+                ),
             ),
         ),
     )
@@ -281,7 +294,9 @@ async def test_update_secret_removes_empty_existing_keys(async_api, kube, namesp
     await kube.create_namespaced_secret(
         namespace=namespace,
         body=client.V1Secret(
-            metadata=client.V1ObjectMeta(name="access-token-alice", namespace=namespace),
+            metadata=client.V1ObjectMeta(
+                name="access-token-alice", namespace=namespace
+            ),
             type="Opaque",
             data={"keep": "a2VlcA==", "empty": ""},
         ),
@@ -290,7 +305,9 @@ async def test_update_secret_removes_empty_existing_keys(async_api, kube, namesp
 
     await EGISpawner._update_secret(spawner, {})
 
-    secret = await kube.read_namespaced_secret(name="access-token-alice", namespace=namespace)
+    secret = await kube.read_namespaced_secret(
+        name="access-token-alice", namespace=namespace
+    )
     assert secret.data["keep"] == "a2VlcA=="
     assert "empty" not in (secret.data or {})
 
@@ -306,11 +323,15 @@ async def test_update_secret_removes_empty_existing_keys(async_api, kube, namesp
 # Example fail:
 # - the old token remains, duplicate keys appear, or unrelated keys disappear.
 @pytest.mark.asyncio
-async def test_update_secret_overwrites_existing_access_token(async_api, kube, namespace):
+async def test_update_secret_overwrites_existing_access_token(
+    async_api, kube, namespace
+):
     await kube.create_namespaced_secret(
         namespace=namespace,
         body=client.V1Secret(
-            metadata=client.V1ObjectMeta(name="access-token-alice", namespace=namespace),
+            metadata=client.V1ObjectMeta(
+                name="access-token-alice", namespace=namespace
+            ),
             type="Opaque",
             data={"access_token": "b2xk", "refresh_token": "cmVm"},
         ),
@@ -319,7 +340,9 @@ async def test_update_secret_overwrites_existing_access_token(async_api, kube, n
 
     await EGISpawner._update_secret(spawner, {"access_token": "new"})
 
-    secret = await kube.read_namespaced_secret(name="access-token-alice", namespace=namespace)
+    secret = await kube.read_namespaced_secret(
+        name="access-token-alice", namespace=namespace
+    )
     assert secret.data["access_token"] == "bmV3"
     assert secret.data["refresh_token"] == "cmVm"
 
@@ -335,12 +358,16 @@ async def test_update_secret_overwrites_existing_access_token(async_api, kube, n
 # Example fail:
 # - the method writes into the wrong Secret name or wrong namespace.
 @pytest.mark.asyncio
-async def test_update_secret_creates_user_specific_secret_name(async_api, kube, namespace):
+async def test_update_secret_creates_user_specific_secret_name(
+    async_api, kube, namespace
+):
     spawner = make_lightweight_spawner(async_api, namespace, username="bob")
 
     await EGISpawner._update_secret(spawner, {"access_token": "bob-token"})
 
-    secret = await kube.read_namespaced_secret(name="access-token-bob", namespace=namespace)
+    secret = await kube.read_namespaced_secret(
+        name="access-token-bob", namespace=namespace
+    )
     assert secret.metadata.name == "access-token-bob"
     assert secret.data["access_token"] == "Ym9iLXRva2Vu"
 
@@ -357,7 +384,9 @@ async def test_update_secret_creates_user_specific_secret_name(async_api, kube, 
 # - the method crashes, rewrites to bob's PVC, or leaves the placeholder unchanged
 #   despite the current implementation's fallback behavior.
 @pytest.mark.asyncio
-async def test_configure_user_volumes_falls_back_to_default_pvc_name_without_match(async_api, kube, namespace):
+async def test_configure_user_volumes_falls_back_to_default_pvc_name_without_match(
+    async_api, kube, namespace
+):
     await kube.create_namespaced_persistent_volume_claim(
         namespace=namespace,
         body=client.V1PersistentVolumeClaim(
@@ -368,14 +397,19 @@ async def test_configure_user_volumes_falls_back_to_default_pvc_name_without_mat
             ),
             spec=client.V1PersistentVolumeClaimSpec(
                 access_modes=["ReadWriteOnce"],
-                resources=client.V1VolumeResourceRequirements(requests={"storage": "1Gi"}),
+                resources=client.V1VolumeResourceRequirements(
+                    requests={"storage": "1Gi"}
+                ),
             ),
         ),
     )
 
     spawner = make_lightweight_spawner(async_api, namespace, username="alice")
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await EGISpawner.configure_user_volumes(spawner)
@@ -396,7 +430,9 @@ async def test_configure_user_volumes_falls_back_to_default_pvc_name_without_mat
 # Example fail:
 # - the method rewrites every volume blindly or mutates unrelated volume definitions.
 @pytest.mark.asyncio
-async def test_configure_user_volumes_rewrites_only_claim_prefixed_volumes(async_api, kube, namespace):
+async def test_configure_user_volumes_rewrites_only_claim_prefixed_volumes(
+    async_api, kube, namespace
+):
     await kube.create_namespaced_persistent_volume_claim(
         namespace=namespace,
         body=client.V1PersistentVolumeClaim(
@@ -407,22 +443,32 @@ async def test_configure_user_volumes_rewrites_only_claim_prefixed_volumes(async
             ),
             spec=client.V1PersistentVolumeClaimSpec(
                 access_modes=["ReadWriteOnce"],
-                resources=client.V1VolumeResourceRequirements(requests={"storage": "1Gi"}),
+                resources=client.V1VolumeResourceRequirements(
+                    requests={"storage": "1Gi"}
+                ),
             ),
         ),
     )
 
     spawner = make_lightweight_spawner(async_api, namespace, username="alice")
     spawner.volumes = [
-        {"name": "rewrite-me", "persistentVolumeClaim": {"claimName": "claim-placeholder"}},
-        {"name": "leave-static", "persistentVolumeClaim": {"claimName": "workspace-static"}},
+        {
+            "name": "rewrite-me",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        },
+        {
+            "name": "leave-static",
+            "persistentVolumeClaim": {"claimName": "workspace-static"},
+        },
         {"name": "config", "configMap": {"name": "settings"}},
     ]
 
     await EGISpawner.configure_user_volumes(spawner)
 
     assert spawner.volumes[0]["persistentVolumeClaim"]["claimName"] == "claim-alice"
-    assert spawner.volumes[1]["persistentVolumeClaim"]["claimName"] == "workspace-static"
+    assert (
+        spawner.volumes[1]["persistentVolumeClaim"]["claimName"] == "workspace-static"
+    )
     assert spawner.volumes[2]["configMap"]["name"] == "settings"
 
 
@@ -439,7 +485,9 @@ async def test_configure_user_volumes_rewrites_only_claim_prefixed_volumes(async
 # Example fail:
 # - the method selects the wrong user's PVC or ignores the annotations entirely.
 @pytest.mark.asyncio
-async def test_configure_user_volumes_selects_matching_user_pvc_among_multiple(async_api, kube, namespace):
+async def test_configure_user_volumes_selects_matching_user_pvc_among_multiple(
+    async_api, kube, namespace
+):
     for pvc_name, username in [("claim-bob", "bob"), ("claim-alice", "alice")]:
         await kube.create_namespaced_persistent_volume_claim(
             namespace=namespace,
@@ -451,14 +499,19 @@ async def test_configure_user_volumes_selects_matching_user_pvc_among_multiple(a
                 ),
                 spec=client.V1PersistentVolumeClaimSpec(
                     access_modes=["ReadWriteOnce"],
-                    resources=client.V1VolumeResourceRequirements(requests={"storage": "1Gi"}),
+                    resources=client.V1VolumeResourceRequirements(
+                        requests={"storage": "1Gi"}
+                    ),
                 ),
             ),
         )
 
     spawner = make_lightweight_spawner(async_api, namespace, username="alice")
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await EGISpawner.configure_user_volumes(spawner)

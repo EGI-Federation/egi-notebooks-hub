@@ -18,11 +18,16 @@ from tornado.web import HTTPError
 
 from egi_notebooks_hub.services import token_acquirer
 
-
 # The handler is written as a Tornado RequestHandler method. In tests we want to
 # call the underlying implementation directly with a lightweight fake handler
 # object instead of constructing a full Tornado application and request cycle.
-GET_IMPL = getattr(token_acquirer.TokenAcquirerHandler.get, "__wrapped__", token_acquirer.TokenAcquirerHandler.get)
+GET_IMPL = getattr(
+    token_acquirer.TokenAcquirerHandler.get,
+    "__wrapped__",
+    token_acquirer.TokenAcquirerHandler.get,
+)
+
+
 class RecordingHubAuth:
     """
     Small fake replacement for the Hub auth object used by TokenAcquirerHandler.
@@ -80,8 +85,12 @@ def make_handler(token_info=None, user_data=None, current_user=None):
 
     handler = SimpleNamespace()
     handler.hub_auth = RecordingHubAuth(token_info=token_info, user_data=user_data)
-    handler.get_current_user = Mock(return_value=current_user or {"name": "alice", "token_id": "tok-1"})
-    handler.set_header = Mock(side_effect=lambda name, value: headers.append((name, value)))
+    handler.get_current_user = Mock(
+        return_value=current_user or {"name": "alice", "token_id": "tok-1"}
+    )
+    handler.set_header = Mock(
+        side_effect=lambda name, value: headers.append((name, value))
+    )
     handler.write = Mock(side_effect=lambda payload: writes.append(payload))
     handler._writes = writes
     handler._headers = headers
@@ -115,12 +124,19 @@ def test_get_returns_access_token_json_for_authorized_server_token():
 
     assert handler.get_current_user.called
     assert handler.hub_auth.calls[0]["method"] == "GET"
-    assert handler.hub_auth.calls[0]["url"] == "http://hub.example/api/users/alice/tokens/tok-1"
-    assert handler.hub_auth.calls[0]["headers"] == {"Authorization": "token hub-api-token"}
+    assert (
+        handler.hub_auth.calls[0]["url"]
+        == "http://hub.example/api/users/alice/tokens/tok-1"
+    )
+    assert handler.hub_auth.calls[0]["headers"] == {
+        "Authorization": "token hub-api-token"
+    }
 
     assert handler.hub_auth.calls[1]["method"] == "GET"
     assert handler.hub_auth.calls[1]["url"] == "http://hub.example/api/users/alice"
-    assert handler.hub_auth.calls[1]["headers"] == {"Authorization": "token hub-api-token"}
+    assert handler.hub_auth.calls[1]["headers"] == {
+        "Authorization": "token hub-api-token"
+    }
 
     handler.set_header.assert_called_once_with("content-type", "application/json")
     handler.write.assert_called_once()
@@ -295,7 +311,10 @@ def test_get_uses_name_and_token_id_from_current_user():
 
     GET_IMPL(handler)
 
-    assert handler.hub_auth.calls[0]["url"] == "http://hub.example/api/users/bob/tokens/tok-9"
+    assert (
+        handler.hub_auth.calls[0]["url"]
+        == "http://hub.example/api/users/bob/tokens/tok-9"
+    )
     assert handler.hub_auth.calls[1]["url"] == "http://hub.example/api/users/bob"
 
 

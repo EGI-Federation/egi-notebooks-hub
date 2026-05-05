@@ -1,4 +1,3 @@
-
 """
 Phase 5 Kubernetes Pod edge and validation tests for EGISpawner-generated objects.
 
@@ -40,7 +39,9 @@ class AsyncCoreV1Api:
         )
 
     async def create_namespaced_secret(self, namespace, body):
-        return await self.core_v1.create_namespaced_secret(namespace=namespace, body=body)
+        return await self.core_v1.create_namespaced_secret(
+            namespace=namespace, body=body
+        )
 
     async def list_namespaced_persistent_volume_claim(self, namespace):
         return await self.core_v1.list_namespaced_persistent_volume_claim(
@@ -374,7 +375,9 @@ async def test_pod_reports_config_error_for_missing_secret_key(kube, namespace):
         )
     ]
 
-    await create_pod(kube, namespace, "missing-secret-key", "echo $ACCESS_TOKEN", env=env)
+    await create_pod(
+        kube, namespace, "missing-secret-key", "echo $ACCESS_TOKEN", env=env
+    )
 
     pod = await wait_for_container_waiting_reason(
         kube,
@@ -437,9 +440,7 @@ async def test_secret_mount_is_read_only_inside_pod(async_api, kube, namespace):
 # Example fail:
 # - generated emptyDir volume is invalid or read-only.
 @pytest.mark.asyncio
-async def test_emptydir_secret_mount_is_writable_inside_pod(
-    async_api, kube, namespace
-):
+async def test_emptydir_secret_mount_is_writable_inside_pod(async_api, kube, namespace):
     spawner = make_spawner(async_api, namespace, mount_secrets_volume=False)
     await EGISpawner.configure_secret_volumes(spawner)
 
@@ -531,7 +532,10 @@ async def test_pre_spawn_hook_pvc_selection_can_be_used_by_pod(
 
     spawner = make_spawner(async_api, namespace, mount_secrets_volume=False)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await EGISpawner.pre_spawn_hook(spawner, spawner)
@@ -704,7 +708,9 @@ async def test_user_specific_secrets_are_isolated_between_pods(
             name="tokens",
             secret=client.V1SecretVolumeSource(secret_name=secret_name),
         )
-        mount = client.V1VolumeMount(name="tokens", mount_path="/tokens", read_only=True)
+        mount = client.V1VolumeMount(
+            name="tokens", mount_path="/tokens", read_only=True
+        )
         await create_pod(
             kube,
             namespace,
@@ -739,15 +745,16 @@ async def test_user_specific_secrets_are_isolated_between_pods(
 # Example fail:
 # - Bob's spawner selects Alice's PVC or the generated volume is invalid.
 @pytest.mark.asyncio
-async def test_user_specific_pvc_selection_is_usable_by_pod(
-    async_api, kube, namespace
-):
+async def test_user_specific_pvc_selection_is_usable_by_pod(async_api, kube, namespace):
     await create_user_pvc(kube, namespace, "claim-alice", username="alice")
     await create_user_pvc(kube, namespace, "claim-bob", username="bob")
 
     spawner = make_spawner(async_api, namespace, username="bob")
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await EGISpawner.configure_user_volumes(spawner)
@@ -868,7 +875,10 @@ async def test_pre_spawn_hook_combined_secret_pvc_and_env_pod_smoke(
         token_mount_path="/egi-secrets",
     )
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
     await EGISpawner.set_access_token(spawner, "abc", None)
 

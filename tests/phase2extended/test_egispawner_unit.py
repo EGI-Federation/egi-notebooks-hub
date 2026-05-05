@@ -9,6 +9,7 @@ from kubernetes_asyncio.client.rest import ApiException
 from egi_notebooks_hub.egispawner import EGISpawner
 from kubespawner import KubeSpawner
 
+
 @pytest.fixture
 def spawner():
     s = EGISpawner.__new__(EGISpawner)
@@ -47,11 +48,12 @@ def spawner():
             "secret": {"secretName": "old-secret"},
         },
     }
-    s._sorted_dict_values = (
-        lambda value: list(value.values()) if isinstance(value, dict) else list(value)
+    s._sorted_dict_values = lambda value: (
+        list(value.values()) if isinstance(value, dict) else list(value)
     )
     s._build_common_annotations = lambda extra: {"anno": "1", **extra}
     return s
+
 
 # phase2-3
 # Component: EGISpawner._build_common_labels
@@ -77,6 +79,7 @@ def test_build_common_labels_removes_username_label(spawner, monkeypatch):
 
     assert labels == {"app": "notebook", "extra": "x"}
 
+
 # phase2-4
 # Component: EGISpawner._build_common_labels
 # Purpose: Check what happens when the parent implementation does not provide the
@@ -86,7 +89,9 @@ def test_build_common_labels_removes_username_label(spawner, monkeypatch):
 # raises KeyError, signalling that the assumption about parent output was violated.
 # Example fail case: the method silently ignores the missing key when the contract was
 # expected to be strict, or raises a different unexpected exception.
-def test_build_common_labels_raises_if_parent_does_not_return_username_label(spawner, monkeypatch):
+def test_build_common_labels_raises_if_parent_does_not_return_username_label(
+    spawner, monkeypatch
+):
     monkeypatch.setattr(
         KubeSpawner,
         "_build_common_labels",
@@ -95,6 +100,7 @@ def test_build_common_labels_raises_if_parent_does_not_return_username_label(spa
 
     with pytest.raises(KeyError):
         spawner._build_common_labels({})
+
 
 # phase2-5
 # Component: EGISpawner._get_secret_manifest
@@ -115,6 +121,7 @@ def test_get_secret_manifest_contains_expected_metadata(spawner, monkeypatch):
     assert secret.type == "Opaque"
     assert secret.data == {"access_token": "YWJj"}
 
+
 # phase2-6
 # Component: EGISpawner._update_secret
 # Purpose: Check that updating an existing Kubernetes Secret merges old content with new
@@ -125,7 +132,9 @@ def test_get_secret_manifest_contains_expected_metadata(spawner, monkeypatch):
 # Example fail case: old data is lost, tokens are stored without base64 encoding, or
 # create_namespaced_secret is called even though replace should be enough.
 @pytest.mark.asyncio
-async def test_update_secret_replaces_existing_data_and_base64_encodes_values(spawner, monkeypatch):
+async def test_update_secret_replaces_existing_data_and_base64_encodes_values(
+    spawner, monkeypatch
+):
     existing = SimpleNamespace(data={"old": "b2xk", "empty": ""})
     spawner.api.read_namespaced_secret = AsyncMock(return_value=existing)
     spawner.api.replace_namespaced_secret = AsyncMock()
@@ -141,6 +150,7 @@ async def test_update_secret_replaces_existing_data_and_base64_encodes_values(sp
     )
     spawner.api.create_namespaced_secret.assert_not_awaited()
 
+
 # phase2-7
 # Component: EGISpawner._update_secret
 # Purpose: Ensure that a Secret whose data field is None is treated like an empty
@@ -150,8 +160,12 @@ async def test_update_secret_replaces_existing_data_and_base64_encodes_values(sp
 # Example fail case: code tries to iterate over None, crashes, or produces an invalid
 # body because it did not normalize empty secret data.
 @pytest.mark.asyncio
-async def test_update_secret_reads_empty_secret_data_as_empty_dict(spawner, monkeypatch):
-    spawner.api.read_namespaced_secret = AsyncMock(return_value=SimpleNamespace(data=None))
+async def test_update_secret_reads_empty_secret_data_as_empty_dict(
+    spawner, monkeypatch
+):
+    spawner.api.read_namespaced_secret = AsyncMock(
+        return_value=SimpleNamespace(data=None)
+    )
     spawner.api.replace_namespaced_secret = AsyncMock()
     spawner.api.create_namespaced_secret = AsyncMock()
     monkeypatch.setattr(spawner, "_get_secret_manifest", lambda data: {"data": data})
@@ -164,6 +178,7 @@ async def test_update_secret_reads_empty_secret_data_as_empty_dict(spawner, monk
         body={"data": {"access_token": base64.b64encode(b"abc").decode()}},
     )
 
+
 # phase2-8
 # Component: EGISpawner._update_secret
 # Purpose: Verify that empty values are filtered out after merging old and new secret
@@ -174,7 +189,9 @@ async def test_update_secret_reads_empty_secret_data_as_empty_dict(spawner, monk
 # Example fail case: empty strings remain in the secret data, or valid values are
 # removed together with the empty ones.
 @pytest.mark.asyncio
-async def test_update_secret_removes_keys_with_empty_values_after_merge(spawner, monkeypatch):
+async def test_update_secret_removes_keys_with_empty_values_after_merge(
+    spawner, monkeypatch
+):
     existing = SimpleNamespace(data={"old": "b2xk", "remove_me": ""})
     spawner.api.read_namespaced_secret = AsyncMock(return_value=existing)
     spawner.api.replace_namespaced_secret = AsyncMock()
@@ -190,6 +207,7 @@ async def test_update_secret_removes_keys_with_empty_values_after_merge(spawner,
         body={"data": {"old": "b2xk", "id_token": encoded_id}},
     )
 
+
 # phase2-9
 # Component: EGISpawner._update_secret
 # Purpose: Document the current behavior when reading the existing Secret fails with a
@@ -200,7 +218,9 @@ async def test_update_secret_removes_keys_with_empty_values_after_merge(spawner,
 # Example fail case: the method aborts immediately, never attempts replace, or swallows
 # the new token payload entirely.
 @pytest.mark.asyncio
-async def test_update_secret_ignores_read_api_exception_and_continues(spawner, monkeypatch):
+async def test_update_secret_ignores_read_api_exception_and_continues(
+    spawner, monkeypatch
+):
     spawner.api.read_namespaced_secret = AsyncMock(side_effect=ApiException(status=500))
     spawner.api.replace_namespaced_secret = AsyncMock()
     spawner.api.create_namespaced_secret = AsyncMock()
@@ -214,6 +234,7 @@ async def test_update_secret_ignores_read_api_exception_and_continues(spawner, m
         body={"data": {"access_token": base64.b64encode(b"abc").decode()}},
     )
 
+
 # phase2-10
 # Component: EGISpawner._update_secret
 # Purpose: Ensure that a missing Secret is created instead of replaced when the API
@@ -225,7 +246,9 @@ async def test_update_secret_ignores_read_api_exception_and_continues(spawner, m
 @pytest.mark.asyncio
 async def test_update_secret_creates_secret_on_404(spawner, monkeypatch):
     spawner.api.read_namespaced_secret = AsyncMock(side_effect=ApiException(status=404))
-    spawner.api.replace_namespaced_secret = AsyncMock(side_effect=ApiException(status=404))
+    spawner.api.replace_namespaced_secret = AsyncMock(
+        side_effect=ApiException(status=404)
+    )
     spawner.api.create_namespaced_secret = AsyncMock()
     monkeypatch.setattr(spawner, "_get_secret_manifest", lambda data: {"data": data})
 
@@ -235,6 +258,7 @@ async def test_update_secret_creates_secret_on_404(spawner, monkeypatch):
         namespace="test-ns",
         body={"data": {"access_token": "YWJj"}},
     )
+
 
 # phase2-11
 # Component: EGISpawner._update_secret
@@ -247,7 +271,9 @@ async def test_update_secret_creates_secret_on_404(spawner, monkeypatch):
 @pytest.mark.asyncio
 async def test_update_secret_reraises_non_404_replace_error(spawner, monkeypatch):
     spawner.api.read_namespaced_secret = AsyncMock(side_effect=ApiException(status=404))
-    spawner.api.replace_namespaced_secret = AsyncMock(side_effect=ApiException(status=500))
+    spawner.api.replace_namespaced_secret = AsyncMock(
+        side_effect=ApiException(status=500)
+    )
     spawner.api.create_namespaced_secret = AsyncMock()
     monkeypatch.setattr(spawner, "_get_secret_manifest", lambda data: {"data": data})
 
@@ -256,6 +282,7 @@ async def test_update_secret_reraises_non_404_replace_error(spawner, monkeypatch
 
     assert exc.value.status == 500
     spawner.api.create_namespaced_secret.assert_not_awaited()
+
 
 # phase2-12
 # Component: EGISpawner._update_secret
@@ -266,16 +293,23 @@ async def test_update_secret_reraises_non_404_replace_error(spawner, monkeypatch
 # Example fail case: create errors are ignored, converted to the wrong exception type,
 # or cause misleading success behavior.
 @pytest.mark.asyncio
-async def test_update_secret_reraises_create_error_after_404_replace(spawner, monkeypatch):
+async def test_update_secret_reraises_create_error_after_404_replace(
+    spawner, monkeypatch
+):
     spawner.api.read_namespaced_secret = AsyncMock(side_effect=ApiException(status=404))
-    spawner.api.replace_namespaced_secret = AsyncMock(side_effect=ApiException(status=404))
-    spawner.api.create_namespaced_secret = AsyncMock(side_effect=ApiException(status=403))
+    spawner.api.replace_namespaced_secret = AsyncMock(
+        side_effect=ApiException(status=404)
+    )
+    spawner.api.create_namespaced_secret = AsyncMock(
+        side_effect=ApiException(status=403)
+    )
     monkeypatch.setattr(spawner, "_get_secret_manifest", lambda data: {"data": data})
 
     with pytest.raises(ApiException) as exc:
         await spawner._update_secret({"access_token": "abc"})
 
     assert exc.value.status == 403
+
 
 # phase2-13
 # Component: EGISpawner.set_access_token
@@ -294,6 +328,7 @@ async def test_set_access_token_delegates_to_update_secret(spawner):
     spawner._update_secret.assert_awaited_once_with(
         {"access_token": "access-1", "id_token": "id-1"}
     )
+
 
 # phase2-14
 # Component: EGISpawner.auth_state_hook
@@ -320,6 +355,7 @@ async def test_auth_state_hook_stores_primary_group_and_tokens(spawner):
     assert spawner.extra_annotations["egi.eu/primary_group"] == "vo-2"
     assert spawner.extra_annotations["existing"] == "annotation"
 
+
 # phase2-15
 # Component: EGISpawner.auth_state_hook
 # Purpose: Ensure token propagation still happens even when no primary_group is present.
@@ -329,7 +365,9 @@ async def test_auth_state_hook_stores_primary_group_and_tokens(spawner):
 # Example fail case: lack of primary_group prevents token storage or writes an empty
 # group annotation unnecessarily.
 @pytest.mark.asyncio
-async def test_auth_state_hook_calls_set_access_token_even_without_primary_group(spawner):
+async def test_auth_state_hook_calls_set_access_token_even_without_primary_group(
+    spawner,
+):
     spawner.set_access_token = AsyncMock()
 
     await spawner.auth_state_hook(
@@ -342,6 +380,7 @@ async def test_auth_state_hook_calls_set_access_token_even_without_primary_group
 
     spawner.set_access_token.assert_awaited_once_with("access", None)
     assert "egi.eu/primary_group" not in spawner.extra_annotations
+
 
 # phase2-16
 # Component: EGISpawner.auth_state_hook
@@ -358,6 +397,7 @@ async def test_auth_state_hook_ignores_empty_auth_state(spawner):
 
     spawner.set_access_token.assert_not_awaited()
     assert spawner.extra_annotations == {"existing": "annotation"}
+
 
 # phase2-17
 # Component: EGISpawner.configure_secret_volumes
@@ -391,6 +431,7 @@ async def test_configure_secret_volumes_uses_emptydir_for_user_mount(spawner):
         {"name": "secret-alice-user", "emptyDir": {"medium": "Memory"}},
     ]
 
+
 # phase2-18
 # Component: EGISpawner.configure_secret_volumes
 # Purpose: Verify the branch where the actual Kubernetes Secret is mounted directly into
@@ -417,6 +458,7 @@ async def test_configure_secret_volumes_uses_secret_when_mount_enabled(spawner):
         "secret": {"secretName": "access-token-alice"},
     }
 
+
 # phase2-19
 # Component: EGISpawner.configure_secret_volumes
 # Purpose: Ensure the method works whether volume_mounts / volumes are stored as dicts or
@@ -426,7 +468,9 @@ async def test_configure_secret_volumes_uses_secret_when_mount_enabled(spawner):
 # Example fail case: code assumes dict-only inputs, crashes on lists, or keeps duplicate
 # secret mounts/volumes around.
 @pytest.mark.asyncio
-async def test_configure_secret_volumes_accepts_list_inputs_and_removes_duplicates(spawner):
+async def test_configure_secret_volumes_accepts_list_inputs_and_removes_duplicates(
+    spawner,
+):
     spawner._update_secret = AsyncMock()
     spawner.volume_mounts = [
         {"name": "secret-alice", "mountPath": "/dup-sidecar"},
@@ -444,6 +488,7 @@ async def test_configure_secret_volumes_accepts_list_inputs_and_removes_duplicat
     assert [m["name"] for m in spawner.volume_mounts].count("secret-alice-user") == 1
     assert [v["name"] for v in spawner.volumes].count("secret-alice") == 1
     assert [v["name"] for v in spawner.volumes].count("secret-alice-user") == 1
+
 
 # phase2-20
 # Component: EGISpawner.configure_user_volumes
@@ -485,6 +530,7 @@ async def test_configure_user_volumes_rewrites_claim_name_from_existing_pvc(spaw
         {"name": "cache", "persistentVolumeClaim": {"claimName": "real-name"}},
     ]
 
+
 # phase2-21
 # Component: EGISpawner.configure_user_volumes
 # Purpose: Ensure that when no matching PVC exists, the spawner keeps its currently
@@ -519,6 +565,7 @@ async def test_configure_user_volumes_keeps_existing_pvc_name_when_no_match(spaw
         {"name": "data", "persistentVolumeClaim": {"claimName": "generated-pvc"}},
         {"name": "logs", "persistentVolumeClaim": {"claimName": "real-name"}},
     ]
+
 
 # phase2-22
 # Component: EGISpawner.configure_user_volumes
@@ -555,7 +602,10 @@ async def test_configure_user_volumes_uses_first_matching_pvc_and_stops(spawner)
     await spawner.configure_user_volumes()
 
     assert spawner.pvc_name == "claim-alice-first"
-    assert spawner.volumes[0]["persistentVolumeClaim"]["claimName"] == "claim-alice-first"
+    assert (
+        spawner.volumes[0]["persistentVolumeClaim"]["claimName"] == "claim-alice-first"
+    )
+
 
 # phase2-23
 # Component: EGISpawner.configure_user_volumes
@@ -581,6 +631,7 @@ async def test_configure_user_volumes_leaves_non_pvc_volumes_untouched(spawner):
         {"name": "data", "persistentVolumeClaim": {"claimName": "generated-pvc"}},
     ]
 
+
 # phase2-24
 # Component: EGISpawner._profile_filter
 # Purpose: Verify that profile filtering keeps unrestricted profiles and profiles whose
@@ -605,6 +656,7 @@ def test_profile_filter_returns_profiles_matching_user_groups(spawner):
         {"display_name": "VO 1 or VO 9", "vo_claims": ["vo-1", "vo-9"]},
     ]
 
+
 # phase2-25
 # Component: EGISpawner._profile_filter
 # Purpose: Ensure that missing profile configuration simply yields no choices rather than
@@ -617,6 +669,7 @@ def test_profile_filter_returns_empty_list_when_no_profile_config(spawner):
 
     assert spawner._profile_filter(spawner) == []
 
+
 # phase2-26
 # Component: EGISpawner._profile_filter
 # Purpose: Check behavior for users without any group memberships. They should only see
@@ -624,7 +677,9 @@ def test_profile_filter_returns_empty_list_when_no_profile_config(spawner):
 # Example pass case: user.groups is empty and only unrestricted profiles remain.
 # Example fail case: group-restricted profiles leak through or unrestricted profiles are
 # hidden unnecessarily.
-def test_profile_filter_returns_only_unrestricted_profiles_for_user_without_groups(spawner):
+def test_profile_filter_returns_only_unrestricted_profiles_for_user_without_groups(
+    spawner,
+):
     spawner.user = SimpleNamespace(name="alice", groups=[])
     spawner._profile_config = [
         {"display_name": "Open to all"},
@@ -632,6 +687,7 @@ def test_profile_filter_returns_only_unrestricted_profiles_for_user_without_grou
     ]
 
     assert spawner._profile_filter(spawner) == [{"display_name": "Open to all"}]
+
 
 # phase2-27
 # Component: EGISpawner._profile_filter
@@ -648,6 +704,7 @@ def test_profile_filter_accepts_empty_vo_claims_as_unrestricted(spawner):
     assert spawner._profile_filter(spawner) == [
         {"display_name": "Empty vo_claims", "vo_claims": []}
     ]
+
 
 # phase2-28
 # Component: EGISpawner.pre_spawn_hook
@@ -681,6 +738,7 @@ async def test_pre_spawn_hook_calls_methods_in_expected_order(spawner):
         "configure_secret_volumes",
     ]
 
+
 # phase2-29
 # Component: EGISpawner.get_args
 # Purpose: Ensure the token acquirer mount-path argument is appended when the user pod is
@@ -701,6 +759,7 @@ def test_get_args_adds_token_acquirer_arg_when_secret_not_mounted(spawner, monke
         "--TokenAcquirerApp.secrets_mount_path=/var/run/secrets/egi.eu/",
     ]
 
+
 # phase2-30
 # Component: EGISpawner.get_args
 # Purpose: Verify that no extra token-acquirer path argument is added when the Secret is
@@ -708,13 +767,16 @@ def test_get_args_adds_token_acquirer_arg_when_secret_not_mounted(spawner, monke
 # Example pass case: mount_secrets_volume is True and the args list stays exactly what
 # the parent returned.
 # Example fail case: the extra argument is still appended even though it is unnecessary.
-def test_get_args_does_not_add_token_acquirer_arg_when_secret_is_mounted(spawner, monkeypatch):
+def test_get_args_does_not_add_token_acquirer_arg_when_secret_is_mounted(
+    spawner, monkeypatch
+):
     monkeypatch.setattr(KubeSpawner, "get_args", lambda self: ["--base-arg"])
     spawner.mount_secrets_volume = True
 
     args = spawner.get_args()
 
     assert args == ["--base-arg"]
+
 
 # phase2-31
 # Component: EGISpawner.get_args

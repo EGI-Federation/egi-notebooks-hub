@@ -14,6 +14,7 @@ from kubespawner import KubeSpawner
 
 from egi_notebooks_hub.egispawner import EGISpawner
 
+
 def install_fake_kubespawner_init(
     monkeypatch,
     *,
@@ -66,7 +67,9 @@ def install_fake_kubespawner_init(
 # Example fail: EGISpawner swallows or rewrites constructor arguments unexpectedly.
 def test_init_forwards_args_and_kwargs_to_kubespawner(monkeypatch):
     install_fake_kubespawner_init(monkeypatch)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -86,7 +89,9 @@ def test_init_forwards_args_and_kwargs_to_kubespawner(monkeypatch):
 def test_init_preserves_original_profile_list_object(monkeypatch):
     profiles = [{"display_name": "Default"}, {"display_name": "Large"}]
     install_fake_kubespawner_init(monkeypatch, profile_list=profiles)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -110,7 +115,9 @@ def test_init_installs_callable_profile_filter(monkeypatch):
         {"display_name": "VO3 profile", "vo_claims": ["vo-3"]},
     ]
     install_fake_kubespawner_init(monkeypatch, profile_list=profiles, groups=["vo-2"])
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -132,7 +139,9 @@ def test_init_installs_callable_profile_filter(monkeypatch):
 # Example fail: pvc_name is missing, constant, or based on the username instead of UUID.
 def test_init_uses_uuid_hex_for_initial_pvc_name(monkeypatch):
     install_fake_kubespawner_init(monkeypatch)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="fixed-uuid-hex"),
@@ -150,7 +159,9 @@ def test_init_uses_uuid_hex_for_initial_pvc_name(monkeypatch):
 # Example fail: pvc_name is shared between instances.
 def test_init_assigns_independent_pvc_name_per_instance(monkeypatch):
     install_fake_kubespawner_init(monkeypatch)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     values = iter([SimpleNamespace(hex="pvc-one"), SimpleNamespace(hex="pvc-two")])
     monkeypatch.setattr("egi_notebooks_hub.egispawner.uuid.uuid4", lambda: next(values))
 
@@ -242,7 +253,9 @@ def test_init_stores_username_expanded_secret_names(monkeypatch):
 # Example fail: initialization overwrites token mount defaults.
 def test_init_preserves_default_token_mount_settings(monkeypatch):
     install_fake_kubespawner_init(monkeypatch)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -265,7 +278,9 @@ def test_init_preserves_custom_token_mount_settings(monkeypatch):
         token_mount_path="/custom/tokens",
         mount_secrets_volume=True,
     )
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -284,7 +299,9 @@ def test_init_preserves_custom_token_mount_settings(monkeypatch):
 # Example fail: EGISpawner initialization clears base attributes needed by later hooks.
 def test_init_preserves_base_spawner_runtime_attributes(monkeypatch):
     install_fake_kubespawner_init(monkeypatch, username="alice", namespace="custom-ns")
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -308,7 +325,9 @@ def test_init_preserves_base_spawner_runtime_attributes(monkeypatch):
 # Example fail: long usernames can leak into Kubernetes labels after initialization.
 def test_initialized_spawner_uses_egi_common_label_override(monkeypatch):
     install_fake_kubespawner_init(monkeypatch)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -337,7 +356,9 @@ def test_initialized_spawner_uses_egi_common_label_override(monkeypatch):
 # Example fail: get_args misses the token-acquirer argument after initialization.
 def test_initialized_spawner_get_args_adds_token_acquirer_path(monkeypatch):
     install_fake_kubespawner_init(monkeypatch, token_mount_path="/custom/tokens")
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -357,9 +378,13 @@ def test_initialized_spawner_get_args_adds_token_acquirer_path(monkeypatch):
 # Purpose: Verify initialized spawner skips token-acquirer argument when real Secret mount is enabled.
 # Example pass: mount_secrets_volume=True returns only base args.
 # Example fail: token acquirer is still configured even though the real Secret is mounted.
-def test_initialized_spawner_get_args_skips_token_acquirer_when_secret_is_mounted(monkeypatch):
+def test_initialized_spawner_get_args_skips_token_acquirer_when_secret_is_mounted(
+    monkeypatch,
+):
     install_fake_kubespawner_init(monkeypatch, mount_secrets_volume=True)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
     monkeypatch.setattr(
         "egi_notebooks_hub.egispawner.uuid.uuid4",
         lambda: SimpleNamespace(hex="pvc-id"),
@@ -393,8 +418,15 @@ def test_init_converts_profile_list_to_filter_and_generates_names(monkeypatch):
         self.log = logging.getLogger("test-egispawner-init")
 
     monkeypatch.setattr(KubeSpawner, "__init__", fake_super_init)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: f"expanded:{template}")
-    monkeypatch.setattr("egi_notebooks_hub.egispawner.uuid.uuid4", lambda: SimpleNamespace(hex="fixed-pvc-id"))
+    monkeypatch.setattr(
+        EGISpawner,
+        "_expand_user_properties",
+        lambda self, template: f"expanded:{template}",
+    )
+    monkeypatch.setattr(
+        "egi_notebooks_hub.egispawner.uuid.uuid4",
+        lambda: SimpleNamespace(hex="fixed-pvc-id"),
+    )
 
     spawner = EGISpawner()
 
@@ -403,6 +435,7 @@ def test_init_converts_profile_list_to_filter_and_generates_names(monkeypatch):
     assert spawner.pvc_name == "fixed-pvc-id"
     assert spawner.token_secret_name == "expanded:access-token-{userid}"
     assert spawner._token_secret_volume_name == "expanded:secret-{userid}"
+
 
 # phase2-init-16
 # Component: EGISpawner.__init__
@@ -421,8 +454,12 @@ def test_init_keeps_empty_profile_list(monkeypatch):
         self.log = logging.getLogger("test-egispawner-init-empty")
 
     monkeypatch.setattr(KubeSpawner, "__init__", fake_super_init)
-    monkeypatch.setattr(EGISpawner, "_expand_user_properties", lambda self, template: template)
-    monkeypatch.setattr("egi_notebooks_hub.egispawner.uuid.uuid4", lambda: SimpleNamespace(hex="abc123"))
+    monkeypatch.setattr(
+        EGISpawner, "_expand_user_properties", lambda self, template: template
+    )
+    monkeypatch.setattr(
+        "egi_notebooks_hub.egispawner.uuid.uuid4", lambda: SimpleNamespace(hex="abc123")
+    )
 
     spawner = EGISpawner()
 

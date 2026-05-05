@@ -1,4 +1,3 @@
-
 """
 Additional Phase 4 integration-style tests for EGISpawner configuration flows.
 
@@ -190,7 +189,10 @@ async def test_user_and_secret_volume_configuration_combine_cleanly():
     api.add_pvc("test-ns", "claim-alice", "alice")
     spawner = make_spawner(api=api, mount_secrets_volume=True)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await spawner.configure_user_volumes()
@@ -213,7 +215,10 @@ async def test_pre_spawn_hook_builds_workspace_and_secret_configuration():
     api.add_pvc("test-ns", "claim-alice", "alice")
     spawner = make_spawner(api=api, mount_secrets_volume=False)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await spawner.pre_spawn_hook(spawner)
@@ -237,7 +242,10 @@ async def test_pre_spawn_hook_is_idempotent_for_generated_entries():
     api.add_pvc("test-ns", "claim-alice", "alice")
     spawner = make_spawner(api=api, mount_secrets_volume=True)
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await spawner.pre_spawn_hook(spawner)
@@ -303,7 +311,10 @@ async def test_multi_user_pvc_selection_uses_current_user_annotation():
     api.add_pvc("test-ns", "claim-bob", "bob")
     bob = make_spawner(api=api, username="bob")
     bob.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
 
     await bob.configure_user_volumes()

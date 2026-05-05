@@ -1,4 +1,3 @@
-
 """
 Additional Phase 2 tests for EGISpawner configuration assembly.
 
@@ -225,7 +224,11 @@ async def test_configure_secret_volumes_preserves_unrelated_entries():
     await EGISpawner.configure_secret_volumes(spawner)
 
     assert {"name": "config", "configMap": {"name": "settings"}} in spawner.volumes
-    assert {"name": "data", "mountPath": "/data", "readOnly": False} in spawner.volume_mounts
+    assert {
+        "name": "data",
+        "mountPath": "/data",
+        "readOnly": False,
+    } in spawner.volume_mounts
 
 
 # phase2-manifest-8
@@ -237,7 +240,10 @@ async def test_configure_secret_volumes_preserves_unrelated_entries():
 async def test_configure_user_volumes_selects_matching_annotated_pvc():
     spawner = make_spawner(username="alice")
     spawner.volumes = [
-        {"name": "workspace", "persistentVolumeClaim": {"claimName": "claim-placeholder"}}
+        {
+            "name": "workspace",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        }
     ]
     pvcs = SimpleNamespace(
         items=[
@@ -274,7 +280,10 @@ async def test_configure_user_volumes_selects_matching_annotated_pvc():
 async def test_configure_user_volumes_rewrites_only_claim_prefixed_references():
     spawner = make_spawner(username="alice")
     spawner.volumes = [
-        {"name": "rewrite", "persistentVolumeClaim": {"claimName": "claim-placeholder"}},
+        {
+            "name": "rewrite",
+            "persistentVolumeClaim": {"claimName": "claim-placeholder"},
+        },
         {"name": "static", "persistentVolumeClaim": {"claimName": "workspace-static"}},
     ]
     pvcs = SimpleNamespace(
@@ -294,7 +303,9 @@ async def test_configure_user_volumes_rewrites_only_claim_prefixed_references():
     await EGISpawner.configure_user_volumes(spawner)
 
     assert spawner.volumes[0]["persistentVolumeClaim"]["claimName"] == "claim-alice"
-    assert spawner.volumes[1]["persistentVolumeClaim"]["claimName"] == "workspace-static"
+    assert (
+        spawner.volumes[1]["persistentVolumeClaim"]["claimName"] == "workspace-static"
+    )
 
 
 # phase2-manifest-10

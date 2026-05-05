@@ -98,7 +98,9 @@ async def test_jwt_handler_reuses_existing_hub_token_without_login(authenticator
     - reuse a previously stored Hub API token
     - skip login and finish immediately
     """
-    user = DummyUser(auth_state={"access_token": "jwt-token", "jwt_api_token": "reused-token"})
+    user = DummyUser(
+        auth_state={"access_token": "jwt-token", "jwt_api_token": "reused-token"}
+    )
     finished = {}
 
     handler = SimpleNamespace(
@@ -134,7 +136,9 @@ async def test_jwt_handler_reuses_existing_hub_token_without_login(authenticator
 # - the refresh exchange is skipped, auth_state is not updated, or the final
 #   token returned to the client is incorrect.
 @pytest.mark.asyncio
-async def test_jwt_handler_logs_in_user_and_stores_refresh_token_when_missing(authenticator):
+async def test_jwt_handler_logs_in_user_and_stores_refresh_token_when_missing(
+    authenticator,
+):
     """
     Integration scenario:
     - there is no reusable Hub token
@@ -183,7 +187,9 @@ async def test_jwt_handler_logs_in_user_and_stores_refresh_token_when_missing(au
 # - the handler unnecessarily performs another refresh-token exchange or
 #   overwrites the existing refresh token.
 @pytest.mark.asyncio
-async def test_jwt_handler_skips_refresh_exchange_when_refresh_token_already_present(authenticator):
+async def test_jwt_handler_skips_refresh_exchange_when_refresh_token_already_present(
+    authenticator,
+):
     """
     Integration scenario:
     - login succeeds
@@ -271,7 +277,9 @@ async def test_jwt_handler_raises_403_when_login_returns_none(authenticator):
 # Example fail:
 # - the extension mutates unrelated fields or injects a bogus primary_group.
 @pytest.mark.asyncio
-async def test_token_to_auth_model_preserves_parent_fields_when_primary_group_not_found(authenticator):
+async def test_token_to_auth_model_preserves_parent_fields_when_primary_group_not_found(
+    authenticator,
+):
     """
     Integration scenario for authenticator auth model assembly:
     - parent GenericOAuthenticator model is returned
@@ -287,7 +295,9 @@ async def test_token_to_auth_model_preserves_parent_fields_when_primary_group_no
     }
 
     with patch.object(
-        type(authenticator).__mro__[1],  # GenericOAuthenticator in current inheritance chain
+        type(authenticator).__mro__[
+            1
+        ],  # GenericOAuthenticator in current inheritance chain
         "_token_to_auth_model",
         AsyncMock(return_value=base_model),
     ):
@@ -312,7 +322,9 @@ async def test_token_to_auth_model_preserves_parent_fields_when_primary_group_no
 # Example fail:
 # - the extension deletes primary_group or replaces it with None or another VO.
 @pytest.mark.asyncio
-async def test_token_to_auth_model_keeps_existing_primary_group_if_parent_already_set(authenticator):
+async def test_token_to_auth_model_keeps_existing_primary_group_if_parent_already_set(
+    authenticator,
+):
     """
     Defensive integration test:
     if parent auth_state already contains primary_group, the EGI extension
@@ -349,7 +361,9 @@ async def test_token_to_auth_model_keeps_existing_primary_group_if_parent_alread
 # Example fail:
 # - username extraction fails, or primary_group is something completely outside
 #   the allowed group set.
-def test_user_info_to_username_and_primary_group_form_consistent_identity(authenticator):
+def test_user_info_to_username_and_primary_group_form_consistent_identity(
+    authenticator,
+):
     """
     Cross-component integration check:
     the same user_info structure should produce:
@@ -387,7 +401,9 @@ def test_user_info_to_username_and_primary_group_form_consistent_identity(authen
 # Example fail:
 # - the handler crashes immediately on ValueError or never attempts login_user.
 @pytest.mark.asyncio
-async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fails(authenticator):
+async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fails(
+    authenticator,
+):
     """
     Integration scenario:
     - username extraction raises ValueError
