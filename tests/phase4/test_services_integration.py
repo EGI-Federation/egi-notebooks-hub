@@ -9,6 +9,7 @@ tests fast, deterministic, and CI-friendly.
 
 import json
 from types import SimpleNamespace
+from typing import Any, ClassVar
 from unittest.mock import Mock
 
 import httpx
@@ -67,7 +68,7 @@ class FakeAsyncClient:
     sequence, URLs, headers, and methods that were used.
     """
 
-    calls = []
+    calls: ClassVar[list[dict[str, Any]]] = []
     login_response = DummyResponse(
         status_code=200, json_data={"token": "hub-user-token"}
     )

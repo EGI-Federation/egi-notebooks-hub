@@ -133,7 +133,8 @@ def make_spawner(api=None, username="alice", mount_secrets_volume=False):
 
 # phase4-spawner-1
 # Component: auth_state_hook + Kubernetes Secret update
-# Purpose: Verify auth_state is transformed into Secret data and primary group annotation.
+# Purpose: Verify auth_state is transformed into Secret data and primary group
+# annotation.
 # Example pass: tokens are stored and extra_annotations contains egi.eu/primary_group.
 # Example fail: token storage succeeds but pod annotation data is lost.
 @pytest.mark.asyncio
@@ -159,8 +160,10 @@ async def test_auth_state_hook_persists_tokens_and_primary_group():
 # phase4-spawner-2
 # Component: auth_state_hook + _get_secret_manifest
 # Purpose: Verify primary group annotation is included in later generated metadata.
-# Example pass: after auth_state_hook, a newly generated Secret manifest contains egi.eu/primary_group.
-# Example fail: primary group is stored on the spawner but not used by metadata generation.
+# Example pass: after auth_state_hook, a newly generated Secret manifest contains
+# egi.eu/primary_group.
+# Example fail: primary group is stored on the spawner but not used by metadata
+# generation.
 @pytest.mark.asyncio
 async def test_auth_state_primary_group_flows_into_secret_metadata():
     spawner = make_spawner()
@@ -207,7 +210,8 @@ async def test_user_and_secret_volume_configuration_combine_cleanly():
 # phase4-spawner-4
 # Component: pre_spawn_hook end-to-end configuration
 # Purpose: Verify pre_spawn_hook orchestrates user volume and Secret setup.
-# Example pass: load_user_options is called, PVC is selected, and Secret configuration exists.
+# Example pass: load_user_options is called, PVC is selected, and Secret configuration
+# exists.
 # Example fail: hook sequence completes with missing workspace or Secret configuration.
 @pytest.mark.asyncio
 async def test_pre_spawn_hook_builds_workspace_and_secret_configuration():
@@ -344,7 +348,8 @@ async def test_repeated_secret_updates_merge_existing_non_empty_data():
 
 # phase4-spawner-10
 # Component: mount mode switch
-# Purpose: Verify changing mount_secrets_volume changes generated configuration on next run.
+# Purpose: Verify changing mount_secrets_volume changes generated configuration on next
+# run.
 # Example pass: emptyDir user volume becomes Secret-backed user volume after switch.
 # Example fail: old emptyDir configuration remains after enabling Secret mount.
 @pytest.mark.asyncio
