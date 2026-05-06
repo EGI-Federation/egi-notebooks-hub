@@ -1,7 +1,7 @@
 ---
 name: Lint
 
-on: [pull_request, push]
+on: [pull_request, push, workflow_dispatch]
 
 permissions: read-all
 
@@ -30,10 +30,10 @@ jobs:
           DISABLE_ERRORS: false
           # JSCPD is failing in the symlink, so avoiding it
           VALIDATE_JSCPD: false
+          # this messes with jinja templates
+          VALIDATE_HTML_PRETTIER: false
           # Pylint is too picky about everything, not ready
           # for this yet here
           VALIDATE_PYTHON_PYLINT: false
-          # this messes with jinja templates
-          VALIDATE_HTML_PRETTIER: false
           # We don't want to lint EC files
           FILTER_REGEX_EXCLUDE: ".*/ecl-.*\\.(css|js)"

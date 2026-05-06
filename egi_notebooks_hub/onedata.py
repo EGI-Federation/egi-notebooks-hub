@@ -4,10 +4,11 @@ Onedata extras for the Oauthenticator
 
 import json
 
-from egi_notebooks_hub.egiauthenticator import EGICheckinAuthenticator
-from egi_notebooks_hub.egispawner import EGISpawner
 from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
 from traitlets import Bool, Dict, List, Unicode
+
+from egi_notebooks_hub.egiauthenticator import EGICheckinAuthenticator
+from egi_notebooks_hub.egispawner import EGISpawner
 
 
 class OnedataAuthenticator(EGICheckinAuthenticator):
