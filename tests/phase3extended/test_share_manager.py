@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from egi_notebooks_hub.services import share_manager # type: ignore[attr-defined]
+from egi_notebooks_hub.services import share_manager
 
 
 @pytest.fixture
