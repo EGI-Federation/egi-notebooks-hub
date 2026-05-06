@@ -3,11 +3,12 @@
 # on one behavior at a time without repeatedly rebuilding the same configuration.
 
 import pytest
+from traitlets.config import Config
+
 from egi_notebooks_hub.egiauthenticator import (
     EGICheckinAuthenticator,
     EOSCNodeAuthenticator,
 )
-from traitlets.config import Config
 
 
 @pytest.fixture(autouse=True)

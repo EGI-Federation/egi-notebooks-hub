@@ -11,8 +11,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from egi_notebooks_hub.egispawner import EGISpawner
 from kubernetes_asyncio.client.rest import ApiException
+
+from egi_notebooks_hub.egispawner import EGISpawner
 
 
 class DummyLog:

@@ -17,7 +17,6 @@ from tornado.web import HTTPError
 
 from egi_notebooks_hub.services import token_acquirer
 
-
 # The handler is written as a Tornado RequestHandler method. In tests we want to
 # call the underlying implementation directly with a lightweight fake handler
 # object instead of constructing a full Tornado application and request cycle.

@@ -10,8 +10,9 @@ import logging
 from types import SimpleNamespace
 from unittest.mock import Mock
 
-from egi_notebooks_hub.egispawner import EGISpawner
 from kubespawner import KubeSpawner
+
+from egi_notebooks_hub.egispawner import EGISpawner
 
 
 def install_fake_kubespawner_init(

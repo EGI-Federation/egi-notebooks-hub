@@ -4,7 +4,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from egi_notebooks_hub.services import api_wrapper #noqa
+from egi_notebooks_hub.services import api_wrapper
 
 
 class DummyResponse:

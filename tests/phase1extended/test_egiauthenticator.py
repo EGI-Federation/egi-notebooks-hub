@@ -3,13 +3,14 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from oauthenticator.generic import GenericOAuthenticator
+from tornado import web
+
 from egi_notebooks_hub.egiauthenticator import (
     EGICheckinAuthenticator,
     EOSCNodeAuthenticator,
     JWTHandler,
 )
-from oauthenticator.generic import GenericOAuthenticator
-from tornado import web
 
 
 # Retained helper for JWT-related tests in this module.
