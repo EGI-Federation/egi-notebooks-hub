@@ -1,6 +1,6 @@
 import base64
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from oauthenticator.generic import GenericOAuthenticator
@@ -499,3 +499,28 @@ async def test_introspect_token_builds_expected_http_request(authenticator):
     auth_header = kwargs["headers"]["Authorization"]
     expected_basic = base64.b64encode(b"test-client:test-secret").decode("utf8")
     assert auth_header == f"Basic {expected_basic}"
+
+
+# phase1-32
+# Component: EGICheckinAuthenticator token revocation.
+# Purpose: Verify that revoke_token sends the expected POST request to the
+# provider revoke endpoint.
+# Pass example: httpfetch is awaited with the revoke URL, Basic auth, and the
+# correct request body.
+# Fail example: the request is sent to the wrong endpoint or uses the wrong
+# body/auth settings.
+async def test_revoke_token_posts_expected_request(authenticator):
+    authenticator.httpfetch = AsyncMock(return_value=SimpleNamespace(code=200))
+
+    await authenticator.revoke_token("old-token")
+
+    authenticator.httpfetch.assert_awaited_once()
+    args, kwargs = authenticator.httpfetch.call_args
+    assert args[0] == authenticator.revoke_url
+    assert kwargs["label"] == "Token revocation"
+    assert kwargs["method"] == "POST"
+    assert kwargs["auth_username"] == authenticator.client_id
+    assert kwargs["auth_password"] == authenticator.client_secret
+    assert kwargs["headers"]["Accept"] == "application/json"
+    assert kwargs["headers"]["User-Agent"] == "JupyterHub"
+    assert kwargs["body"] == b"token=old-token&token_type_hint=access_token"
