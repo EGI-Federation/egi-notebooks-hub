@@ -47,7 +47,7 @@ PHASES = {
     ],
     "phase4": [
         "phase4/test_auth_integration.py",
-        "phase4/test_services_integration.py",
+        "phase4/test_api_wrapper_integration.py",
         "phase4/test_spawner_integration_config.py",
     ],
     "phase5": [
