@@ -15,9 +15,9 @@ def client():
 
 def fake_call_hub_api(calls=None, extra_calls={}):
     """Helper function to simulate the hub calls (and avoid code duplication)
-       Params:
-       * calls - an array where the actual calls will be registered
-       * extra_calls - dictionary[str, dict] with the call paths and the resulting object
+    Params:
+    * calls - an array where the actual calls will be registered
+    * extra_calls - dictionary[str, dict] with the call paths and the resulting object
     """
     calls_mapping = {
         "user": {
