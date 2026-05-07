@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
+from types import SimpleNamespace
 
 from egi_notebooks_hub.egiauthenticator import (
     EGICheckinAuthenticator,

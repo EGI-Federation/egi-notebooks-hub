@@ -379,7 +379,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             "Accept": "application/json",
             "User-Agent": "JupyterHub",
         }
-        body = urlencode(dict(token=token, token_type_hint="access_token"))
+        params = {"token": token, "token_type_hint": "access_token"}
         response = await self.httpfetch(
             self.revoke_url,
             label="Token revocation",
@@ -388,7 +388,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             auth_password=self.client_secret,
             headers=headers,
             method="POST",
-            body=body,
+            body=urlencode(params).encode("utf-8"),
         )
         # not caring about the response, assume it is ok
         self.log.debug(f"Revocation response: {response.code}")
