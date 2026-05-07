@@ -110,7 +110,7 @@ def get_server_name(token_info: dict):
     )
     if not (session_id and oauth_client):
         return None
-    if not oauth_client.lower().startswith("server at"):
+    if oauth_client.lower().find("server at") < 0:
         return None
     # XXX parsing the oauth_client for the server name, this may break!
     server_name = ""
@@ -263,7 +263,7 @@ async def create_share_code(
         )
     # 2. Then create sharing - just redirect the call
     resp = await call_hub_api(
-        path=f"/share-codes/{owner}/{server_name}",
+        path=f"share-codes/{owner}/{server_name}",
         method="post",
         content=await request.body(),
         headers=dict(request.headers),

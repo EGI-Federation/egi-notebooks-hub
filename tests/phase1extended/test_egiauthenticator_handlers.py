@@ -77,9 +77,9 @@ async def test_exchange_for_refresh_token_returns_none_on_http_error(authenticat
 # Fail example: unauthenticated requests slip through into JWT processing.
 def test_get_token_raises_401_when_header_missing():
     handler = SimpleNamespace(get_auth_token=lambda: None, log=Mock())
-    with pytest.raises(HTTPClientError) as exc_info:
+    with pytest.raises(HTTPError) as exc_info:
         JWTHandler._get_token(handler)
-    assert exc_info.value.code == 401
+    assert exc_info.value.status_code == 401
 
 
 # phase1-35

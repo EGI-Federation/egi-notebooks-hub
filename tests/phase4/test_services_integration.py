@@ -17,7 +17,7 @@ import pytest
 from fastapi.testclient import TestClient
 from tornado.web import HTTPError
 
-from egi_notebooks_hub.services import api_wrapper, token_acquirer
+from egi_notebooks_hub.services import api_wrapper, share_manager
 
 
 class DummyResponse:
@@ -367,7 +367,7 @@ def test_wrapper_returns_json_string_for_non_json_upstream_payload(api_client):
 
 class RecordingHubAuth:
     """
-    Fake HubAuthenticated helper for token_acquirer end-to-end tests.
+    Fake HubAuthenticated helper for share_manager end-to-end tests.
 
     It records the Hub API requests made by the handler and returns
     preconfigured payloads for token metadata and user data.

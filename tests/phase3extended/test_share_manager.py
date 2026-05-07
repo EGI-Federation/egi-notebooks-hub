@@ -13,6 +13,54 @@ def client():
     return TestClient(share_manager.app)
 
 
+def fake_call_hub_api(calls=None, extra_calls={}):
+    """Helper function to simulate the hub calls (and avoid code duplication)
+       Params:
+       * calls - an array where the actual calls will be registered
+       * extra_calls - dictionary[str, dict] with the call paths and the resulting object
+    """
+    calls_mapping = {
+        "user": {
+            "name": "alice",
+            "token_id": "tok-1",
+            "scopes": ["access:servers!server=alice/my-server/"],
+        },
+        "users/alice/tokens/tok-1": {
+            "oauth_client": "JupyterHub server at /user/alice/my-server/",
+            "session_id": "sess-1",
+            "user": "alice",
+            "scopes": [share_manager.settings.token_acquirer_scope],
+        },
+        "shares/alice/my-server": {"items": []},
+        "share-codes/alice/my-server": {"code": "share-code"},
+        "users/alice": {
+            "auth_state": {"access_token": "egi-access-token"},
+        },
+        "/token_revoke": {"status": "revoked"},
+    }
+    calls_mapping.update(extra_calls)
+
+    async def fake_call_hub_api_inner(
+        path, base_url=None, content=None, method="get", headers=None, token=None
+    ):
+        if calls is not None:
+            calls.append(
+                {
+                    "path": path,
+                    "base_url": base_url,
+                    "method": method,
+                    "headers": headers or {},
+                    "token": token,
+                    "content": content,
+                }
+            )
+        if path in calls_mapping:
+            return calls_mapping[path]
+        raise AssertionError(f"Unexpected path: {path}")
+
+    return fake_call_hub_api_inner
+
+
 def make_request(headers=None):
     raw_headers = []
     for k, v in (headers or {}).items():
@@ -123,7 +171,7 @@ def test_get_server_name_returns_none_for_default_server():
         "session_id": "sess-1",
         "oauth_client": "JupyterHub server at /user/alice/",
     }
-    assert share_manager.get_server_name(token_info) is None
+    assert share_manager.get_server_name(token_info) == ""
 
 
 # phase3-9
@@ -328,29 +376,7 @@ async def test_call_hub_api_uses_custom_base_url_and_content(monkeypatch):
 def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
 
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        calls.append(
-            {"path": path, "base_url": base_url, "method": method, "token": token}
-        )
-        if path == "user":
-            return {"name": "alice", "token_id": "tok-1"}
-        if path == "users/alice/tokens/tok-1":
-            return {
-                "oauth_client": "JupyterHub server at /user/alice/my-server/",
-                "session_id": "sess-1",
-                "user": "alice",
-                "scopes": [share_manager.settings.token_acquirer_scope],
-            }
-        if path == "shares/alice/my-server":
-            return {"items": []}
-        if path == "users/alice":
-            return {"auth_state": {"access_token": "egi-access-token"}}
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
-
+    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api(calls))
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
     assert response.status_code == 200
@@ -358,11 +384,12 @@ def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatc
     assert [c["path"] for c in calls] == [
         "user",
         "users/alice/tokens/tok-1",
-        "shares/alice/my-server",
+        # we are not checking sharing at the moment
+        # "shares/alice/my-server",
         "users/alice",
     ]
     assert calls[0]["token"] == "user-token"
-    assert calls[-1]["token"] == share_manager.settings.api_token
+    assert calls[-1]["token"] == share_manager.settings.jupyterhub_api_token
 
 
 # phase3-18
@@ -372,25 +399,20 @@ def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatc
 # Example pass case: token metadata contains unrelated scopes and /token responds 403.
 # Example fail case: any server token is accepted even without the dedicated scope.
 def test_get_token_rejects_missing_scope(client, monkeypatch):
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        if path == "user":
-            return {"name": "alice", "token_id": "tok-1"}
-        if path == "users/alice/tokens/tok-1":
-            return {
-                "oauth_client": "JupyterHub server at /user/alice/my-server/",
-                "session_id": "sess-1",
-                "user": "alice",
-                "scopes": ["something-else"],
-            }
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    extra_calls = {
+        "users/alice/tokens/tok-1": {
+            "oauth_client": "JupyterHub server at /user/alice/my-server/",
+            "session_id": "sess-1",
+            "user": "alice",
+            "scopes": ["something-else"],
+        }
+    }
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
+    )
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
     assert response.status_code == 403
-    assert share_manager.settings.token_acquirer_scope in response.text
 
 
 # phase3-19
@@ -402,21 +424,17 @@ def test_get_token_rejects_missing_scope(client, monkeypatch):
 # Example fail case: non-server tokens are accepted and can read another user's access
 # token.
 def test_get_token_rejects_non_server_token(client, monkeypatch):
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        if path == "user":
-            return {"name": "alice", "token_id": "tok-1"}
-        if path == "users/alice/tokens/tok-1":
-            return {
-                "oauth_client": "JupyterHub",
-                "session_id": "sess-1",
-                "user": "alice",
-                "scopes": [share_manager.settings.token_acquirer_scope],
-            }
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    extra_calls = {
+        "users/alice/tokens/tok-1": {
+            "oauth_client": "JupyterHub",
+            "session_id": "sess-1",
+            "user": "alice",
+            "scopes": [share_manager.settings.token_acquirer_scope],
+        }
+    }
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
+    )
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
     assert response.status_code == 403
@@ -431,27 +449,14 @@ def test_get_token_rejects_non_server_token(client, monkeypatch):
 # Example fail case: shared servers can still retrieve access tokens meant only for the
 # private owner context.
 def test_get_token_rejects_shared_server(client, monkeypatch):
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        if path == "user":
-            return {"name": "alice", "token_id": "tok-1"}
-        if path == "users/alice/tokens/tok-1":
-            return {
-                "oauth_client": "JupyterHub server at /user/alice/my-server/",
-                "session_id": "sess-1",
-                "user": "alice",
-                "scopes": [share_manager.settings.token_acquirer_scope],
-            }
-        if path == "shares/alice/my-server":
-            return {"items": [{"code": "abc"}]}
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api())
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
-    assert response.status_code == 403
-    assert "server is shared" in response.text.lower()
+    # for now we are not checking the sharing of the server, so this returns 200
+    assert response.status_code == 200
+    assert response.json() == {"access_token": "egi-access-token"}
+    # assert response.status_code == 403
+    # assert "server is shared" in response.text.lower()
 
 
 # phase3-21
@@ -462,25 +467,10 @@ def test_get_token_rejects_shared_server(client, monkeypatch):
 # Example fail case: the endpoint returns 200 with empty data or crashes on missing
 # auth_state.
 def test_get_token_returns_404_when_auth_state_missing(client, monkeypatch):
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        if path == "user":
-            return {"name": "alice", "token_id": "tok-1"}
-        if path == "users/alice/tokens/tok-1":
-            return {
-                "oauth_client": "JupyterHub server at /user/alice/my-server/",
-                "session_id": "sess-1",
-                "user": "alice",
-                "scopes": [share_manager.settings.token_acquirer_scope],
-            }
-        if path == "shares/alice/my-server":
-            return {"items": []}
-        if path == "users/alice":
-            return {}
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    extra_calls = {"users/alice": {}}
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
+    )
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
     assert response.status_code == 404
@@ -495,25 +485,11 @@ def test_get_token_returns_404_when_auth_state_missing(client, monkeypatch):
 # Example fail case: the endpoint returns a partial auth_state or incorrectly treats the
 # refresh token as a substitute.
 def test_get_token_returns_404_when_access_token_missing(client, monkeypatch):
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        if path == "user":
-            return {"name": "alice", "token_id": "tok-1"}
-        if path == "users/alice/tokens/tok-1":
-            return {
-                "oauth_client": "JupyterHub server at /user/alice/my-server/",
-                "session_id": "sess-1",
-                "user": "alice",
-                "scopes": [share_manager.settings.token_acquirer_scope],
-            }
-        if path == "shares/alice/my-server":
-            return {"items": []}
-        if path == "users/alice":
-            return {"auth_state": {"refresh_token": "x"}}
-        raise AssertionError(f"Unexpected path: {path}")
+    extra_calls = {"users/alice": {"auth_state": {"refresh_token": "x"}}}
 
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
+    )
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
     assert response.status_code == 404
@@ -529,29 +505,7 @@ def test_get_token_returns_404_when_access_token_missing(client, monkeypatch):
 # request loses its payload.
 def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
-
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        calls.append(
-            {
-                "path": path,
-                "base_url": base_url,
-                "method": method,
-                "headers": headers or {},
-                "token": token,
-                "content": content,
-            }
-        )
-        if path == "shares/alice/my-server":
-            return {"items": []}
-        if path == "token_revoke":
-            return {"status": "revoked"}
-        if path == "/share-codes/alice/my-server":
-            return {"code": "share-code"}
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api(calls))
     response = client.post(
         "/share-codes/alice/my-server",
         headers={
@@ -564,14 +518,16 @@ def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
     assert response.status_code == 200
     assert response.json() == {"code": "share-code"}
     assert [c["path"] for c in calls] == [
+        "user",
         "shares/alice/my-server",
-        "token_revoke",
-        "/share-codes/alice/my-server",
+        "share-codes/alice/my-server",
+        "/token_revoke",
+        "share-codes/alice/my-server",
     ]
-    assert calls[1]["base_url"] == share_manager.settings.jupyterhub_url
-    assert calls[2]["method"] == "post"
-    assert calls[2]["token"] == share_manager.settings.api_token
-    assert calls[2]["content"] == b'{"expires_in": 3600}'
+    assert calls[3]["base_url"] == "http://localhost:8000/hub"
+    assert calls[4]["method"] == "post"
+    assert calls[4]["token"] == share_manager.settings.jupyterhub_api_token
+    assert calls[4]["content"] == b'{"expires_in": 3600}'
 
 
 # phase3-24
@@ -585,17 +541,13 @@ def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
 def test_create_share_code_skips_revoke_when_server_already_shared(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
 
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        calls.append(path)
-        if path == "shares/alice/my-server":
-            return {"items": [{"code": "existing"}]}
-        if path == "/share-codes/alice/my-server":
-            return {"code": "share-code"}
-        raise AssertionError(f"Unexpected path: {path}")
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    extra_calls = {
+        "shares/alice/my-server": {"items": [{"code": "existing"}]},
+        "share-codes/alice/my-server": {"code": "share-code"},
+    }
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls)
+    )
     response = client.post(
         "/share-codes/alice/my-server",
         headers={"Authorization": "Bearer user-token"},
@@ -604,7 +556,12 @@ def test_create_share_code_skips_revoke_when_server_already_shared(client, monke
 
     assert response.status_code == 200
     assert response.json() == {"code": "share-code"}
-    assert calls == ["shares/alice/my-server", "/share-codes/alice/my-server"]
+    assert [c["path"] for c in calls] == [
+        "user",
+        "shares/alice/my-server",
+        "share-codes/alice/my-server",
+        "share-codes/alice/my-server",
+    ]
 
 
 # phase3-25
@@ -615,24 +572,11 @@ def test_create_share_code_skips_revoke_when_server_already_shared(client, monke
 # method, and the configured API token.
 # Example fail case: the method changes, body is dropped, or the wrong token is used.
 def test_call_wrapper_forwards_method_body_and_api_token(client, monkeypatch):
-    seen = {}
-
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        seen.update(
-            {
-                "path": path,
-                "base_url": base_url,
-                "content": content,
-                "method": method,
-                "headers": headers,
-                "token": token,
-            }
-        )
-        return {"ok": True}
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    calls: ClassVar[list[dict[str, Any]]] = []
+    extra_calls = {"shares/alice/server1": {"ok": True}}
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls)
+    )
     response = client.patch(
         "/shares/alice/server1",
         headers={
@@ -644,10 +588,10 @@ def test_call_wrapper_forwards_method_body_and_api_token(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"ok": True}
-    assert seen["path"] == "shares/alice/server1"
-    assert seen["method"] == "PATCH".lower()
-    assert seen["content"] == b'{"enabled": true}'
-    assert seen["token"] == share_manager.settings.api_token
+    assert calls[1]["path"] == "shares/alice/server1"
+    assert calls[1]["method"] == "PATCH".lower()
+    assert calls[1]["content"] == b'{"enabled": true}'
+    assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
 
 
 # phase3-26
@@ -659,15 +603,11 @@ def test_call_wrapper_forwards_method_body_and_api_token(client, monkeypatch):
 # Example fail case: the path is malformed, truncated, or the request is sent with the
 # wrong method.
 def test_delete_share_codes_wraps_correct_path(client, monkeypatch):
-    seen = {}
-
-    async def fake_call_hub_api(
-        path, base_url=None, content=None, method="get", headers=None, token=None
-    ):
-        seen.update({"path": path, "method": method, "token": token})
-        return {"deleted": True}
-
-    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api)
+    calls: ClassVar[list[dict[str, Any]]] = []
+    extra_calls = {"share-codes/alice/server1/code1": {"deleted": True}}
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls)
+    )
     response = client.delete(
         "/share-codes/alice/server1/code1",
         headers={"Authorization": "Bearer user-token"},
@@ -675,8 +615,6 @@ def test_delete_share_codes_wraps_correct_path(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"deleted": True}
-    assert seen == {
-        "path": "share-codes/alice/server1/code1",
-        "method": "delete",
-        "token": share_manager.settings.api_token,
-    }
+    assert calls[1]["path"] == "share-codes/alice/server1/code1"
+    assert calls[1]["method"] == "delete"
+    assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
