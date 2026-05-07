@@ -7,17 +7,13 @@ The goal is to exercise realistic service behavior while still keeping the
 tests fast, deterministic, and CI-friendly.
 """
 
-import json
-from types import SimpleNamespace
 from typing import Any, ClassVar
-from unittest.mock import Mock
 
-import httpx
 import pytest
 from fastapi.testclient import TestClient
-from tornado.web import HTTPError
 
-from egi_notebooks_hub.services import api_wrapper, share_manager
+from egi_notebooks_hub.services import api_wrapper
+
 from . import DummyResponse
 
 

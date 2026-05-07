@@ -1,5 +1,6 @@
 import httpx
 
+
 class DummyResponse:
     """
     Small helper that mimics enough of httpx.Response for our tests.
@@ -34,4 +35,3 @@ class DummyResponse:
         if self._json_data is not None:
             return self._json_data
         raise ValueError("not json")
-
