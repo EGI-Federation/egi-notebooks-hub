@@ -95,21 +95,3 @@ class FakeAsyncClient:
 
     async def post(self, url, content=None, headers=None, **kwargs):
         return self._record("POST", url, content, headers, **kwargs)
-
-    async def put(self, url, content=None, headers=None, **kwargs):
-        return self._record("PUT", url, content, headers, **kwargs)
-
-    async def delete(self, url, headers=None, **kwargs):
-        return self._record("DELETE", url, None, headers, **kwargs)
-
-    async def patch(self, url, content=None, headers=None, **kwargs):
-        return self._record("PATCH", url, content, headers, **kwargs)
-
-    async def options(self, url, headers=None, **kwargs):
-        return self._record("OPTIONS", url, None, headers, **kwargs)
-
-    async def head(self, url, headers=None, **kwargs):
-        return self._record("HEAD", url, None, headers, **kwargs)
-
-    async def trace(self, url, headers=None, **kwargs):
-        return self._record("TRACE", url, None, headers, **kwargs)
