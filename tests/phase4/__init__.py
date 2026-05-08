@@ -1,3 +1,5 @@
+from typing import Any, ClassVar
+
 import httpx
 
 
@@ -35,3 +37,79 @@ class DummyResponse:
         if self._json_data is not None:
             return self._json_data
         raise ValueError("not json")
+
+
+class FakeAsyncClient:
+    """Fake httpx.AsyncClient used across phase4 integration tests."""
+
+    calls: ClassVar[list[dict[str, Any]]] = []
+    login_response = DummyResponse(
+        status_code=200, json_data={"token": "hub-user-token"}
+    )
+    forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
+    responses: ClassVar[dict[str, DummyResponse]] = {}
+
+    def __init__(self, *args, **kwargs):
+        self.kwargs = kwargs
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb):
+        return False
+
+    @classmethod
+    def reset(cls):
+        cls.calls = []
+        cls.login_response = DummyResponse(
+            status_code=200, json_data={"token": "hub-user-token"}
+        )
+        cls.forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
+        cls.responses = {}
+
+    def _record(self, method: str, url: str, content=None, headers=None, **kwargs):
+        self.calls.append(
+            {
+                "method": method,
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+                "kwargs": kwargs,
+            }
+        )
+        return type(self).responses.get(url, type(self).forwarded_response)
+
+    async def get(self, url, headers=None, content=None, **kwargs):
+        self.calls.append(
+            {
+                "method": "GET",
+                "url": url,
+                "content": content,
+                "headers": headers or {},
+                "kwargs": kwargs,
+            }
+        )
+        if url.endswith("/jwt_login"):
+            return type(self).login_response
+        return type(self).responses.get(url, type(self).forwarded_response)
+
+    async def post(self, url, content=None, headers=None, **kwargs):
+        return self._record("POST", url, content, headers, **kwargs)
+
+    async def put(self, url, content=None, headers=None, **kwargs):
+        return self._record("PUT", url, content, headers, **kwargs)
+
+    async def delete(self, url, headers=None, **kwargs):
+        return self._record("DELETE", url, None, headers, **kwargs)
+
+    async def patch(self, url, content=None, headers=None, **kwargs):
+        return self._record("PATCH", url, content, headers, **kwargs)
+
+    async def options(self, url, headers=None, **kwargs):
+        return self._record("OPTIONS", url, None, headers, **kwargs)
+
+    async def head(self, url, headers=None, **kwargs):
+        return self._record("HEAD", url, None, headers, **kwargs)
+
+    async def trace(self, url, headers=None, **kwargs):
+        return self._record("TRACE", url, None, headers, **kwargs)

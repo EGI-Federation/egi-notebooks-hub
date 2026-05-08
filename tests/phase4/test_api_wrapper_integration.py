@@ -7,123 +7,12 @@ The goal is to exercise realistic service behavior while still keeping the
 tests fast, deterministic, and CI-friendly.
 """
 
-from typing import Any, ClassVar
-
 import pytest
 from fastapi.testclient import TestClient
 
 from egi_notebooks_hub.services import api_wrapper
 
-from . import DummyResponse
-
-
-class FakeAsyncClient:
-    """
-    Fake httpx.AsyncClient used to drive end-to-end wrapper scenarios.
-
-    Typical flow in these tests:
-    1. first GET is the call to /jwt_login
-    2. the next call is the forwarded upstream Hub API request
-
-    The class stores every call in `calls` so tests can assert the exact
-    sequence, URLs, headers, and methods that were used.
-    """
-
-    calls: ClassVar[list[dict[str, Any]]] = []
-    login_response = DummyResponse(
-        status_code=200, json_data={"token": "hub-user-token"}
-    )
-    forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
-
-    def __init__(self, *args, **kwargs):
-        self.kwargs = kwargs
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb):
-        return False
-
-    @classmethod
-    def reset(cls):
-        cls.calls = []
-        cls.login_response = DummyResponse(
-            status_code=200, json_data={"token": "hub-user-token"}
-        )
-        cls.forwarded_response = DummyResponse(status_code=200, json_data={"ok": True})
-
-    async def get(self, url, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {"method": "GET", "url": url, "headers": headers or {}, "kwargs": kwargs}
-        )
-        if url.endswith("/jwt_login"):
-            return FakeAsyncClient.login_response
-        return FakeAsyncClient.forwarded_response
-
-    async def post(self, url, content=None, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {
-                "method": "POST",
-                "url": url,
-                "content": content,
-                "headers": headers or {},
-                "kwargs": kwargs,
-            }
-        )
-        return FakeAsyncClient.forwarded_response
-
-    async def put(self, url, content=None, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {
-                "method": "PUT",
-                "url": url,
-                "content": content,
-                "headers": headers or {},
-                "kwargs": kwargs,
-            }
-        )
-        return FakeAsyncClient.forwarded_response
-
-    async def delete(self, url, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {"method": "DELETE", "url": url, "headers": headers or {}, "kwargs": kwargs}
-        )
-        return FakeAsyncClient.forwarded_response
-
-    async def patch(self, url, content=None, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {
-                "method": "PATCH",
-                "url": url,
-                "content": content,
-                "headers": headers or {},
-                "kwargs": kwargs,
-            }
-        )
-        return FakeAsyncClient.forwarded_response
-
-    async def options(self, url, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {
-                "method": "OPTIONS",
-                "url": url,
-                "headers": headers or {},
-                "kwargs": kwargs,
-            }
-        )
-        return FakeAsyncClient.forwarded_response
-
-    async def head(self, url, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {"method": "HEAD", "url": url, "headers": headers or {}, "kwargs": kwargs}
-        )
-        return FakeAsyncClient.forwarded_response
-
-    async def trace(self, url, headers=None, **kwargs):
-        FakeAsyncClient.calls.append(
-            {"method": "TRACE", "url": url, "headers": headers or {}, "kwargs": kwargs}
-        )
-        return FakeAsyncClient.forwarded_response
+from . import DummyResponse, FakeAsyncClient
 
 
 @pytest.fixture

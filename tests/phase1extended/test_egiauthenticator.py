@@ -1,12 +1,12 @@
 import base64
 import json
 import time
-from unittest.mock import AsyncMock, Mock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from types import SimpleNamespace
 
 from egi_notebooks_hub.egiauthenticator import (
     EGICheckinAuthenticator,
