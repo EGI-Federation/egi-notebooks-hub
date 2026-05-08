@@ -6,7 +6,7 @@ from jupyterhub import orm
 from tornado.httpclient import HTTPClientError
 from tornado.web import HTTPError
 
-from egi_notebooks_hub.egiauthenticator import JWTHandler
+from egi_notebooks_hub.egiauthenticator import JWTHandler, TokenRevokeHandler
 
 
 class DummyResponse:
@@ -77,9 +77,9 @@ async def test_exchange_for_refresh_token_returns_none_on_http_error(authenticat
 # Fail example: unauthenticated requests slip through into JWT processing.
 def test_get_token_raises_401_when_header_missing():
     handler = SimpleNamespace(get_auth_token=lambda: None, log=Mock())
-    with pytest.raises(HTTPClientError) as exc_info:
+    with pytest.raises(HTTPError) as exc_info:
         JWTHandler._get_token(handler)
-    assert exc_info.value.code == 401
+    assert exc_info.value.status_code == 401
 
 
 # phase1-35
@@ -383,3 +383,72 @@ async def test_exchange_for_refresh_token_returns_none_for_empty_response(
     ):
         token = await JWTHandler.exchange_for_refresh_token(handler, "jwt-access-token")
     assert token is None
+
+
+# phase1-50
+# Component: TokenRevokeHandler authorization enforcement.
+# Purpose: Ensure unauthenticated users cannot invoke token revocation.
+# Pass example: current_user is None and POST raises HTTP 403.
+# Fail example: anonymous requests are accepted.
+async def test_token_revoke_handler_rejects_unauthenticated_user():
+    handler = SimpleNamespace(
+        current_user=None, authenticator=SimpleNamespace(), auth_to_user=AsyncMock()
+    )
+    with pytest.raises(HTTPError) as exc_info:
+        await TokenRevokeHandler.post(handler)
+    assert exc_info.value.status_code == 403
+
+
+# phase1-51
+# Component: TokenRevokeHandler user state validation.
+# Purpose: Verify that missing auth_state results in an explicit server error.
+# Pass example: current_user returns None for get_auth_state and POST raises HTTP 500.
+# Fail example: the handler proceeds without a valid auth_state.
+async def test_token_revoke_handler_raises_if_no_auth_state():
+    user = DummyUser(auth_state=None)
+    handler = SimpleNamespace(
+        current_user=user, authenticator=SimpleNamespace(), auth_to_user=AsyncMock()
+    )
+    with pytest.raises(HTTPError) as exc_info:
+        await TokenRevokeHandler.post(handler)
+    assert exc_info.value.status_code == 500
+
+
+# phase1-52
+# Component: TokenRevokeHandler refresh and revoke behavior.
+# Purpose: Confirm the handler replaces the old access token, refreshes the user,
+# and then revokes the previous token.
+# Pass example: old access token is saved, auth_state is updated to "revoke",
+# refresh_user is called, auth_to_user receives the refreshed auth info, and
+# revoke_token is called with the original token.
+# Fail example: the old token is not revoked or auth_state is not updated.
+async def test_token_revoke_handler_refreshes_and_revokes_old_token():
+    user = DummyUser(
+        auth_state={
+            "access_token": "old-token",
+            "token_response": {"access_token": "old-token"},
+        },
+        name="alice",
+    )
+    authenticator = SimpleNamespace(
+        refresh_user=AsyncMock(
+            return_value={"auth_state": {"access_token": "new-token"}}
+        ),
+        revoke_token=AsyncMock(),
+    )
+    auth_to_user = AsyncMock()
+    handler = SimpleNamespace(
+        current_user=user,
+        authenticator=authenticator,
+        auth_to_user=auth_to_user,
+    )
+
+    await TokenRevokeHandler.post(handler)
+
+    assert user.saved_auth_state["access_token"] == "revoke"
+    assert user.saved_auth_state["token_response"]["access_token"] == "revoke"
+    authenticator.refresh_user.assert_awaited_once_with(user, handler)
+    auth_to_user.assert_awaited_once_with(
+        {"auth_state": {"access_token": "new-token"}, "name": "alice"}, user
+    )
+    authenticator.revoke_token.assert_awaited_once_with("old-token")
