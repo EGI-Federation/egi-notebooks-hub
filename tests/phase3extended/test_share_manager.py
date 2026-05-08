@@ -496,6 +496,44 @@ def test_get_token_returns_404_when_access_token_missing(client, monkeypatch):
 
 
 # phase3-23
+# Component: share_manager /token_details endpoint
+# Purpose: Verify the normal success path: the user's token is validated and the
+# endpoint returns the oauth_user data from the user's auth_state.
+def test_get_token_details_returns_oauth_user_data(client, monkeypatch):
+    calls: ClassVar[list[dict[str, Any]]] = []
+    extra_calls = {
+        "users/alice": {"auth_state": {"oauth_user": {"id": "alice@example.com"}}}
+    }
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls=extra_calls)
+    )
+    response = client.get(
+        "/token_details", headers={"Authorization": "Bearer user-token"}
+    )
+    assert response.status_code == 200
+    assert response.json() == {"id": "alice@example.com"}
+    assert [c["path"] for c in calls] == ["user", "users/alice"]
+    assert calls[0]["token"] == "user-token"
+    assert calls[-1]["token"] == share_manager.settings.jupyterhub_api_token
+
+
+# phase3-24
+# Component: share_manager /token_details endpoint
+# Purpose: Ensure a missing oauth_user section produces a 404 response instead of
+# returning empty or invalid data.
+def test_get_token_details_returns_404_when_oauth_user_missing(client, monkeypatch):
+    extra_calls = {"users/alice": {"auth_state": {}}}
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
+    )
+    response = client.get(
+        "/token_details", headers={"Authorization": "Bearer user-token"}
+    )
+    assert response.status_code == 404
+    assert "No user data available" in response.text
+
+
+# phase3-25
 # Component: share_manager POST /share-codes/{owner}/{server_name}
 # Purpose: Verify the 'first share' workflow: if the server is not already shared, the
 # service first revokes the old token and only then creates the share code.
