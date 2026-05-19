@@ -239,3 +239,34 @@ Secret creation and update, PVC discovery, generated Secret/PVC volume
 configuration, `auth_state_hook`, `pre_spawn_hook`, Pod smoke tests, Secret and
 PVC mounts inside containers, environment variable injection, metadata
 round-trips, missing Secret/PVC failure behavior, and multi-user isolation.
+
+## Phase 6: running JupyterHub tests
+
+Files:
+
+- `phase6/jupyterhub_config.py`
+- `phase6/conftest.py`
+- `phase6/test_hub_smoke.py`
+- `phase6/test_hub_users.py`
+- `phase6/test_hub_services.py`
+- `phase6/test_hub_spawner.py`
+- `phase6/test_hub_spawner_extended.py`
+
+Phase 6 starts a real JupyterHub process with a dedicated test configuration and
+runs tests against the live Hub through HTTP/API calls. The goal is to verify the
+parts of the EGI Hub integration that only exist when JupyterHub is actually
+running: Hub API access, service registration, managed service routing, user and
+group API behavior, authorization checks, proxy routing, and Hub runtime
+stability.
+
+The same Hub configuration also uses a lightweight `EGISpawner` subclass for
+spawner lifecycle tests. This subclass still inherits from the real
+`EGISpawner`, so JupyterHub initializes the EGI spawner in a real Hub context.
+Only the actual single-user backend is replaced with a small local HTTP server,
+which makes the tests fast and stable while still verifying that Hub spawn and
+stop requests reach the spawner lifecycle.
+
+The spawner tests cover default servers, named servers, repeated start/stop
+operations, event metadata, generated EGI spawner attributes, multi-user
+isolation, cleanup behavior, route behavior after stop, and protection against
+unauthorized or invalid API calls.

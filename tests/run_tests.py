@@ -9,6 +9,7 @@ Usage:
     python tests/run_tests.py phase3
     python tests/run_tests.py phase4
     python tests/run_tests.py phase5
+    python tests/run_tests.py phase6
     python tests/run_tests.py all
 
 Optional flags:
@@ -56,6 +57,13 @@ PHASES = {
         "phase5-k3s/test_spawner_k3s_additional.py",
         "phase5-k3s/test_spawner_k3s_pods.py",
         "phase5-k3s/test_spawner_k3s_edge.py",
+    ],
+    "phase6": [
+        "phase6/test_hub_smoke.py",
+        "phase6/test_hub_users.py",
+        "phase6/test_hub_services.py",
+        "phase6/test_hub_spawner.py",
+        "phase6/test_hub_spawner_extended.py",
     ],
 }
 
