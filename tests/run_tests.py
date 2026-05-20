@@ -130,7 +130,7 @@ def parse_args():
         "target",
         nargs="?",
         default="all",
-        choices=["phase1", "phase2", "phase3", "phase4", "phase5", "all"],
+        choices=["phase1", "phase2", "phase3", "phase4", "phase5", "phase6", "all"],
     )
 
     parser.add_argument("--list", action="store_true")
