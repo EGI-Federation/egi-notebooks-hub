@@ -744,16 +744,14 @@ async def test_pre_spawn_hook_calls_methods_in_expected_order(spawner):
 # phase2-29
 # Component: EGISpawner.get_args
 # Purpose: Ensure the token acquirer mount-path argument is appended when the user pod
-# is
-# expected to read secrets from a writable directory rather than a directly mounted
-# Secret.
-# Example pass case: mount_secrets_volume is False and the returned args include
+# is expected use the token_acquirer extension
+# Example pass case: use_token_aqcuirer is True and the returned args include
 # TokenAcquirerApp.secrets_mount_path=<token_mount_path>.
 # Example fail case: the extra argument is missing, duplicated, or points to the wrong
 # path.
 def test_get_args_adds_token_acquirer_arg_when_secret_not_mounted(spawner, monkeypatch):
     monkeypatch.setattr(KubeSpawner, "get_args", lambda self: ["--base-arg"])
-    spawner.mount_secrets_volume = False
+    spawner.use_token_aqcuirer = True
 
     args = spawner.get_args()
 
@@ -765,16 +763,16 @@ def test_get_args_adds_token_acquirer_arg_when_secret_not_mounted(spawner, monke
 
 # phase2-30
 # Component: EGISpawner.get_args
-# Purpose: Verify that no extra token-acquirer path argument is added when the Secret is
-# mounted directly, because the application can read the mounted files as-is.
-# Example pass case: mount_secrets_volume is True and the args list stays exactly what
+# Purpose: Verify that no extra token-acquirer path argument is added when the
+# Token Acquirer extension is not used
+# Example pass case: use_token_aqcuirer is False and the args list stays exactly what
 # the parent returned.
 # Example fail case: the extra argument is still appended even though it is unnecessary.
 def test_get_args_does_not_add_token_acquirer_arg_when_secret_is_mounted(
     spawner, monkeypatch
 ):
     monkeypatch.setattr(KubeSpawner, "get_args", lambda self: ["--base-arg"])
-    spawner.mount_secrets_volume = True
+    spawner.use_token_aqcuirer = False
 
     args = spawner.get_args()
 
