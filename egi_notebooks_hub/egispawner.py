@@ -44,7 +44,14 @@ class EGISpawner(KubeSpawner):
         config=True,
         help="""Whether to mount or not the secrets as a volume in the
                 user space at the `token_mount_path`. If False, then a
-                in-memory volume will be provided instead""",
+                in-memory volume will be provided instead.""",
+    )
+
+    use_token_aqcuirer = Bool(
+        True,
+        config=False,
+        help="""Whether to add arguments for the Token Aqcuirer extension
+                or not. Do check `use_token_aqcuirer` option as well.""",
     )
 
     def __init__(self, *args, **kwargs):
@@ -230,7 +237,7 @@ class EGISpawner(KubeSpawner):
 
     def get_args(self):
         args = super().get_args()
-        if not self.mount_secrets_volume:
+        if self.use_token_aqcuirer:
             args.append(
                 f"--TokenAcquirerApp.secrets_mount_path={self.token_mount_path}"
             )
