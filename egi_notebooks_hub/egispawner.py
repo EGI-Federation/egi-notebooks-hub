@@ -194,8 +194,10 @@ class EGISpawner(KubeSpawner):
         self.volumes = new_volumes
         # set also the env
         self.environment.update(
-            {"SECRETS_VOLUME_MOUNTED": f"{int(self.mount_secrets_volume)}",
-             "SECRETS_MOUNT_PATH": self.token_mount_path}
+            {
+                "SECRETS_VOLUME_MOUNTED": f"{int(self.mount_secrets_volume)}",
+                "SECRETS_MOUNT_PATH": self.token_mount_path,
+            }
         )
 
     async def configure_user_volumes(self):
