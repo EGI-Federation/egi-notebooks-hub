@@ -758,7 +758,7 @@ def test_get_share_codes_wraps_correct_path(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
     monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api(calls))
     response = client.get(
-        "/share-codes/alice/my-server"
+        "/share-codes/alice/my-server",
         headers={"Authorization": "Bearer user-token"},
     )
 
