@@ -300,8 +300,9 @@ async def create_share_code(
     return resp
 
 
+@app.get("/share-codes/{svc_path:path}")
 @app.delete("/share-codes/{svc_path:path}")
-async def delete_share_codes(request: Request, svc_path: str):
+async def share_codes_calls(request: Request, svc_path: str):
     return await call_wrapper(request, f"share-codes/{svc_path}")
 
 

@@ -746,6 +746,29 @@ def test_delete_share_codes_wraps_correct_path(client, monkeypatch):
     assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
 
 
+# phase3-32-bis
+# Component: share_manager GET /share-codes/... endpoint
+# Purpose: Ensure the delete endpoint wraps the correct downstream Hub API path and HTTP
+# method.
+# Example pass case: get /share-codes/alice/server1/code1 results in a downstream
+# call to the exact same logical path using method delete.
+# Example fail case: the path is malformed, truncated, or the request is sent with the
+# wrong method.
+def test_get_share_codes_wraps_correct_path(client, monkeypatch):
+    calls: ClassVar[list[dict[str, Any]]] = []
+    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api(calls))
+    response = client.get(
+        "/share-codes/alice/server1",
+        headers={"Authorization": "Bearer user-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"code": "share-code"}
+    assert calls[1]["path"] == "share-codes/alice/my-server"
+    assert calls[1]["method"] == "get"
+    assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
+
+
 # phase3-33
 # Component: share_manager /token endpoint
 # Purpose: Verify that when release_with_shared_server is True, the endpoint allows
