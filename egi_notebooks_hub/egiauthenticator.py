@@ -4,6 +4,7 @@ Uses OpenID Connect with aai.egi.eu
 """
 
 import base64
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -17,7 +18,7 @@ from jupyterhub.apihandlers import APIHandler
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from tornado.httpclient import AsyncHTTPClient, HTTPClientError, HTTPRequest
+from tornado.httpclient import AsyncHTTPClient, HTTPClient, HTTPClientError, HTTPRequest
 from traitlets import Bool, Int, List, Unicode, default, validate
 
 
@@ -192,8 +193,13 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     jwt_handler = JWTHandler
     token_revoke_handler = TokenRevokeHandler
 
+    _oidc_configuration: dict = {}
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
+    issuer = Unicode(config=True, help="""The OIDC issuer""")
+    use_oidc_discovery = Bool(
+        config=True, default_value=True, help="""Use OIDC Discovery to get endpoints"""
+    )
 
     @default("checkin_host")
     def _checkin_host_default(self):
@@ -202,25 +208,58 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return os.getenv(self.checkin_host_env, default)
         return default
 
+    @default("issuer")
+    def _issuer_default(self):
+        return f"https://{self.checkin_host}/auth/realms/egi"
+
+    def _oidc_discovery(self):
+        discovery_url = f"{self.issuer}/.well-known/openid-configuration"
+
+        # Adapted from oauthenticator.openshift
+        # See also
+        # https://github.com/tornadoweb/tornado/issues/2325#issuecomment-375972739.
+        #
+        def fetch_info():
+            client = HTTPClient()
+            req = HTTPRequest(discovery_url, **self.http_request_kwargs)
+            try:
+                resp = client.fetch(req)
+                resp_json = json.loads(resp.body.decode("utf8", "replace"))
+                return resp_json
+            except Exception as e:
+                self.log.error(f"Unable to discover OIDC configuration: {e}")
+                return {}
+
+        if not self.use_oidc_discovery:
+            return {}
+        if not self._oidc_configuration:
+            with concurrent.futures.ThreadPoolExecutor(1) as executor:
+                future = executor.submit(fetch_info)
+                self._oidc_configuration = future.result()
+        return self._oidc_configuration
+
     @default("authorize_url")
     def _authorize_url_default(self):
-        return (
-            "https://%s/auth/realms/egi/protocol/openid-connect/auth"
-            % self.checkin_host
+        oidc_config = self._oidc_discovery()
+        return oidc_config.get(
+            "authorization_endpoint",
+            f"https://{self.checkin_host}/auth/realms/egi/protocol/openid-connect/auth",
         )
 
     @default("token_url")
     def _token_url_default(self):
-        return (
-            "https://%s/auth/realms/egi/protocol/openid-connect/token"
-            % self.checkin_host
+        oidc_config = self._oidc_discovery()
+        return oidc_config.get(
+            "token_endpoint",
+            f"https://{self.checkin_host}/auth/realms/egi/protocol/openid-connect/token",
         )
 
     @default("userdata_url")
     def _userdata_url_default(self):
-        return (
-            "https://%s/auth/realms/egi/protocol/openid-connect/userinfo"
-            % self.checkin_host
+        oidc_config = self._oidc_discovery()
+        return oidc_config.get(
+            "userinfo_endpoint",
+            f"https://{self.checkin_host}/auth/realms/egi/protocol/openid-connect/userinfo",
         )
 
     introspect_url = Unicode(
@@ -236,9 +275,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     @default("introspect_url")
     def _introspect_url_default(self):
-        return (
-            "https://%s/auth/realms/egi/protocol/openid-connect/token/introspect"
-            % self.checkin_host
+        oidc_config = self._oidc_discovery()
+        return oidc_config.get(
+            "introspection_endpoint",
+            f"https://{self.checkin_host}/auth/realms/egi/protocol/openid-connect/token/introspect",
         )
 
     revoke_url = Unicode(
@@ -254,9 +294,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
     @default("revoke_url")
     def _revoke_url_default(self):
-        return (
-            "https://%s/auth/realms/egi/protocol/openid-connect/revoke"
-            % self.checkin_host
+        oidc_config = self._oidc_discovery()
+        return oidc_config.get(
+            "revocation_endpoint",
+            f"https://{self.checkin_host}/auth/realms/egi/protocol/openid-connect/revoke",
         )
 
     scope = List(
