@@ -173,16 +173,41 @@ async def get_user_info(request: Request, check_ownership: bool = True):
     return user_info, user_token
 
 
-async def is_server_shared(owner: str, server_name: Optional[str] = ""):
+async def server_has_shares(
+    owner: str, server_name: Optional[str] = "", raise_exc: Optional[bool] = False
+):
     shares = await call_hub_api(
         path=f"shares/{owner}/{server_name}",
         token=settings.jupyterhub_api_token,
     )
+    result = bool(shares.get("items", []))
+    if raise_exc and result:
+        raise HTTPException(403, detail="Forbidden, server has shares!")
+    return result
+
+
+async def server_has_share_codes(
+    owner: str, server_name: Optional[str] = "", raise_exc: Optional[bool] = False
+):
     share_codes = await call_hub_api(
         path=f"share-codes/{owner}/{server_name}",
         token=settings.jupyterhub_api_token,
     )
-    return bool(shares.get("items", [])) or bool(share_codes.get("items", []))
+    result = bool(share_codes.get("items", []))
+    if raise_exc and result:
+        raise HTTPException(403, detail="Forbidden, server has shares!")
+    return result
+
+
+async def is_server_shared(owner: str, server_name: Optional[str] = ""):
+    return await server_has_shares(
+        owner, server_name, False
+    ) or await server_has_share_codes(owner, server_name, False)
+
+
+async def fail_if_shared_server(owner: str, server_name: Optional[str] = ""):
+    await server_has_shares(owner, server_name, True)
+    await server_has_share_codes(owner, server_name, True)
 
 
 @app.get("/token_details")
@@ -198,8 +223,7 @@ async def get_token_details(request: Request):
             token=settings.jupyterhub_api_token,
         )
         server_name = get_server_name(token_info)
-        if await is_server_shared(user_info["name"], server_name):
-            raise HTTPException(403, detail="Forbidden, shared server!")
+        await fail_if_shared_server(user_info["name"], server_name)
 
     user_data = await call_hub_api(
         path=f"users/{user_info['name']}",
@@ -237,10 +261,8 @@ async def get_token(request: Request):
     server_name = get_server_name(token_info)
     if server_name is None:
         raise HTTPException(403, detail="Forbidden, no server token!")
-    if not settings.release_with_shared_server and await is_server_shared(
-        user_info["name"], server_name
-    ):
-        raise HTTPException(403, detail="Forbidden, shared server!")
+    if not settings.release_with_shared_server:
+        await fail_if_shared_server(user_info["name"], server_name)
     user_data = await call_hub_api(
         path=f"users/{user_info['name']}",
         token=settings.jupyterhub_api_token,
