@@ -168,7 +168,7 @@ async def get_user_info(request: Request, check_ownership: bool = True):
             access_scope_re.match(scope) for scope in user_info.get("scopes", [])
         ):
             raise HTTPException(
-                403, detail="Forbidden, server access does not match token owner!"
+                403, detail="Forbidden, server access does not match token owner"
             )
     return user_info, user_token
 
@@ -182,7 +182,7 @@ async def server_has_shares(
     )
     result = bool(shares.get("items", []))
     if raise_exc and result:
-        raise HTTPException(403, detail="Forbidden, server has shares!")
+        raise HTTPException(403, detail="Forbidden, server is shared")
     return result
 
 
@@ -195,7 +195,7 @@ async def server_has_share_codes(
     )
     result = bool(share_codes.get("items", []))
     if raise_exc and result:
-        raise HTTPException(403, detail="Forbidden, server has shares!")
+        raise HTTPException(403, detail="Forbidden, share codes exist for the server")
     return result
 
 
@@ -256,11 +256,11 @@ async def get_token(request: Request):
     )
     if settings.token_acquirer_scope not in token_info["scopes"]:
         raise HTTPException(
-            403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope!"
+            403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope"
         )
     server_name = get_server_name(token_info)
     if server_name is None:
-        raise HTTPException(403, detail="Forbidden, no server token!")
+        raise HTTPException(403, detail="Forbidden, no server token")
     if not settings.release_with_shared_server:
         await fail_if_shared_server(user_info["name"], server_name)
     user_data = await call_hub_api(
