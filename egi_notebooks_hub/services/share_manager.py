@@ -200,14 +200,14 @@ async def server_has_share_codes(
 
 
 async def is_server_shared(owner: str, server_name: Optional[str] = ""):
-    return await server_has_shares(
+    return await server_has_share_codes(
         owner, server_name, False
-    ) or await server_has_share_codes(owner, server_name, False)
+    ) or await server_has_shares(owner, server_name, False)
 
 
 async def fail_if_shared_server(owner: str, server_name: Optional[str] = ""):
-    await server_has_shares(owner, server_name, True)
     await server_has_share_codes(owner, server_name, True)
+    await server_has_shares(owner, server_name, True)
 
 
 @app.get("/token_details")
