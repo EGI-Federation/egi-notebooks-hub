@@ -64,10 +64,10 @@ def test_token_details_returns_oauth_user_data(share_manager_client):
     assert FakeAsyncClient.calls[0]["url"] == upstream_url("user")
     assert "authorization" in FakeAsyncClient.calls[0]["headers"]
     assert FakeAsyncClient.calls[1]["url"] == upstream_url("users/alice/tokens/alice")
-    assert FakeAsyncClient.calls[2]["url"] == upstream_url("shares/alice/my-server")
-    assert FakeAsyncClient.calls[3]["url"] == upstream_url(
+    assert FakeAsyncClient.calls[2]["url"] == upstream_url(
         "share-codes/alice/my-server"
     )
+    assert FakeAsyncClient.calls[3]["url"] == upstream_url("shares/alice/my-server")
     assert FakeAsyncClient.calls[4]["url"] == upstream_url("users/alice")
     assert (
         FakeAsyncClient.calls[4]["headers"]["authorization"]
@@ -148,8 +148,8 @@ def test_token_returns_access_token_for_valid_server_token(share_manager_client)
     assert response.json() == {"access_token": "egi-access-token"}
     assert FakeAsyncClient.calls[0]["url"] == upstream_url("user")
     assert FakeAsyncClient.calls[1]["url"] == upstream_url("users/alice/tokens/tok-1")
-    assert FakeAsyncClient.calls[2]["url"] == upstream_url("shares/alice/my-server")
-    assert FakeAsyncClient.calls[3]["url"] == upstream_url(
+    assert FakeAsyncClient.calls[2]["url"] == upstream_url(
         "share-codes/alice/my-server"
     )
+    assert FakeAsyncClient.calls[3]["url"] == upstream_url("shares/alice/my-server")
     assert FakeAsyncClient.calls[4]["url"] == upstream_url("users/alice")

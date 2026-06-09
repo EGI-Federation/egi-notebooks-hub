@@ -242,8 +242,8 @@ async def test_is_server_shared_returns_false_when_no_shares(monkeypatch):
     result = await share_manager.is_server_shared("alice", "my-server")
     assert result is False
     assert [c["path"] for c in calls] == [
-        "shares/alice/my-server",
         "share-codes/alice/my-server",
+        "shares/alice/my-server",
     ]
 
 
@@ -466,8 +466,8 @@ def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatc
     assert [c["path"] for c in calls] == [
         "user",
         "users/alice/tokens/tok-1",
-        "shares/alice/my-server",
         "share-codes/alice/my-server",
+        "shares/alice/my-server",
         "users/alice",
     ]
     assert calls[0]["token"] == "user-token"
@@ -597,8 +597,8 @@ def test_get_token_details_returns_oauth_user_data(client, monkeypatch):
     assert [c["path"] for c in calls] == [
         "user",
         "users/alice/tokens/tok-1",
-        "shares/alice/my-server",
         "share-codes/alice/my-server",
+        "shares/alice/my-server",
         "users/alice",
     ]
     assert calls[0]["token"] == "user-token"
@@ -645,8 +645,8 @@ def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
     assert response.json() == {"code": "share-code"}
     assert [c["path"] for c in calls] == [
         "user",
-        "shares/alice/my-server",
         "share-codes/alice/my-server",
+        "shares/alice/my-server",
         "/token_revoke",
         "share-codes/alice/my-server",
     ]
@@ -684,8 +684,8 @@ def test_create_share_code_skips_revoke_when_server_already_shared(client, monke
     assert response.json() == {"code": "share-code"}
     assert [c["path"] for c in calls] == [
         "user",
-        "shares/alice/my-server",
         "share-codes/alice/my-server",
+        "shares/alice/my-server",
     ]
 
 
