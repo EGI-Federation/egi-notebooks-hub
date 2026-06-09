@@ -686,6 +686,7 @@ def test_create_share_code_skips_revoke_when_server_already_shared(client, monke
         "user",
         "share-codes/alice/my-server",
         "shares/alice/my-server",
+        "share-codes/alice/my-server",
     ]
 
 
