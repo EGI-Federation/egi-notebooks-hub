@@ -53,6 +53,7 @@ c.Spawner.oauth_client_allowed_scopes = ["custom:token-acquirer:read"]
 ```
 """
 
+import json
 import logging
 import re
 from typing import List, Optional
@@ -96,9 +97,14 @@ logger.info(f"Service listening under {settings.jupyterhub_service_prefix}")
 # mimic jupyterhub where errors are shown with "message"
 @app.exception_handler(HTTPException)
 async def custom_http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code, content={"message": str(exc.detail)}
-    )
+    message = str(exc.detail)
+    try:
+        err = json.loads(message)
+        if isinstance(dict, err):
+            message = err.get("message", message)
+    except json.decoder.JSONDecodeError:
+        pass
+    return JSONResponse(status_code=exc.status_code, content={"message": message})
 
 
 def get_user_token(request: Request):
