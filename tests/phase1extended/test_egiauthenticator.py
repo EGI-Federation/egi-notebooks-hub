@@ -1,10 +1,13 @@
 import base64
 import json
-from unittest.mock import AsyncMock, patch
+import time
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
+from tornado.httpclient import HTTPClient
 
 from egi_notebooks_hub.egiauthenticator import (
     EGICheckinAuthenticator,
@@ -78,6 +81,7 @@ def test_default_urls_are_derived_from_checkin_host(auth_config):
     assert authenticator.token_url == f"{base}/token"
     assert authenticator.userdata_url == f"{base}/userinfo"
     assert authenticator.introspect_url == f"{base}/token/introspect"
+    assert authenticator.revoke_url == f"{base}/revoke"
 
 
 # phase1-5
@@ -499,3 +503,120 @@ async def test_introspect_token_builds_expected_http_request(authenticator):
     auth_header = kwargs["headers"]["Authorization"]
     expected_basic = base64.b64encode(b"test-client:test-secret").decode("utf8")
     assert auth_header == f"Basic {expected_basic}"
+
+
+# phase1-32
+# Component: EGICheckinAuthenticator refresh-user hook behavior.
+# Purpose: Verify that missing auth_state does not force a refresh.
+# Pass example: auth_state None returns True.
+# Fail example: the hook refreshes even when no auth_state is available.
+async def test_refresh_user_hook_returns_true_for_missing_auth_state(authenticator):
+    result = await authenticator.refresh_user_hook(authenticator, None, None)
+    assert result is True
+
+
+# phase1-33
+# Component: EGICheckinAuthenticator refresh-user hook behavior.
+# Purpose: Confirm that a user with no access_token is treated as unmanaged and
+# does not force a refresh.
+# Pass example: empty auth_state returns True and logs the appropriate message.
+# Fail example: auth_state without access_token triggers a refresh.
+async def test_refresh_user_hook_returns_true_for_missing_access_token(authenticator):
+    result = await authenticator.refresh_user_hook(authenticator, None, {})
+    assert result is True
+
+
+# phase1-34
+# Component: EGICheckinAuthenticator refresh-user hook behavior.
+# Purpose: Verify that the special revoke marker forces a refresh.
+# Pass example: auth_state.access_token == "revoke" returns None.
+# Fail example: revoke tokens are mistakenly treated as valid.
+async def test_refresh_user_hook_returns_none_for_revoke_marker(authenticator):
+    result = await authenticator.refresh_user_hook(
+        authenticator, None, {"access_token": "revoke"}
+    )
+    assert result is None
+
+
+# phase1-35
+# Component: EGICheckinAuthenticator refresh-user hook behavior.
+# Purpose: Ensure a valid token does not trigger a refresh.
+# Pass example: an unexpired JWT access token returns True.
+# Fail example: good tokens are treated as invalid and refresh is forced.
+async def test_refresh_user_hook_returns_true_for_valid_access_token(authenticator):
+    now = int(time.time())
+    token = make_jwt({"preferred_username": "alice", "iat": now, "exp": now + 3600})
+    result = await authenticator.refresh_user_hook(
+        authenticator, None, {"access_token": token}
+    )
+    assert result is True
+
+
+# phase1-36
+# Component: EGICheckinAuthenticator refresh-user hook behavior.
+# Purpose: Confirm invalid access tokens force a refresh.
+# Pass example: malformed JWT returns None.
+# Fail example: invalid JWTs are incorrectly treated as valid.
+async def test_refresh_user_hook_returns_none_for_invalid_access_token(authenticator):
+    result = await authenticator.refresh_user_hook(
+        authenticator, None, {"access_token": "invalid-token"}
+    )
+    assert result is None
+
+
+# phase1-37
+# Component: EGICheckinAuthenticator token revocation.
+# Purpose: Verify that revoke_token sends the expected POST request to the
+# provider revoke endpoint.
+# Pass example: httpfetch is awaited with the revoke URL, Basic auth, and the
+# correct request body.
+# Fail example: the request is sent to the wrong endpoint or uses the wrong
+# body/auth settings.
+async def test_revoke_token_posts_expected_request(authenticator):
+    authenticator.httpfetch = AsyncMock(return_value=SimpleNamespace(code=200))
+
+    await authenticator.revoke_token("old-token")
+
+    authenticator.httpfetch.assert_awaited_once()
+    args, kwargs = authenticator.httpfetch.call_args
+    assert args[0] == authenticator.revoke_url
+    assert kwargs["label"] == "Token revocation"
+    assert kwargs["method"] == "POST"
+    assert kwargs["auth_username"] == authenticator.client_id
+    assert kwargs["auth_password"] == authenticator.client_secret
+    assert kwargs["headers"]["Accept"] == "application/json"
+    assert kwargs["headers"]["User-Agent"] == "JupyterHub"
+    assert kwargs["body"] == b"token=old-token&token_type_hint=access_token"
+
+
+# phase1-38
+# Component: EGICheckinAuthenticator OpenID Connect discovery.
+# Purpose: Ensure all URLs are obtained from the OIDC discovery
+# Pass example: checkin.example.org produces matching
+# authorize/token/userinfo/introspect/revoke URLs.
+# Fail example: one endpoint still points to the old default host or uses
+# a wrong path suffix.
+def test_urls_are_discovered_from_issuer(auth_config):
+    auth_config.EGICheckinAuthenticator.checkin_host = "checkin.example.org"
+    auth_config.EGICheckinAuthenticator.use_oidc_discovery = True
+    authenticator = EGICheckinAuthenticator(config=auth_config)
+    with patch.object(
+        HTTPClient,
+        "fetch",
+    ) as m_fetch:
+        base = "https://example.org/oidc"
+        m_fetch.return_value = Mock()
+        m_fetch.return_value.body.decode.return_value = json.dumps(
+            {
+                "authorization_endpoint": f"{base}/authz",
+                "token_endpoint": f"{base}/token",
+                "userinfo_endpoint": f"{base}/info",
+                "introspection_endpoint": f"{base}/introspection",
+                "revocation_endpoint": f"{base}/revocation",
+            }
+        )
+        assert authenticator.authorize_url == f"{base}/authz"
+        assert authenticator.token_url == f"{base}/token"
+        assert authenticator.userdata_url == f"{base}/info"
+        assert authenticator.introspect_url == f"{base}/introspection"
+        assert authenticator.revoke_url == f"{base}/revocation"

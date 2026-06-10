@@ -25,6 +25,7 @@ def install_fake_kubespawner_init(
     token_secret_name_template=None,
     token_secret_volume_name_template=None,
     token_mount_path=None,
+    use_token_aqcuirer=None,
     mount_secrets_volume=None,
 ):
     """Patch KubeSpawner.__init__ with a lightweight initializer for init tests."""
@@ -56,6 +57,8 @@ def install_fake_kubespawner_init(
             self.token_mount_path = token_mount_path
         if mount_secrets_volume is not None:
             self.mount_secrets_volume = mount_secrets_volume
+        if use_token_aqcuirer is not None:
+            self.use_token_aqcuirer = use_token_aqcuirer
 
     monkeypatch.setattr(KubeSpawner, "__init__", fake_super_init)
 
@@ -358,10 +361,12 @@ def test_initialized_spawner_uses_egi_common_label_override(monkeypatch):
 # phase2-init-13
 # Component: EGISpawner.__init__ + get_args
 # Purpose: Verify initialized spawner can still append the token-acquirer argument.
-# Example pass: mount_secrets_volume=False adds TokenAcquirerApp.secrets_mount_path.
+# Example pass: use_token_aqcuirer=True adds TokenAcquirerApp.secrets_mount_path.
 # Example fail: get_args misses the token-acquirer argument after initialization.
 def test_initialized_spawner_get_args_adds_token_acquirer_path(monkeypatch):
-    install_fake_kubespawner_init(monkeypatch, token_mount_path="/custom/tokens")
+    install_fake_kubespawner_init(
+        monkeypatch, use_token_aqcuirer=True, token_mount_path="/custom/tokens"
+    )
     monkeypatch.setattr(
         EGISpawner, "_expand_user_properties", lambda self, template: template
     )
@@ -381,15 +386,14 @@ def test_initialized_spawner_get_args_adds_token_acquirer_path(monkeypatch):
 
 # phase2-init-14
 # Component: EGISpawner.__init__ + get_args
-# Purpose: Verify initialized spawner skips token-acquirer argument when real Secret
-# mount is enabled.
-# Example pass: mount_secrets_volume=True returns only base args.
+# Purpose: Verify initialized spawner skips token-acquirer argument when disabled
+# Example pass: use_token_aqcuirer=False returns only base args.
 # Example fail: token acquirer is still configured even though the real Secret is
 # mounted.
 def test_initialized_spawner_get_args_skips_token_acquirer_when_secret_is_mounted(
     monkeypatch,
 ):
-    install_fake_kubespawner_init(monkeypatch, mount_secrets_volume=True)
+    install_fake_kubespawner_init(monkeypatch, use_token_aqcuirer=False)
     monkeypatch.setattr(
         EGISpawner, "_expand_user_properties", lambda self, template: template
     )

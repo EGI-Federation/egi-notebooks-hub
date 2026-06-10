@@ -291,10 +291,8 @@ class OnedataSpawner(EGISpawner):
         if auth_state is None:
             self.log.warning("No auth_state provided")
             return
-        spawner.environment[self.token_env] = auth_state.get("oneclient_token")
         spawner.environment[self.onezone_env] = auth_state.get("onezone_url")
         spawner.environment[self.oneprovider_env] = auth_state.get("oneprovider")
-        spawner.environment[self.onezone_token_env] = auth_state.get("onezone_token")
         spawner.environment[self.onedata_user_env] = auth_state.get("onedata_user")
 
     async def _get_local_spaces(self, oneprovider_host, onezone_url, onezone_token):

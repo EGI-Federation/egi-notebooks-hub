@@ -26,6 +26,8 @@ def auth_config():
             "allowed_groups": {"vo-1", "vo-2"},
             "auth_refresh_age": 300,
             "auth_refresh_leeway": 60,
+            # set this to avoid the look up for every test
+            "use_oidc_discovery": False,
         }
     )
     return c
@@ -44,6 +46,8 @@ def eosc_authenticator():
             "client_id": "test-client",
             "client_secret": "test-secret",
             "allowed_groups": {"vo-1", "vo-2"},
+            # set this to avoid the look up for every test
+            "use_oidc_discovery": False,
         }
     )
     return EOSCNodeAuthenticator(config=c)
