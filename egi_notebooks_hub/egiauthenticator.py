@@ -196,10 +196,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
     _oidc_configuration: dict = {}
     checkin_host_env = "EGICHECKIN_HOST"
     checkin_host = Unicode(config=True, help="""The EGI Check-in host to use""")
-    issuer = Unicode(config=True, help="""The OIDC issuer""")
     use_oidc_discovery = Bool(
         config=True, default_value=True, help="""Use OIDC Discovery to get endpoints"""
     )
+    openid_configuration_url = Unicode(config=True, help="""OIDC discovery URL""")
 
     @default("checkin_host")
     def _checkin_host_default(self):
@@ -208,12 +208,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return os.getenv(self.checkin_host_env, default)
         return default
 
-    @default("issuer")
-    def _issuer_default(self):
-        return f"https://{self.checkin_host}/auth/realms/egi"
+    @default("openid_configuration_url")
+    def _openid_configuration_url(self):
+        return f"https://{self.checkin_host}/auth/realms/egi/.well-known/openid-configuration"
 
     def _oidc_discovery(self):
-        discovery_url = f"{self.issuer}/.well-known/openid-configuration"
 
         # Adapted from oauthenticator.openshift
         # See also
@@ -221,7 +220,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
         #
         def fetch_info():
             client = HTTPClient()
-            req = HTTPRequest(discovery_url, **self.http_request_kwargs)
+            req = HTTPRequest(self.openid_configuration_url, **self.http_request_kwargs)
             try:
                 resp = client.fetch(req)
                 resp_json = json.loads(resp.body.decode("utf8", "replace"))
