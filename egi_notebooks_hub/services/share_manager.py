@@ -100,7 +100,7 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
     message = str(exc.detail)
     try:
         err = json.loads(message)
-        if isinstance(dict, err):
+        if isinstance(err, dict):
             message = err.get("message", message)
     except json.decoder.JSONDecodeError:
         pass
