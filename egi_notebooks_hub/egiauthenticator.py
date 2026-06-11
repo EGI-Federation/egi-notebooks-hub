@@ -532,6 +532,92 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             validate_cert=self.validate_server_cert,
         )
 
+    # This is taken from oauthenticator.oauth2, but we slightly modify it
+    # to refresh more often as we trust our refresh hook
+    async def refresh_user(self, user, handler=None, **kwargs):
+        """
+        Refresh user authentication
+
+        If auth_state is enabled, constructs a fresh user model
+        (the same as `authenticate`)
+        using the access_token in auth_state.
+        If requests with the access token fail
+        (e.g. because the token has expired)
+        and a refresh token is found, attempts to exchange
+        the refresh token for a new access token to store in auth_state.
+        If the access token still fails after refresh,
+        return False to require the user to login via oauth again.
+
+        Set `Authenticator.auth_refresh_age = 0` to disable.
+
+        Returns
+        -------
+
+        True:
+          If auth info is up-to-date and needs no changes
+          (always if `enable_auth_state` is False)
+        False:
+          If the user needs to login again
+          (e.g. tokens in `auth_state` unavailable or expired)
+        auth_model: dict
+          The same dict as `authenticate`, updating any fields that should change.
+          Can include things like group membership,
+          but in OAuthenticator this mainly refreshes
+          the token fields in `auth_state`.
+        """
+        if not self.enable_auth_state:
+            # auth state not enabled, can't refresh
+            return True
+
+        auth_state = await user.get_auth_state()
+
+        if self.refresh_user_hook is not None:
+            refreshed = await self._call_refresh_user_hook(user, auth_state)
+            if refreshed is not None:
+                return refreshed
+
+        if not auth_state:
+            self.log.info(
+                f"No auth_state found for user {user.name} refresh, need full authentication",
+            )
+            return False
+
+        auth_model = None
+        refresh_token = auth_state.get("refresh_token", None)
+        if refresh_token:
+            self.log.info(f"Refreshing oauth access token for {user.name}")
+            # access_token expired, try refreshing with refresh_token
+            refresh_token_params = self.build_refresh_token_request_params(
+                refresh_token
+            )
+            try:
+                token_info = await self.get_token_info(handler, refresh_token_params)
+            except Exception as e:
+                self.log.info(
+                    f"Error using refresh_token for {user.name}: {e}. Requiring fresh login."
+                )
+                return False
+            else:
+                self.log.debug(
+                    f"Received fresh access_token for {user.name} via refresh_token"
+                )
+            # refresh_token may not be returned when refreshing a token
+            # in which case, keep the current one
+            if not token_info.get("refresh_token"):
+                token_info["refresh_token"] = refresh_token
+            try:
+                auth_model = await self._token_to_auth_model(token_info)
+            except Exception as e:
+                # this means we were issued a fresh access token,
+                # but it didn't work! Fail harder?
+                self.log.error(
+                    f"Error refreshing auth with fresh access_token for {user.name}: {e}. Requiring fresh login."
+                )
+                return False
+
+        # return False if auth_model is None for "needs new login"
+        return auth_model or False
+
     def get_handlers(self, app):
         handlers = super().get_handlers(app)
         handlers.extend(
