@@ -1,3 +1,4 @@
+import json
 from typing import Any, ClassVar
 
 import pytest
@@ -833,3 +834,31 @@ def test_get_token_details_allows_shared_server_when_release_enabled(
         "user",
         "users/alice",
     ]
+
+
+# phase3-35
+# Component: share_manager error handling
+# Purpose: Confirm that error handling is performed correctly
+# Example pass case: with a regular error, it returns the right message
+# Example fail case: the error handling fails.
+@pytest.mark.asyncio
+async def test_exception_handler_no_json():
+    result = await share_manager.custom_http_exception_handler(
+        None, HTTPException(status_code=500, detail="foo bar")
+    )
+    assert result.status_code == 500
+    assert json.loads(result.body) == {"message": "foo bar"}
+
+
+# phase3-36
+# Component: share_manager error handling
+# Purpose: Confirm that error handling is performed correctly
+# Example pass case: with a json error, it returns the right message
+# Example fail case: the error handling fails.
+@pytest.mark.asyncio
+async def test_exception_handler_json():
+    result = await share_manager.custom_http_exception_handler(
+        None, HTTPException(status_code=500, detail='{"message": "foo bar"}')
+    )
+    assert result.status_code == 500
+    assert json.loads(result.body) == {"message": "foo bar"}
