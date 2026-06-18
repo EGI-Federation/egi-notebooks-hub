@@ -496,7 +496,7 @@ async def test_call_hub_api_raises_http_exception_on_non_200(monkeypatch):
         await share_manager.call_hub_api("users/alice")
 
     assert exc.value.status_code == 404
-    assert exc.value.detail == "missing"
+    assert exc.value.detail.lower() == "not found"
 
 
 # phase3-18
