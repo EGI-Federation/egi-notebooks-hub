@@ -34,24 +34,46 @@ def test_token_details_returns_oauth_user_data(share_manager_client):
         upstream_url("user"): DummyResponse(
             json_data={
                 "name": "alice",
-                "token_id": "alice",
-                "scopes": ["access:servers!server=alice/my-server/"],
+                "token_id": "tok-1",
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
             }
         ),
-        upstream_url("users/alice/tokens/alice"): DummyResponse(
+        upstream_url("users/alice/tokens/tok-1"): DummyResponse(
             json_data={
                 "oauth_client": "JupyterHub server at /user/alice/my-server/",
                 "session_id": "sess-1",
                 "user": "alice",
-                "scopes": [],
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
             }
+        ),
+        upstream_url("users/alice?include_stopped_servers"): DummyResponse(
+            json_data={
+                "name": "alice",
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
+                "servers": {
+                    "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+                },
+                "auth_state": {
+                    "access_token": "egi-access-token",
+                    "oauth_user": {"id": "alice@example.com"},
+                },
+            },
         ),
         upstream_url("shares/alice/my-server"): DummyResponse(json_data={"items": []}),
         upstream_url("share-codes/alice/my-server"): DummyResponse(
             json_data={"items": []}
-        ),
-        upstream_url("users/alice"): DummyResponse(
-            json_data={"auth_state": {"oauth_user": {"id": "alice@example.com"}}}
         ),
     }
 
@@ -63,12 +85,14 @@ def test_token_details_returns_oauth_user_data(share_manager_client):
     assert response.json() == {"id": "alice@example.com"}
     assert FakeAsyncClient.calls[0]["url"] == upstream_url("user")
     assert "authorization" in FakeAsyncClient.calls[0]["headers"]
-    assert FakeAsyncClient.calls[1]["url"] == upstream_url("users/alice/tokens/alice")
+    assert FakeAsyncClient.calls[1]["url"] == upstream_url("users/alice/tokens/tok-1")
     assert FakeAsyncClient.calls[2]["url"] == upstream_url(
+        "users/alice?include_stopped_servers"
+    )
+    assert FakeAsyncClient.calls[3]["url"] == upstream_url(
         "share-codes/alice/my-server"
     )
-    assert FakeAsyncClient.calls[3]["url"] == upstream_url("shares/alice/my-server")
-    assert FakeAsyncClient.calls[4]["url"] == upstream_url("users/alice")
+    assert FakeAsyncClient.calls[4]["url"] == upstream_url("shares/alice/my-server")
     assert (
         FakeAsyncClient.calls[4]["headers"]["authorization"]
         == f"bearer {share_manager.settings.jupyterhub_api_token}"
@@ -84,22 +108,43 @@ def test_token_details_returns_404_when_oauth_user_missing(share_manager_client)
             json_data={
                 "name": "alice",
                 "token_id": "alice",
-                "scopes": ["access:servers!server=alice/my-server/"],
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
             }
         ),
         upstream_url("users/alice/tokens/alice"): DummyResponse(
             json_data={
-                "oauth_client": "JupyterHub server at /user/alice/my-server/",
+                "oauth_client": "Server at /user/alice/my-server",
                 "session_id": "sess-1",
                 "user": "alice",
-                "scopes": [],
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
             }
+        ),
+        upstream_url("users/alice?include_stopped_servers"): DummyResponse(
+            json_data={
+                "name": "alice",
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
+                "servers": {
+                    "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+                },
+                "auth_state": {},
+            },
         ),
         upstream_url("shares/alice/my-server"): DummyResponse(json_data={"items": []}),
         upstream_url("share-codes/alice/my-server"): DummyResponse(
             json_data={"items": []}
         ),
-        upstream_url("users/alice"): DummyResponse(json_data={"auth_state": {}}),
     }
 
     response = share_manager_client.get(
@@ -120,7 +165,11 @@ def test_token_returns_access_token_for_valid_server_token(share_manager_client)
             json_data={
                 "name": "alice",
                 "token_id": "tok-1",
-                "scopes": ["access:servers!server=alice/my-server/"],
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
             }
         ),
         upstream_url("users/alice/tokens/tok-1"): DummyResponse(
@@ -128,15 +177,33 @@ def test_token_returns_access_token_for_valid_server_token(share_manager_client)
                 "oauth_client": "JupyterHub server at /user/alice/my-server/",
                 "session_id": "sess-1",
                 "user": "alice",
-                "scopes": [share_manager.settings.token_acquirer_scope],
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
             }
+        ),
+        upstream_url("users/alice?include_stopped_servers"): DummyResponse(
+            json_data={
+                "name": "alice",
+                "scopes": [
+                    "access:servers!server=alice/my-server",
+                    "access:services!service=share-manager",
+                    share_manager.settings.token_acquirer_scope,
+                ],
+                "servers": {
+                    "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+                },
+                "auth_state": {
+                    "access_token": "egi-access-token",
+                    "oauth_user": {"id": "alice@example.com"},
+                },
+            },
         ),
         upstream_url("shares/alice/my-server"): DummyResponse(json_data={"items": []}),
         upstream_url("share-codes/alice/my-server"): DummyResponse(
             json_data={"items": []}
-        ),
-        upstream_url("users/alice"): DummyResponse(
-            json_data={"auth_state": {"access_token": "egi-access-token"}}
         ),
     }
 
@@ -149,7 +216,9 @@ def test_token_returns_access_token_for_valid_server_token(share_manager_client)
     assert FakeAsyncClient.calls[0]["url"] == upstream_url("user")
     assert FakeAsyncClient.calls[1]["url"] == upstream_url("users/alice/tokens/tok-1")
     assert FakeAsyncClient.calls[2]["url"] == upstream_url(
+        "users/alice?include_stopped_servers"
+    )
+    assert FakeAsyncClient.calls[3]["url"] == upstream_url(
         "share-codes/alice/my-server"
     )
-    assert FakeAsyncClient.calls[3]["url"] == upstream_url("shares/alice/my-server")
-    assert FakeAsyncClient.calls[4]["url"] == upstream_url("users/alice")
+    assert FakeAsyncClient.calls[4]["url"] == upstream_url("shares/alice/my-server")

@@ -6,6 +6,7 @@ ensure access tokens cannot be obtained when the server is shared.
 
 It requires the service to be configured with the right scopes:
 * `read:users` to get information about the users
+* `read:servers` to get information about the user servers
 * `read:tokens` to get information about the tokens from the jupyter server
 * `admin:auth_state` to read the access token available in `auth_state`
 * `shares` to manage the user shares
@@ -116,26 +117,6 @@ def get_user_token(request: Request):
     raise HTTPException(status_code=401, detail="Missing authentication header")
 
 
-def get_server_name(token_info: dict):
-    oauth_client = token_info.get("oauth_client", "")
-    session_id = token_info.get("session_id", None)
-    logger.debug(
-        f"User {token_info['user']} with session {session_id}"
-        f" and oauth_client {oauth_client}"
-    )
-    if not (session_id and oauth_client):
-        return None
-    if oauth_client.lower().find("server at") < 0:
-        return None
-    # XXX parsing the oauth_client for the server name, this may break!
-    server_name = ""
-    server_path = oauth_client.rsplit(maxsplit=1)[-1].strip("/").split("/")
-    if len(server_path) > 2:
-        server_name = server_path[-1]
-    logger.debug(f"Server name is `{server_name}`")
-    return server_name
-
-
 async def call_hub_api(
     path,
     base_url=None,
@@ -156,7 +137,9 @@ async def call_hub_api(
             r = await method_f(url, content=content, headers=headers)
         else:
             r = await method_f(url, headers=headers)
-        if r.status_code != httpx.codes.OK:
+        try:
+            r.raise_for_status()
+        except HTTPException:
             logger.debug(f"Error from upstream server {r.content}")
             raise HTTPException(r.status_code, detail=r.content.decode())
         try:
@@ -165,18 +148,59 @@ async def call_hub_api(
             return r.content
 
 
-async def get_user_info(request: Request, check_ownership: bool = True):
+async def get_user_data(request: Request):
     user_token = get_user_token(request)
+    # Minimal user info from user_token
     user_info = await call_hub_api(path="user", token=user_token)
-    if check_ownership:
-        access_scope_re = re.compile(f"access:servers!server={user_info['name']}/.*")
-        if not any(
-            access_scope_re.match(scope) for scope in user_info.get("scopes", [])
-        ):
-            raise HTTPException(
-                403, detail="Forbidden, server access does not match token owner"
-            )
-    return user_info, user_token
+    token_info = await call_hub_api(
+        path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
+        token=settings.jupyterhub_api_token,
+    )
+    # More detailed user info
+    user_info = await call_hub_api(
+        # include_stopped_servers is url param for including stopped servers
+        path=f"users/{user_info['name']}?include_stopped_servers",
+        token=settings.jupyterhub_api_token,
+    )
+
+    oauth_client = token_info.get("oauth_client", "")
+    session_id = token_info.get("session_id", None)
+
+    logger.debug(
+        f"User {token_info['user']} with session {session_id}"
+        f" and oauth_client {oauth_client}"
+    )
+
+    if not (session_id and oauth_client) or oauth_client.lower().find("server at") < 0:
+        raise HTTPException(403, detail="Forbidden, invalid token was used")
+
+    server_name = None
+    is_owner = False
+
+    for server in user_info["servers"]:
+        server_url_re = re.compile(
+            rf"(?<=\W){re.escape(user_info['servers'][server]['url'])}(?=\W|$)"
+        )
+        # Checking if /user/{user_id}/{server_name}
+        # corresponds with token oauth_client param
+        re_match = server_url_re.search(oauth_client)
+
+        if re_match is not None and re_match[0] == user_info["servers"][server]["url"]:
+            server_name = user_info["servers"][server]["name"]
+            is_owner = True
+            break
+
+    if not is_owner:
+        raise HTTPException(
+            403, detail="Forbidden, token owner does not match server owner"
+        )
+
+    return {
+        "user_info": user_info,
+        "user_token": user_token,
+        "token_info": token_info,
+        "server_name": server_name,
+    }
 
 
 async def server_has_shares(
@@ -201,7 +225,8 @@ async def server_has_share_codes(
     )
     result = bool(share_codes.get("items", []))
     if raise_exc and result:
-        raise HTTPException(403, detail="Forbidden, share codes exist for the server")
+        # Using "share link" term here for better clarity for users
+        raise HTTPException(403, detail="Forbidden, share links exist for the server")
     return result
 
 
@@ -220,28 +245,18 @@ async def fail_if_shared_server(owner: str, server_name: Optional[str] = ""):
 async def get_token_details(request: Request):
     """Gets access token details."""
     logger.debug("Get token details request")
-    # we allow the owner of the requestor token to get their own details
-    user_info, user_token = await get_user_info(request, check_ownership=False)
+    user_data = await get_user_data(request)
 
     if not settings.release_with_shared_server:
-        token_info = await call_hub_api(
-            path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
-            token=settings.jupyterhub_api_token,
+        await fail_if_shared_server(
+            user_data["user_info"]["name"], user_data["server_name"]
         )
-        server_name = get_server_name(token_info)
-        await fail_if_shared_server(user_info["name"], server_name)
-
-    user_data = await call_hub_api(
-        path=f"users/{user_info['name']}",
-        token=settings.jupyterhub_api_token,
-    )
-    oauth_user = user_data.get("auth_state", {}).get("oauth_user", {})
+    oauth_user = user_data["user_info"].get("auth_state", {}).get("oauth_user", {})
     if not oauth_user:
         raise HTTPException(404, detail="No user data available")
     if settings.token_info_fields:
         return {k: v for k, v in oauth_user.items() if k in settings.token_info_fields}
-    else:
-        return oauth_user
+    return oauth_user
 
 
 @app.get("/token")
@@ -254,27 +269,21 @@ async def get_token(request: Request):
     3. the calling token is associated to a running server
     """
     logger.debug("Get token request")
-    user_info, user_token = await get_user_info(request)
+    user_data = await get_user_data(request)
 
-    token_info = await call_hub_api(
-        path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
-        token=settings.jupyterhub_api_token,
-    )
-    if settings.token_acquirer_scope not in token_info["scopes"]:
+    if settings.token_acquirer_scope not in user_data["token_info"]["scopes"]:
         raise HTTPException(
             403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope"
         )
-    server_name = get_server_name(token_info)
-    if server_name is None:
+    if user_data["server_name"] is None:
         raise HTTPException(403, detail="Forbidden, no server token")
     if not settings.release_with_shared_server:
-        await fail_if_shared_server(user_info["name"], server_name)
-    user_data = await call_hub_api(
-        path=f"users/{user_info['name']}",
-        token=settings.jupyterhub_api_token,
-    )
+        await fail_if_shared_server(
+            user_data["user_info"]["name"], user_data["server_name"]
+        )
+
     access_token = None
-    auth_state = user_data.get("auth_state", {})
+    auth_state = user_data["user_info"].get("auth_state", {})
     if auth_state:
         access_token = auth_state.get("access_token", None)
     if not access_token:
@@ -285,7 +294,8 @@ async def get_token(request: Request):
 async def call_wrapper(request: Request, path: str):
     """Wraps calls the the HUP API using our token"""
     logger.debug(f"Wrapping call to {path}")
-    _, user_token = await get_user_info(request)
+    # Does owner verification
+    await get_user_data(request)
     resp = await call_hub_api(
         path=path,
         method=request.method.lower(),
@@ -307,15 +317,15 @@ async def create_share_code(
     revoking first access tokens of the user.
     """
     logger.debug("Share code post called")
-    _, user_token = await get_user_info(request)
-    if not await is_server_shared(owner, server_name):
+    user_data = await get_user_data(request)
+    if not await is_server_shared(owner, user_data["server_name"]):
         # First revoke the token as the server is shared
         hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
         await call_hub_api(
             path=settings.token_revoke_path,
             base_url=hub_url,
             method="post",
-            token=user_token,
+            token=user_data["user_token"],
         )
     # 2. Then create sharing - just redirect the call
     resp = await call_hub_api(
