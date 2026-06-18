@@ -186,7 +186,7 @@ async def get_user_data(request: Request):
         re_match = server_url_re.search(oauth_client)
 
         if re_match is not None and re_match[0] == user_info["servers"][server]["url"]:
-            server_name = server
+            server_name = user_info["servers"][server]["name"]
             is_owner = True
             break
 
@@ -281,12 +281,9 @@ async def get_token(request: Request):
         await fail_if_shared_server(
             user_data["user_info"]["name"], user_data["server_name"]
         )
-    user_data = await call_hub_api(
-        path=f"users/{user_data['user_info']['name']}",
-        token=settings.jupyterhub_api_token,
-    )
+
     access_token = None
-    auth_state = user_data.get("auth_state", {})
+    auth_state = user_data["user_info"].get("auth_state", {})
     if auth_state:
         access_token = auth_state.get("access_token", None)
     if not access_token:

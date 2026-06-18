@@ -24,18 +24,37 @@ def fake_call_hub_api(calls=None, extra_calls={}):
         "user": {
             "name": "alice",
             "token_id": "tok-1",
-            "scopes": ["access:servers!server=alice/my-server/"],
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
         },
         "users/alice/tokens/tok-1": {
-            "oauth_client": "JupyterHub server at /user/alice/my-server/",
+            "oauth_client": "Server at /user/alice/my-server",
             "session_id": "sess-1",
             "user": "alice",
-            "scopes": [share_manager.settings.token_acquirer_scope],
+            "scopes": [
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
         },
         "shares/alice/my-server": {"items": []},
         "share-codes/alice/my-server": {"code": "share-code"},
-        "users/alice": {
-            "auth_state": {"access_token": "egi-access-token"},
+        "users/alice?include_stopped_servers": {
+            "name": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "servers": {
+                "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+            },
+            "auth_state": {
+                "access_token": "egi-access-token",
+                "oauth_user": {"id": "alice@example.com"},
+            },
         },
         "/token_revoke": {"status": "revoked"},
     }
@@ -145,93 +164,153 @@ def test_get_user_token_rejects_unsupported_scheme():
 
 
 # phase3-7
-# Component: share_manager.get_server_name
-# Purpose: Verify extraction of the named server from a valid server-token descriptor.
-# Example pass case: token_info describes '/user/alice/my-server/' and the helper
-# returns 'my-server'.
-# Example fail case: the parser returns None or a wrong server name for a valid named
-# server token.
-def test_get_server_name_extracts_named_server():
-    token_info = {
-        "user": "alice",
-        "session_id": "sess-1",
-        "oauth_client": "JupyterHub server at /user/alice/my-server/",
-    }
-    assert share_manager.get_server_name(token_info) == "my-server"
+# Component: share_manager.get_user_data
+# Purpose: Verify user_data is returned for server owner.
+# Example pass case: sent token is alice's browser token and correct user_data
+#  is returned and corresponds with alice calls_mapping.
+# Example fail case: get_user_data does not return data and throws exception.
+@pytest.mark.asyncio
+async def test_get_server_owner_user_data(monkeypatch):
+    monkeypatch.setattr(
+        share_manager,
+        "call_hub_api",
+        fake_call_hub_api(),
+    )
+    request = make_request({"Authorization": "Bearer abc123"})
+    user_data = await share_manager.get_user_data(request)
+
+    assert user_data["server_name"] == "my-server"
+    assert user_data["user_info"]["name"] == "alice"
+    assert "my-server" in user_data["user_info"]["servers"]
+    assert user_data["user_info"]["servers"]["my-server"]["name"] == "my-server"
 
 
 # phase3-8
-# Component: share_manager.get_server_name
-# Purpose: Ensure the default unnamed server is not misclassified as a named server.
-# Example pass case: token_info refers to the default server path and the helper returns
-# None.
-# Example fail case: the helper invents a server name for the default server.
-def test_get_server_name_returns_none_for_default_server():
-    token_info = {
-        "user": "alice",
-        "session_id": "sess-1",
-        "oauth_client": "JupyterHub server at /user/alice/",
+# Component: share_manager.get_user_data
+# Purpose: Ensure an invited user does not get returned user_data i.e.
+# cannot create shares or get access_token while using browser token as invited user.
+# Example pass case: 403 exception is raised.
+# Example fail case: user_data is returned and exception is not raised.
+@pytest.mark.asyncio
+async def test_verify_user_access_check_mechanism(monkeypatch):
+    # Invited user eve on alice's server makes a request
+    extra_calls = {
+        "user": {
+            "name": "eve",
+            "token_id": "tok-1",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
+        "users/eve/tokens/tok-1": {
+            "oauth_client": "Server at /user/alice/my-server",
+            "session_id": "sess-1",
+            "user": "eve",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
+        "users/eve?include_stopped_servers": {
+            "name": "eve",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "servers": {
+                "my-server": {"name": "my-server", "url": "/user/eve/my-server"}
+            },
+            "auth_state": {"access_token": "egi-access-token"},
+        },
     }
-    assert share_manager.get_server_name(token_info) == ""
+
+    monkeypatch.setattr(
+        share_manager,
+        "call_hub_api",
+        fake_call_hub_api(extra_calls=extra_calls),
+    )
+    request = make_request({"Authorization": "Bearer abc123"})
+
+    with pytest.raises(HTTPException) as exc:
+        await share_manager.get_user_data(request)
+
+    assert exc.value.status_code == 403
+    assert (
+        "forbidden, token owner does not match server owner" in exc.value.detail.lower()
+    )
 
 
 # phase3-9
-# Component: share_manager.get_server_name
-# Purpose: Verify that required token metadata must be present before the token is
-# treated as a valid server token.
-# Example pass case: session_id is missing and the helper returns None.
-# Example fail case: partial metadata is accepted and a server name is extracted from an
-# otherwise invalid token structure.
-def test_get_server_name_returns_none_when_session_missing():
-    token_info = {
-        "user": "alice",
-        "oauth_client": "JupyterHub server at /user/alice/my-server/",
+# Component: share_manager.get_user_data
+# Purpose: Verify that only browser token with session_id can be used for requests.
+# Example pass case: 403 exception is raised.
+# Example fail case: 403 exception is raised and user_data is returned.
+@pytest.mark.asyncio
+async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
+    extra_calls = {
+        "users/alice/tokens/tok-1": {
+            "oauth_client": "Server at /user/alice/my-server",
+            "session_id": None,
+            "user": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
     }
-    assert share_manager.get_server_name(token_info) is None
+    monkeypatch.setattr(
+        share_manager,
+        "call_hub_api",
+        fake_call_hub_api(extra_calls=extra_calls),
+    )
+    request = make_request({"Authorization": "Bearer abc123"})
+
+    with pytest.raises(HTTPException) as exc:
+        print(await share_manager.get_user_data(request))
+
+    assert exc.value.status_code == 403
+    assert "forbidden, invalid token was used" in exc.value.detail.lower()
 
 
 # phase3-10
-# Component: share_manager.get_server_name
-# Purpose: Ensure tokens without oauth_client metadata are rejected as non-server
-# tokens.
-# Example pass case: oauth_client is missing and the helper returns None.
-# Example fail case: the helper crashes on a missing field or guesses a server name.
-def test_get_server_name_returns_none_when_oauth_client_missing():
-    token_info = {"user": "alice", "session_id": "sess-1"}
-    assert share_manager.get_server_name(token_info) is None
+# Component: share_manager.get_user_data
+# Purpose: Verify that only browser token with proper oauth_client can be used for requests.
+# Example pass case: 403 exception is raised.
+# Example fail case: 403 exception is raised and user_data is returned.
+@pytest.mark.asyncio
+async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
+    extra_calls = {
+        "users/alice/tokens/tok-1": {
+            "oauth_client": "Jupyterhub",
+            "session_id": "sess-1",
+            "user": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        share_manager,
+        "call_hub_api",
+        fake_call_hub_api(extra_calls=extra_calls),
+    )
+    request = make_request({"Authorization": "Bearer abc123"})
+
+    with pytest.raises(HTTPException) as exc:
+        print(await share_manager.get_user_data(request))
+
+    assert exc.value.status_code == 403
+    assert "forbidden, invalid token was used" in exc.value.detail.lower()
 
 
 # phase3-11
-# Component: share_manager.get_server_name
-# Purpose: Verify that generic user tokens are not mistaken for server tokens.
-# Example pass case: oauth_client contains a non-server value and the helper returns
-# None.
-# Example fail case: any token with a user field is treated like a server token.
-def test_get_server_name_returns_none_when_not_server_token():
-    token_info = {
-        "user": "alice",
-        "session_id": "sess-1",
-        "oauth_client": "JupyterHub",
-    }
-    assert share_manager.get_server_name(token_info) is None
-
-
-# phase3-12
-# Component: share_manager.get_server_name
-# Purpose: Check that the server-token prefix matching is case-insensitive.
-# Example pass case: a mixed-case variant of the expected prefix still yields the server
-# name.
-# Example fail case: valid tokens fail to parse only because of capitalization.
-def test_get_server_name_accepts_case_insensitive_prefix():
-    token_info = {
-        "user": "alice",
-        "session_id": "sess-1",
-        "oauth_client": "server at /user/alice/my-server/",
-    }
-    assert share_manager.get_server_name(token_info) == "my-server"
-
-
-# phase3-13
 # Component: share_manager.is_server_shared
 # Purpose: Verify that a server with no shares and no share-codes is not considered shared.
 # Example pass case: both shares and share-codes lists are empty and the helper returns False.
@@ -248,7 +327,7 @@ async def test_is_server_shared_returns_false_when_no_shares(monkeypatch):
     ]
 
 
-# phase3-14
+# phase3-12
 # Component: share_manager.is_server_shared
 # Purpose: Ensure a server with active shares is correctly identified as shared.
 # Example pass case: the shares list contains items and the helper returns True.
@@ -269,7 +348,7 @@ async def test_is_server_shared_returns_true_when_shares_exist(monkeypatch):
     assert result is True
 
 
-# phase3-15
+# phase3-13
 # Component: share_manager.is_server_shared
 # Purpose: Verify that a server with share-codes is considered shared even without direct shares.
 # Example pass case: the share-codes list contains items and the helper returns True.
@@ -290,7 +369,7 @@ async def test_is_server_shared_returns_true_when_share_codes_exist(monkeypatch)
     assert result is True
 
 
-# phase3-16
+# phase3-14
 # Component: share_manager.is_server_shared
 # Purpose: Confirm that a server is considered shared if either shares or share-codes exist.
 # Example pass case: both shares and share-codes contain items and the helper returns True.
@@ -342,13 +421,17 @@ class FakeResponse:
         self._json_data = json_data
         self.content = content
 
+    def raise_for_status(self):
+        if not 200 >= self.status_code <= 200:
+            raise HTTPException(self.status_code)
+
     def json(self):
         if self._json_data is None:
             raise ValueError("No JSON")
         return self._json_data
 
 
-# phase3-17
+# phase3-15
 # Component: share_manager.call_hub_api
 # Purpose: Verify the common successful call path: build the outgoing request, attach
 # the
@@ -375,7 +458,7 @@ async def test_call_hub_api_sends_bearer_token_and_returns_json(monkeypatch):
     assert content is None
 
 
-# phase3-18
+# phase3-16
 # Component: share_manager.call_hub_api
 # Purpose: Ensure non-JSON successful responses are returned as raw bytes/content
 # instead
@@ -394,7 +477,7 @@ async def test_call_hub_api_returns_raw_content_for_non_json(monkeypatch):
     assert result == b"raw-bytes"
 
 
-# phase3-19
+# phase3-17
 # Component: share_manager.call_hub_api
 # Purpose: Confirm that upstream failures are surfaced as HTTPException rather than
 # being
@@ -415,7 +498,7 @@ async def test_call_hub_api_raises_http_exception_on_non_200(monkeypatch):
     assert exc.value.detail == "missing"
 
 
-# phase3-20
+# phase3-18
 # Component: share_manager.call_hub_api
 # Purpose: Check that callers can override the default base URL and send request content
 # and headers through the helper.
@@ -447,7 +530,7 @@ async def test_call_hub_api_uses_custom_base_url_and_content(monkeypatch):
     assert headers["authorization"] == "bearer abc"
 
 
-# phase3-21
+# phase3-19
 # Component: share_manager /token endpoint
 # Purpose: Validate the main success path: a user token identifies a server token with
 # the required scope, the server is not shared, and the endpoint returns the stored EGI
@@ -467,15 +550,15 @@ def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatc
     assert [c["path"] for c in calls] == [
         "user",
         "users/alice/tokens/tok-1",
+        "users/alice?include_stopped_servers",
         "share-codes/alice/my-server",
         "shares/alice/my-server",
-        "users/alice",
     ]
     assert calls[0]["token"] == "user-token"
     assert calls[-1]["token"] == share_manager.settings.jupyterhub_api_token
 
 
-# phase3-22
+# phase3-20
 # Component: share_manager /token endpoint
 # Purpose: Ensure access is denied when the user token lacks the special scope required
 # for the token-acquirer flow.
@@ -484,7 +567,7 @@ def test_get_token_returns_access_token_for_non_shared_server(client, monkeypatc
 def test_get_token_rejects_missing_scope(client, monkeypatch):
     extra_calls = {
         "users/alice/tokens/tok-1": {
-            "oauth_client": "JupyterHub server at /user/alice/my-server/",
+            "oauth_client": "Server at /user/alice/my-server/",
             "session_id": "sess-1",
             "user": "alice",
             "scopes": ["something-else"],
@@ -498,12 +581,12 @@ def test_get_token_rejects_missing_scope(client, monkeypatch):
     assert response.status_code == 403
 
 
-# phase3-23
+# phase3-21
 # Component: share_manager /token endpoint
 # Purpose: Verify that regular user tokens cannot be used where a server token is
 # required.
-# Example pass case: get_server_name cannot extract a server name and /token responds
-# with 403 'no server token'.
+# Example pass case: get_user_data cannot extract a server name and /token responds
+# with 403 'forbidden, invalid token was used"'.
 # Example fail case: non-server tokens are accepted and can read another user's access
 # token.
 def test_get_token_rejects_non_server_token(client, monkeypatch):
@@ -512,7 +595,11 @@ def test_get_token_rejects_non_server_token(client, monkeypatch):
             "oauth_client": "JupyterHub",
             "session_id": "sess-1",
             "user": "alice",
-            "scopes": [share_manager.settings.token_acquirer_scope],
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
         }
     }
     monkeypatch.setattr(
@@ -521,10 +608,10 @@ def test_get_token_rejects_non_server_token(client, monkeypatch):
     response = client.get("/token", headers={"Authorization": "Bearer user-token"})
 
     assert response.status_code == 403
-    assert "no server token" in response.text.lower()
+    assert "forbidden, invalid token was used" in response.text.lower()
 
 
-# phase3-24
+# phase3-22
 # Component: share_manager /token endpoint
 # Purpose: Check that shared servers are blocked from this endpoint, matching the design
 # that only non-shared servers should retrieve the owner's access token.
@@ -542,7 +629,7 @@ def test_get_token_rejects_shared_server(client, monkeypatch):
     # assert "server is shared" in response.text.lower()
 
 
-# phase3-25
+# phase3-23
 # Component: share_manager /token endpoint
 # Purpose: Ensure a clear 404-style error is returned when the user exists but has no
 # auth_state entry holding the desired token information.
@@ -550,7 +637,19 @@ def test_get_token_rejects_shared_server(client, monkeypatch):
 # Example fail case: the endpoint returns 200 with empty data or crashes on missing
 # auth_state.
 def test_get_token_returns_404_when_auth_state_missing(client, monkeypatch):
-    extra_calls = {"users/alice": {}}
+    extra_calls = {
+        "users/alice?include_stopped_servers": {
+            "name": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "servers": {
+                "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+            },
+        },
+    }
     monkeypatch.setattr(
         share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
     )
@@ -560,7 +659,7 @@ def test_get_token_returns_404_when_auth_state_missing(client, monkeypatch):
     assert "No access token" in response.text
 
 
-# phase3-26
+# phase3-24
 # Component: share_manager /token endpoint
 # Purpose: Distinguish between auth_state existing and the access_token field actually
 # being present.
@@ -568,7 +667,25 @@ def test_get_token_returns_404_when_auth_state_missing(client, monkeypatch):
 # Example fail case: the endpoint returns a partial auth_state or incorrectly treats the
 # refresh token as a substitute.
 def test_get_token_returns_404_when_access_token_missing(client, monkeypatch):
-    extra_calls = {"users/alice": {"auth_state": {"refresh_token": "x"}}}
+    extra_calls = {
+        "users/alice?include_stopped_servers": {
+            "name": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "servers": {
+                "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+            },
+            "users/alice": {
+                "auth_state": {
+                    "oauth_user": {"id": "alice@example.com"},
+                    "refresh_token": "x",
+                }
+            },
+        }
+    }
 
     monkeypatch.setattr(
         share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
@@ -578,14 +695,25 @@ def test_get_token_returns_404_when_access_token_missing(client, monkeypatch):
     assert response.status_code == 404
 
 
-# phase3-27
+# phase3-25
 # Component: share_manager /token_details endpoint
 # Purpose: Verify the normal success path: the user's token is validated and the
 # endpoint returns the oauth_user data from the user's auth_state.
 def test_get_token_details_returns_oauth_user_data(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
     extra_calls = {
-        "users/alice": {"auth_state": {"oauth_user": {"id": "alice@example.com"}}}
+        "users/alice?include_stopped_servers": {
+            "name": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "servers": {
+                "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+            },
+            "auth_state": {"oauth_user": {"id": "alice@example.com"}},
+        }
     }
     monkeypatch.setattr(
         share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls=extra_calls)
@@ -598,20 +726,33 @@ def test_get_token_details_returns_oauth_user_data(client, monkeypatch):
     assert [c["path"] for c in calls] == [
         "user",
         "users/alice/tokens/tok-1",
+        "users/alice?include_stopped_servers",
         "share-codes/alice/my-server",
         "shares/alice/my-server",
-        "users/alice",
     ]
     assert calls[0]["token"] == "user-token"
     assert calls[-1]["token"] == share_manager.settings.jupyterhub_api_token
 
 
-# phase3-28
+# phase3-26
 # Component: share_manager /token_details endpoint
 # Purpose: Ensure a missing oauth_user section produces a 404 response instead of
 # returning empty or invalid data.
 def test_get_token_details_returns_404_when_oauth_user_missing(client, monkeypatch):
-    extra_calls = {"users/alice": {"auth_state": {}}}
+    extra_calls = {
+        "users/alice?include_stopped_servers": {
+            "name": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "servers": {
+                "my-server": {"name": "my-server", "url": "/user/alice/my-server"}
+            },
+            "auth_state": {"access_token": "egi-access-token"},
+        },
+    }
     monkeypatch.setattr(
         share_manager, "call_hub_api", fake_call_hub_api(extra_calls=extra_calls)
     )
@@ -622,7 +763,7 @@ def test_get_token_details_returns_404_when_oauth_user_missing(client, monkeypat
     assert "No user data available" in response.text
 
 
-# phase3-29
+# phase3-27
 # Component: share_manager POST /share-codes/{owner}/{server_name}
 # Purpose: Verify the 'first share' workflow: if the server is not already shared, the
 # service first revokes the old token and only then creates the share code.
@@ -644,20 +785,23 @@ def test_create_share_code_revokes_token_on_first_share(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"code": "share-code"}
+    print([c["path"] for c in calls])
     assert [c["path"] for c in calls] == [
         "user",
+        "users/alice/tokens/tok-1",
+        "users/alice?include_stopped_servers",
         "share-codes/alice/my-server",
         "shares/alice/my-server",
         "/token_revoke",
         "share-codes/alice/my-server",
     ]
-    assert calls[3]["base_url"] == "http://localhost:8000/hub"
-    assert calls[4]["method"] == "post"
-    assert calls[4]["token"] == share_manager.settings.jupyterhub_api_token
-    assert calls[4]["content"] == b'{"expires_in": 3600}'
+    assert calls[5]["base_url"] == "http://localhost:8000/hub"
+    assert calls[6]["method"] == "post"
+    assert calls[6]["token"] == share_manager.settings.jupyterhub_api_token
+    assert calls[6]["content"] == b'{"expires_in": 3600}'
 
 
-# phase3-30
+# phase3-28
 # Component: share_manager POST /share-codes/{owner}/{server_name}
 # Purpose: Confirm that once a server is already shared, the service does not revoke the
 # token again unnecessarily.
@@ -685,13 +829,15 @@ def test_create_share_code_skips_revoke_when_server_already_shared(client, monke
     assert response.json() == {"code": "share-code"}
     assert [c["path"] for c in calls] == [
         "user",
+        "users/alice/tokens/tok-1",
+        "users/alice?include_stopped_servers",
         "share-codes/alice/my-server",
         "shares/alice/my-server",
         "share-codes/alice/my-server",
     ]
 
 
-# phase3-31
+# phase3-29
 # Component: share_manager wrapper endpoint
 # Purpose: Verify that the generic forwarding wrapper passes through HTTP method, body,
 # and uses the service API token for authenticated Hub API calls.
@@ -715,13 +861,13 @@ def test_call_wrapper_forwards_method_body_and_api_token(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"ok": True}
-    assert calls[1]["path"] == "shares/alice/server1"
-    assert calls[1]["method"] == "PATCH".lower()
-    assert calls[1]["content"] == b'{"enabled": true}'
-    assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
+    assert calls[3]["method"] == "PATCH".lower()
+    assert calls[3]["content"] == b'{"enabled": true}'
+    assert calls[3]["path"] == "shares/alice/server1"
+    assert calls[3]["token"] == share_manager.settings.jupyterhub_api_token
 
 
-# phase3-32
+# phase3-30
 # Component: share_manager DELETE /share-codes/... endpoint
 # Purpose: Ensure the delete endpoint wraps the correct downstream Hub API path and HTTP
 # method.
@@ -742,12 +888,12 @@ def test_delete_share_codes_wraps_correct_path(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"deleted": True}
-    assert calls[1]["path"] == "share-codes/alice/server1/code1"
-    assert calls[1]["method"] == "delete"
-    assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
+    assert calls[3]["path"] == "share-codes/alice/server1/code1"
+    assert calls[3]["method"] == "delete"
+    assert calls[3]["token"] == share_manager.settings.jupyterhub_api_token
 
 
-# phase3-32-bis
+# phase3-30-bis
 # Component: share_manager GET /share-codes/... endpoint
 # Purpose: Ensure the delete endpoint wraps the correct downstream Hub API path and HTTP
 # method.
@@ -765,12 +911,12 @@ def test_get_share_codes_wraps_correct_path(client, monkeypatch):
 
     assert response.status_code == 200
     assert response.json() == {"code": "share-code"}
-    assert calls[1]["path"] == "share-codes/alice/my-server"
-    assert calls[1]["method"] == "get"
-    assert calls[1]["token"] == share_manager.settings.jupyterhub_api_token
+    assert calls[3]["method"] == "get"
+    assert calls[3]["path"] == "share-codes/alice/my-server"
+    assert calls[3]["token"] == share_manager.settings.jupyterhub_api_token
 
 
-# phase3-33
+# phase3-31
 # Component: share_manager /token endpoint
 # Purpose: Verify that when release_with_shared_server is True, the endpoint allows
 # shared servers to retrieve access tokens without performing any sharing checks.
@@ -797,11 +943,11 @@ def test_get_token_allows_shared_server_when_release_enabled(client, monkeypatch
     assert [c["path"] for c in calls] == [
         "user",
         "users/alice/tokens/tok-1",
-        "users/alice",
+        "users/alice?include_stopped_servers",
     ]
 
 
-# phase3-34
+# phase3-32
 # Component: share_manager /token_details endpoint
 # Purpose: Confirm that when release_with_shared_server is True, token details are
 # returned for shared servers without performing sharing checks.
@@ -815,7 +961,6 @@ def test_get_token_details_allows_shared_server_when_release_enabled(
     extra_calls = {
         "shares/alice/my-server": {"items": [{"code": "existing-share"}]},
         "share-codes/alice/my-server": {"items": []},
-        "users/alice": {"auth_state": {"oauth_user": {"id": "alice@example.com"}}},
     }
     monkeypatch.setattr(
         share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls)
@@ -832,11 +977,12 @@ def test_get_token_details_allows_shared_server_when_release_enabled(
     # Verify that no token info or sharing calls are made when release_with_shared_server=True
     assert [c["path"] for c in calls] == [
         "user",
-        "users/alice",
+        "users/alice/tokens/tok-1",
+        "users/alice?include_stopped_servers",
     ]
 
 
-# phase3-35
+# phase3-33
 # Component: share_manager error handling
 # Purpose: Confirm that error handling is performed correctly
 # Example pass case: with a regular error, it returns the right message
@@ -850,7 +996,7 @@ async def test_exception_handler_no_json():
     assert json.loads(result.body) == {"message": "foo bar"}
 
 
-# phase3-36
+# phase3-34
 # Component: share_manager error handling
 # Purpose: Confirm that error handling is performed correctly
 # Example pass case: with a json error, it returns the right message
