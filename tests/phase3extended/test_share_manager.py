@@ -35,6 +35,7 @@ def fake_call_hub_api(calls=None, extra_calls={}):
             "session_id": "sess-1",
             "user": "alice",
             "scopes": [
+                "access:servers!server=alice/my-server",
                 "access:services!service=share-manager",
                 share_manager.settings.token_acquirer_scope,
             ],
@@ -248,7 +249,7 @@ async def test_verify_user_access_check_mechanism(monkeypatch):
 # Component: share_manager.get_user_data
 # Purpose: Verify that only browser token with session_id can be used for requests.
 # Example pass case: 403 exception is raised.
-# Example fail case: 403 exception is raised and user_data is returned.
+# Example fail case:  user_data is returned and exception is not raised.
 @pytest.mark.asyncio
 async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
     extra_calls = {
@@ -271,7 +272,7 @@ async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
     request = make_request({"Authorization": "Bearer abc123"})
 
     with pytest.raises(HTTPException) as exc:
-        print(await share_manager.get_user_data(request))
+        await share_manager.get_user_data(request)
 
     assert exc.value.status_code == 403
     assert "forbidden, invalid token was used" in exc.value.detail.lower()
@@ -281,7 +282,7 @@ async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
 # Component: share_manager.get_user_data
 # Purpose: Verify that only browser token with proper oauth_client can be used for requests.
 # Example pass case: 403 exception is raised.
-# Example fail case: 403 exception is raised and user_data is returned.
+# Example fail case: user_data is returned and exception is not raised.
 @pytest.mark.asyncio
 async def test_only_browser_token_can_send_access_share_manager_2(monkeypatch):
     extra_calls = {
@@ -422,7 +423,7 @@ class FakeResponse:
         self.content = content
 
     def raise_for_status(self):
-        if not 200 >= self.status_code <= 200:
+        if not 200 <= self.status_code <= 299:
             raise HTTPException(self.status_code)
 
     def json(self):

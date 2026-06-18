@@ -21,7 +21,7 @@ c.JupyterHub.load_roles = [
     },
     {
         "name": "share-manager",
-        "scopes": ["read:users", "admin:auth_state", "read:tokens", "shares"],
+        "scopes": ["read:users", "admin:auth_state", "read:tokens", "read:servers", "shares"],
         "services": ["share-manager"]
     }
 ]
