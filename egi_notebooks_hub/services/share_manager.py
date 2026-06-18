@@ -174,7 +174,7 @@ async def get_user_data(request: Request):
     if not (session_id and oauth_client) or oauth_client.lower().find("server at") < 0:
         raise HTTPException(403, detail="Forbidden, invalid token was used")
 
-    server_name = ""
+    server_name = None
     is_owner = False
 
     for server in user_info["servers"]:
