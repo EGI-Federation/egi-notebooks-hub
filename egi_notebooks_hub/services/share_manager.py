@@ -179,7 +179,7 @@ async def get_user_data(request: Request):
 
     for server in user_info["servers"]:
         server_url_re = re.compile(
-            f"(?<=\W){re.escape(user_info['servers'][server]['url'])}(?=\W|$)"
+            rf"(?<=\W){re.escape(user_info['servers'][server]['url'])}(?=\W|$)"
         )
         # Checking if /user/{user_id}/{server_name}
         # corresponds with token oauth_client param
@@ -282,7 +282,7 @@ async def get_token(request: Request):
             user_data["user_info"]["name"], user_data["server_name"]
         )
     user_data = await call_hub_api(
-        path=f"users/{user_data["user_info"]["name"]}",
+        path=f"users/{user_data['user_info']['name']}",
         token=settings.jupyterhub_api_token,
     )
     access_token = None
