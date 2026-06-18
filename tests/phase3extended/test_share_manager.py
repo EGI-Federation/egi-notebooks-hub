@@ -283,7 +283,7 @@ async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
 # Example pass case: 403 exception is raised.
 # Example fail case: 403 exception is raised and user_data is returned.
 @pytest.mark.asyncio
-async def test_only_browser_token_can_send_access_share_manager(monkeypatch):
+async def test_only_browser_token_can_send_access_share_manager_2(monkeypatch):
     extra_calls = {
         "users/alice/tokens/tok-1": {
             "oauth_client": "Jupyterhub",
