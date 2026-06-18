@@ -139,7 +139,7 @@ async def call_hub_api(
             r = await method_f(url, headers=headers)
         try:
             r.raise_for_status()
-        except HTTPException:
+        except httpx.HTTPError:
             logger.debug(f"Error from upstream server {r.content}")
             raise HTTPException(r.status_code, detail=r.content.decode())
         try:
