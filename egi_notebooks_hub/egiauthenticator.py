@@ -601,6 +601,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 self.log.debug(
                     f"Received fresh access_token for {user.name} via refresh_token"
                 )
+            # Update token in the spawner
+            if callable(getattr(user.spawner, "set_access_token", None)):
+                await user.spawner.set_access_token(
+                    token_info["access_token"], token_info.get("id_token", None)
+                )
             # refresh_token may not be returned when refreshing a token
             # in which case, keep the current one
             if not token_info.get("refresh_token"):
