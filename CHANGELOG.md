@@ -10,6 +10,102 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-23
+
+### Added
+
+- Share manager and token acquirer extension
+  [#186](https://github.com/EGI-Federation/egi-notebooks-hub/pull/186),
+  [#174](https://github.com/EGI-Federation/egi-notebooks-hub/pull/174),
+  [#171](https://github.com/EGI-Federation/egi-notebooks-hub/pull/171),
+  [#164](https://github.com/EGI-Federation/egi-notebooks-hub/pull/164),
+  [#169](https://github.com/EGI-Federation/egi-notebooks-hub/pull/169),
+  [#179](https://github.com/EGI-Federation/egi-notebooks-hub/pull/179)
+- Unit and integration tests EGI hub
+  [#197](https://github.com/EGI-Federation/egi-notebooks-hub/pull/197)
+- Allow setting the name of the service
+  [#184](https://github.com/EGI-Federation/egi-notebooks-hub/pull/184)
+- Adding light dark mode switch styling
+  [#166](https://github.com/EGI-Federation/egi-notebooks-hub/pull/166),
+  [#167](https://github.com/EGI-Federation/egi-notebooks-hub/pull/167),
+  [#168](https://github.com/EGI-Federation/egi-notebooks-hub/pull/168),
+- Make the mounting of secrets configurable from profiles
+  [#163](https://github.com/EGI-Federation/egi-notebooks-hub/pull/163),
+  [#170](https://github.com/EGI-Federation/egi-notebooks-hub/pull/170),
+  [#172](https://github.com/EGI-Federation/egi-notebooks-hub/pull/172)
+- Adding accept share template into EGI templates
+  [#165](https://github.com/EGI-Federation/egi-notebooks-hub/pull/165)
+- Dynamic load of EOSC templates
+  [#178](https://github.com/EGI-Federation/egi-notebooks-hub/pull/178)
+
+### Changed
+
+- Switching to IdP primary group ordering
+  [#200](https://github.com/EGI-Federation/egi-notebooks-hub/pull/200)
+
+### Fixed
+
+- Better detect issues with refresh exchange
+  [#157](https://github.com/EGI-Federation/egi-notebooks-hub/pull/157)
+- Moving load_user_options into pre_spawn_hook
+  [#158](https://github.com/EGI-Federation/egi-notebooks-hub/pull/158)
+- Fixing text centering in EOSC error templates
+  [#185](https://github.com/EGI-Federation/egi-notebooks-hub/pull/185)
+- Adapt style of EGI Notebooks to newer Jupyterhub
+  [#159](https://github.com/EGI-Federation/egi-notebooks-hub/pull/159)
+- Fixing templates
+  [#175](https://github.com/EGI-Federation/egi-notebooks-hub/pull/175),
+  [#176](https://github.com/EGI-Federation/egi-notebooks-hub/pull/176),
+  [#161](https://github.com/EGI-Federation/egi-notebooks-hub/pull/161)
+- Update GGUS URL
+  [#160](https://github.com/EGI-Federation/egi-notebooks-hub/pull/160)
+- Ensure volumes is a list
+  [#177](https://github.com/EGI-Federation/egi-notebooks-hub/pull/177)
+- Improve support for binder
+  [#180](https://github.com/EGI-Federation/egi-notebooks-hub/pull/180)
+
+### Removed
+
+- Remove D4Science code
+  [#152]((https://github.com/EGI-Federation/egi-notebooks-hub/pull/152)
+
+### Chore
+
+- Introduce dependabot updates for python packages
+  [#154](https://github.com/EGI-Federation/egi-notebooks-hub/pull/154)
+- Update ECL to 4.10.0
+  [#153](https://github.com/EGI-Federation/egi-notebooks-hub/pull/153),
+  [#155](https://github.com/EGI-Federation/egi-notebooks-hub/pull/155)
+- JupyterHub and related dependencies upgrades
+  [#156](https://github.com/EGI-Federation/egi-notebooks-hub/pull/156),
+  [#173](https://github.com/EGI-Federation/egi-notebooks-hub/pull/173),
+  [#196](https://github.com/EGI-Federation/egi-notebooks-hub/pull/196),
+  [#194](https://github.com/EGI-Federation/egi-notebooks-hub/pull/194)
+  [#195](https://github.com/EGI-Federation/egi-notebooks-hub/pull/195)
+  [#198](https://github.com/EGI-Federation/egi-notebooks-hub/pull/198)
+  [#199](https://github.com/EGI-Federation/egi-notebooks-hub/pull/199)
+  [#203](https://github.com/EGI-Federation/egi-notebooks-hub/pull/203)
+  [#204](https://github.com/EGI-Federation/egi-notebooks-hub/pull/204)
+- Build dependencies upgrades
+  [#162](https://github.com/EGI-Federation/egi-notebooks-hub/pull/162),
+  [#181](https://github.com/EGI-Federation/egi-notebooks-hub/pull/181),
+  [#187](https://github.com/EGI-Federation/egi-notebooks-hub/pull/187),
+  [#188](https://github.com/EGI-Federation/egi-notebooks-hub/pull/188),
+  [#190](https://github.com/EGI-Federation/egi-notebooks-hub/pull/190),
+  [#191](https://github.com/EGI-Federation/egi-notebooks-hub/pull/191),
+  [#192](https://github.com/EGI-Federation/egi-notebooks-hub/pull/192),
+  [#201](https://github.com/EGI-Federation/egi-notebooks-hub/pull/201),
+  [#202](https://github.com/EGI-Federation/egi-notebooks-hub/pull/202),
+  [#213](https://github.com/EGI-Federation/egi-notebooks-hub/pull/213),
+  [#214](https://github.com/EGI-Federation/egi-notebooks-hub/pull/214),
+  [#215](https://github.com/EGI-Federation/egi-notebooks-hub/pull/215),
+  [#216](https://github.com/EGI-Federation/egi-notebooks-hub/pull/216)
+
+## New Contributors
+
+- @nikl11 made their first contribution in
+  [#197](https://github.com/EGI-Federation/egi-notebooks-hub/pull/197)
+
 ## [0.3.0] - 2024-11-27
 
 ### Added
