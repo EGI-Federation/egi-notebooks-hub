@@ -41,16 +41,11 @@ class TokenRevokeHandler(APIHandler):
         if not auth_state:
             raise web.HTTPError(500, "No user state available")
         old_access_token = auth_state.get("access_token", None)
-        # here we set the access_token to something broken to avoid race conditions
-        # with the acquirer and to force the actual refresh below
-        auth_state.update({"access_token": "revoke"})
-        auth_state.get("token_response", {}).update({"access_token": "revoke"})
-        await user.save_auth_state(auth_state)
         # refresh the user so we get a new token
         # call the authenticator refresh directly to really force it
         # as the refresh may have been called just before this call
         # in the `.prepare()` method from the BaseHandler
-        auth_info = await self.authenticator.refresh_user(user, self)
+        auth_info = await self.authenticator.refresh_user(user, self, force=True)
         auth_info["name"] = user.name
         if "auth_state" not in auth_info:
             auth_info["auth_state"] = auth_state
@@ -571,7 +566,9 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
 
         auth_state = await user.get_auth_state()
 
-        if self.refresh_user_hook is not None:
+        force = kwargs.get("force", False)
+
+        if not force and self.refresh_user_hook is not None:
             refreshed = await self._call_refresh_user_hook(user, auth_state)
             if refreshed is not None:
                 return refreshed

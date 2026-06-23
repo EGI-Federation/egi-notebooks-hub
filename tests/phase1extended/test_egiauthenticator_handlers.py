@@ -445,9 +445,7 @@ async def test_token_revoke_handler_refreshes_and_revokes_old_token():
 
     await TokenRevokeHandler.post(handler)
 
-    assert user.saved_auth_state["access_token"] == "revoke"
-    assert user.saved_auth_state["token_response"]["access_token"] == "revoke"
-    authenticator.refresh_user.assert_awaited_once_with(user, handler)
+    authenticator.refresh_user.assert_awaited_once_with(user, handler, force=True)
     auth_to_user.assert_awaited_once_with(
         {"auth_state": {"access_token": "new-token"}, "name": "alice"}, user
     )
