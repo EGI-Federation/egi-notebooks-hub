@@ -67,7 +67,7 @@ and this project adheres to
 ### Removed
 
 - Remove D4Science code
-  [#152]((https://github.com/EGI-Federation/egi-notebooks-hub/pull/152)
+  [#152](https://github.com/EGI-Federation/egi-notebooks-hub/pull/152)
 
 ### Chore
 
@@ -80,11 +80,11 @@ and this project adheres to
   [#156](https://github.com/EGI-Federation/egi-notebooks-hub/pull/156),
   [#173](https://github.com/EGI-Federation/egi-notebooks-hub/pull/173),
   [#196](https://github.com/EGI-Federation/egi-notebooks-hub/pull/196),
-  [#194](https://github.com/EGI-Federation/egi-notebooks-hub/pull/194)
-  [#195](https://github.com/EGI-Federation/egi-notebooks-hub/pull/195)
-  [#198](https://github.com/EGI-Federation/egi-notebooks-hub/pull/198)
-  [#199](https://github.com/EGI-Federation/egi-notebooks-hub/pull/199)
-  [#203](https://github.com/EGI-Federation/egi-notebooks-hub/pull/203)
+  [#194](https://github.com/EGI-Federation/egi-notebooks-hub/pull/194),
+  [#195](https://github.com/EGI-Federation/egi-notebooks-hub/pull/195),
+  [#198](https://github.com/EGI-Federation/egi-notebooks-hub/pull/198),
+  [#199](https://github.com/EGI-Federation/egi-notebooks-hub/pull/199),
+  [#203](https://github.com/EGI-Federation/egi-notebooks-hub/pull/203),
   [#204](https://github.com/EGI-Federation/egi-notebooks-hub/pull/204)
 - Build dependencies upgrades
   [#162](https://github.com/EGI-Federation/egi-notebooks-hub/pull/162),
