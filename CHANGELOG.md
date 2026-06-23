@@ -20,7 +20,8 @@ and this project adheres to
   [#171](https://github.com/EGI-Federation/egi-notebooks-hub/pull/171),
   [#164](https://github.com/EGI-Federation/egi-notebooks-hub/pull/164),
   [#169](https://github.com/EGI-Federation/egi-notebooks-hub/pull/169),
-  [#179](https://github.com/EGI-Federation/egi-notebooks-hub/pull/179)
+  [#179](https://github.com/EGI-Federation/egi-notebooks-hub/pull/179),
+  [#211](https://github.com/EGI-Federation/egi-notebooks-hub/pull/211)
 - Unit and integration tests EGI hub
   [#197](https://github.com/EGI-Federation/egi-notebooks-hub/pull/197)
 - Allow setting the name of the service
