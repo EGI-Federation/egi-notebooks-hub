@@ -203,6 +203,16 @@ async def get_user_data(request: Request):
     }
 
 
+def verify_request_path_access(user_data: dict, owner: str, server_name: str):
+    if (
+        user_data["user_info"]["name"] != owner
+        or user_data["server_name"] != server_name
+    ):
+        raise HTTPException(
+            403, detail="Forbidden, token owner does not match server owner"
+        )
+
+
 async def server_has_shares(
     owner: str, server_name: Optional[str] = "", raise_exc: Optional[bool] = False
 ):
@@ -291,11 +301,12 @@ async def get_token(request: Request):
     return {"access_token": access_token}
 
 
-async def call_wrapper(request: Request, path: str):
+async def call_wrapper(request: Request, path: str, owner: str, server_name: str):
     """Wraps calls the the HUP API using our token"""
     logger.debug(f"Wrapping call to {path}")
     # Does owner verification
-    await get_user_data(request)
+    user_data = await get_user_data(request)
+    verify_request_path_access(user_data, owner, server_name)
     resp = await call_hub_api(
         path=path,
         method=request.method.lower(),
@@ -318,6 +329,7 @@ async def create_share_code(
     """
     logger.debug("Share code post called")
     user_data = await get_user_data(request)
+    verify_request_path_access(user_data, owner, server_name)
     if not await is_server_shared(owner, user_data["server_name"]):
         # First revoke the token as the server is shared
         hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
@@ -338,14 +350,25 @@ async def create_share_code(
     return resp
 
 
-@app.get("/share-codes/{svc_path:path}")
-@app.delete("/share-codes/{svc_path:path}")
-async def share_codes_calls(request: Request, svc_path: str):
-    return await call_wrapper(request, f"share-codes/{svc_path}")
+@app.get("/share-codes/{owner:str}/")
+@app.get("/share-codes/{owner:str}/{server_name:str}")
+@app.delete("/share-codes/{owner:str}/")
+@app.delete("/share-codes/{owner:str}/{server_name:str}")
+async def share_codes_calls(
+    request: Request, owner: str, server_name: Optional[str] = ""
+):
+    return await call_wrapper(
+        request, f"share-codes/{owner}/{server_name}", owner, server_name
+    )
 
 
-@app.get("/shares/{svc_path:path}")
-@app.patch("/shares/{svc_path:path}")
-@app.delete("/shares/{svc_path:path}")
-async def wrap_shares(request: Request, svc_path: str):
-    return await call_wrapper(request, f"shares/{svc_path}")
+@app.get("/shares/{owner:str}/")
+@app.get("/shares/{owner:str}/{server_name:str}")
+@app.patch("/shares/{owner:str}/")
+@app.patch("/shares/{owner:str}/{server_name:str}")
+@app.delete("/shares/{owner:str}/")
+@app.delete("/shares/{owner:str}/{server_name:str}")
+async def wrap_shares(request: Request, owner: str, server_name: Optional[str] = ""):
+    return await call_wrapper(
+        request, f"shares/{owner}/{server_name}", owner, server_name
+    )
