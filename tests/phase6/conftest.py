@@ -18,9 +18,11 @@ import pytest
 
 PHASE6_TOKEN = "phase6-test-admin-token"
 HUB_PORT = 18000
-TOKEN_ACQUIRER_PORT = 18010
+SHARE_MANAGER_PORT = 18010
 HUB_URL = f"http://127.0.0.1:{HUB_PORT}"
-SERVICE_URL = f"{HUB_URL}/services/token-acquirer/"
+SERVICE_NAME = "share-manager"
+SERVICE_PATH = f"/services/{SERVICE_NAME}"
+SERVICE_URL = f"{HUB_URL}{SERVICE_PATH}"
 
 
 def repo_root() -> Path:
@@ -86,7 +88,7 @@ def running_hub() -> Iterator[dict[str, Any]]:
                 "PYTHONPATH": str(root),
                 "JUPYTERHUB_TEST_RUNTIME_DIR": str(runtime_dir),
                 "JUPYTERHUB_TEST_HUB_PORT": str(HUB_PORT),
-                "JUPYTERHUB_TEST_TOKEN_ACQUIRER_PORT": str(TOKEN_ACQUIRER_PORT),
+                "JUPYTERHUB_TEST_SHARE_MANAGER_PORT": str(SHARE_MANAGER_PORT),
                 "CONFIGPROXY_AUTH_TOKEN": "phase6-config-proxy-token",
             }
         )
