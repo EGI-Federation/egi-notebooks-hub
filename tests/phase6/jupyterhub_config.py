@@ -24,17 +24,13 @@ from egi_notebooks_hub.egispawner import EGISpawner
 try:
     c: Any = get_config()  # type: ignore[name-defined]  # noqa: F821
 except NameError:
-    from traitlets.config import Config
-
-    c = Config()
+    c = None
 
 runtime_dir = Path(os.environ["JUPYTERHUB_TEST_RUNTIME_DIR"])
 runtime_dir.mkdir(parents=True, exist_ok=True)
 
 hub_port = int(os.environ.get("JUPYTERHUB_TEST_HUB_PORT", "18000"))
-token_acquirer_port = int(
-    os.environ.get("JUPYTERHUB_TEST_TOKEN_ACQUIRER_PORT", "18010")
-)
+share_manager_port = int(os.environ.get("JUPYTERHUB_TEST_SHARE_MANAGER_PORT", "18010"))
 spawner_events_file = runtime_dir / "spawner-events.jsonl"
 
 
@@ -149,13 +145,23 @@ c.JupyterHub.services = [
         "api_token": "phase6-test-admin-token",
     },
     {
-        "name": "token-acquirer",
-        "url": f"http://127.0.0.1:{token_acquirer_port}",
+        "name": "share-manager",
+        "url": f"http://127.0.0.1:{share_manager_port}",
         "command": [
             sys.executable,
-            "-c",
-            "from egi_notebooks_hub.services.token_acquirer import main; main()",
+            "-m",
+            "uvicorn",
+            "egi_notebooks_hub.services.share_manager:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            str(share_manager_port),
         ],
+        "environment": {
+            "JUPYTERHUB_SERVICE_PREFIX": "/services/share-manager",
+            "JUPYTERHUB_API_URL": f"http://127.0.0.1:{hub_port}/hub/api",
+            "JUPYTERHUB_API_TOKEN": "phase6-test-admin-token",
+        },
     },
 ]
 
@@ -163,5 +169,16 @@ c.JupyterHub.load_roles = [
     {
         "name": "admin",
         "services": ["test-admin"],
-    }
+    },
+    {
+        "name": "share-manager",
+        "scopes": [
+            "read:users",
+            "read:servers",
+            "read:tokens",
+            "admin:auth_state",
+            "shares",
+        ],
+        "services": ["share-manager"],
+    },
 ]
