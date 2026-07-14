@@ -258,9 +258,7 @@ async def fail_if_shared_server(owner: str, server_name: Optional[str] = ""):
 async def get_token_details(request: Request):
     """Gets access token details."""
     logger.debug("Get token details request")
-    
-    verify_ownership = False
-    user_data = await get_user_data(request, verify_ownership)
+    user_data = await get_user_data(request, verify_ownership=False)
 
     if not settings.release_with_shared_server:
         await fail_if_shared_server(
@@ -284,9 +282,7 @@ async def get_token(request: Request):
     3. the calling token is associated to a running server
     """
     logger.debug("Get token request")
-
-    verify_ownership = False
-    user_data = await get_user_data(request, verify_ownership)
+    user_data = await get_user_data(request, verify_ownership=False)
 
     if settings.token_acquirer_scope not in user_data["token_info"]["scopes"]:
         raise HTTPException(
