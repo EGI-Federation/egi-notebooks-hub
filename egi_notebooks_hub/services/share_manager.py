@@ -261,6 +261,8 @@ async def get_token_details(request: Request):
     user_data = await get_user_data(request, verify_ownership=False)
 
     if not settings.release_with_shared_server:
+        if user_data["server_name"] is None:
+            raise HTTPException(403, detail="Forbidden, no server token")
         await fail_if_shared_server(
             user_data["user_info"]["name"], user_data["server_name"]
         )
@@ -288,9 +290,9 @@ async def get_token(request: Request):
         raise HTTPException(
             403, detail=f"Forbidden, requires {settings.token_acquirer_scope} scope"
         )
-    if user_data["server_name"] is None:
-        raise HTTPException(403, detail="Forbidden, no server token")
     if not settings.release_with_shared_server:
+        if user_data["server_name"] is None:
+            raise HTTPException(403, detail="Forbidden, no server token")
         await fail_if_shared_server(
             user_data["user_info"]["name"], user_data["server_name"]
         )
