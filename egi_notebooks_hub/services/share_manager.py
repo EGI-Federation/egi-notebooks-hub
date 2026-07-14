@@ -149,7 +149,7 @@ async def call_hub_api(
             return r.content
 
 
-async def get_user_data(request: Request):
+async def get_user_data(request: Request, verify_ownership=True):
     user_token = get_user_token(request)
     # Minimal user info from user_token
     user_info = await call_hub_api(path="user", token=user_token)
@@ -191,7 +191,9 @@ async def get_user_data(request: Request):
             is_owner = True
             break
 
-    if not is_owner:
+    # server ownership check needs to be disabled
+    # for invited users to be able to copy token into clipboard
+    if verify_ownership and not is_owner:
         raise HTTPException(
             403, detail="Forbidden, token owner does not match server owner"
         )
@@ -256,7 +258,9 @@ async def fail_if_shared_server(owner: str, server_name: Optional[str] = ""):
 async def get_token_details(request: Request):
     """Gets access token details."""
     logger.debug("Get token details request")
-    user_data = await get_user_data(request)
+    
+    verify_ownership = False
+    user_data = await get_user_data(request, verify_ownership)
 
     if not settings.release_with_shared_server:
         await fail_if_shared_server(
@@ -280,7 +284,9 @@ async def get_token(request: Request):
     3. the calling token is associated to a running server
     """
     logger.debug("Get token request")
-    user_data = await get_user_data(request)
+
+    verify_ownership = False
+    user_data = await get_user_data(request, verify_ownership)
 
     if settings.token_acquirer_scope not in user_data["token_info"]["scopes"]:
         raise HTTPException(
