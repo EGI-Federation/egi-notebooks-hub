@@ -329,7 +329,7 @@ def test_share_manager_user_token(running_hub):
     response = api_get(f"/hub/api/services/{SERVICE_NAME}/token/alice")
     payload = response.json()
 
-    assert response.status_code == 200
+    assert response.status_code == 404
     print(payload)
     assert payload["url"].startswith("http://127.0.0.1:")
     assert f"/services/{SERVICE_NAME}" not in payload["url"]
