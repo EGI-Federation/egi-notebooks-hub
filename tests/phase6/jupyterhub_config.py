@@ -181,4 +181,15 @@ c.JupyterHub.load_roles = [
         ],
         "services": ["share-manager"],
     },
+    {
+        "name": "token-getter",
+        "scopes": ["custom:token-acquirer:read"],
+        "services": ["test-admin"],
+    },
 ]
+
+c.JupyterHub.custom_scopes = {
+    "custom:token-acquirer:read": {
+        "description": "Access to token acquirer",
+    },
+}
