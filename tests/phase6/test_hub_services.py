@@ -320,6 +320,7 @@ def test_share_manager_public_service_url_has_no_hub_api_prefix(running_hub):
     assert "/hub/api/" not in SERVICE_URL
     assert SERVICE_URL.endswith(f"/services/{SERVICE_NAME}")
 
+
 # phase6-services-24
 # Component: share manager get user token
 # Purpose: Verify the share manager cat get a user token if called with a service token.
