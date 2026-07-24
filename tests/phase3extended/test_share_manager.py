@@ -14,7 +14,7 @@ def client():
     return TestClient(share_manager.app)
 
 
-def fake_call_hub_api(calls=None, extra_calls={}):
+def fake_call_hub_api(calls=None, extra_calls=None):
     """Helper function to simulate the hub calls (and avoid code duplication)
     Params:
     * calls - an array where the actual calls will be registered
@@ -72,7 +72,8 @@ def fake_call_hub_api(calls=None, extra_calls={}):
         },
         "/token_revoke": {"status": "revoked"},
     }
-    calls_mapping.update(extra_calls)
+    if extra_calls:
+        calls_mapping.update(extra_calls)
 
     async def fake_call_hub_api_inner(
         path, base_url=None, content=None, method="get", headers=None, token=None
@@ -1027,7 +1028,7 @@ async def test_exception_handler_json():
 # Example pass case: with a json error, it returns the right message
 # Example fail case: the error handling fails.
 @pytest.mark.asyncio
-async def test_get_server_owner_user_data(monkeypatch):
+async def test_get_server_user_data(monkeypatch):
     extra_calls = {
         "user": {
             "name": "eve",
@@ -1090,7 +1091,7 @@ def test_get_token_user_returns_access_token(client, monkeypatch):
 # phase3-37
 # Component: share_manager /token/{user_name} endpoint
 # Purpose: Return 404 with no access token in the user
-def test_get_token_user_returns_access_token(client, monkeypatch):
+def test_get_token_user_fails_without_access_token(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
     extra_calls = {
         "user": {
@@ -1126,7 +1127,7 @@ def test_get_token_user_returns_access_token(client, monkeypatch):
 # phase3-38
 # Component: share_manager /token/{user_name} endpoint
 # Purpose: Forbidden with user token
-def test_get_token_user_returns_access_token(client, monkeypatch):
+def test_get_token_user_fails_with_user_token(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
 
     monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api(calls))
@@ -1142,7 +1143,7 @@ def test_get_token_user_returns_access_token(client, monkeypatch):
 # phase3-39
 # Component: share_manager /token/{user_name} endpoint
 # Purpose: Return 403 with no matching scopes
-def test_get_token_user_returns_access_token(client, monkeypatch):
+def test_get_token_user_fails_without_scopes(client, monkeypatch):
     calls: ClassVar[list[dict[str, Any]]] = []
     extra_calls = {
         "user": {
