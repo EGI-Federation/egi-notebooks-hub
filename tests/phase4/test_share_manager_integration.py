@@ -34,6 +34,7 @@ def test_token_details_returns_oauth_user_data(share_manager_client):
         upstream_url("user"): DummyResponse(
             json_data={
                 "name": "alice",
+                "kind": "user",
                 "token_id": "tok-1",
                 "scopes": [
                     "access:servers!server=alice/my-server",
@@ -107,6 +108,7 @@ def test_token_details_returns_404_when_oauth_user_missing(share_manager_client)
         upstream_url("user"): DummyResponse(
             json_data={
                 "name": "alice",
+                "kind": "user",
                 "token_id": "alice",
                 "scopes": [
                     "access:servers!server=alice/my-server",
@@ -164,6 +166,7 @@ def test_token_returns_access_token_for_valid_server_token(share_manager_client)
         upstream_url("user"): DummyResponse(
             json_data={
                 "name": "alice",
+                "kind": "user",
                 "token_id": "tok-1",
                 "scopes": [
                     "access:servers!server=alice/my-server",

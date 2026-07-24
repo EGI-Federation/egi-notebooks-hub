@@ -23,6 +23,7 @@ def fake_call_hub_api(calls=None, extra_calls={}):
     calls_mapping = {
         "user": {
             "name": "alice",
+            "kind": "user",
             "token_id": "tok-1",
             "scopes": [
                 "access:servers!server=alice/my-server",
@@ -198,6 +199,7 @@ async def test_verify_user_access_check_mechanism(monkeypatch):
     extra_calls = {
         "user": {
             "name": "eve",
+            "kind": "user",
             "token_id": "tok-1",
             "scopes": [
                 "access:servers!server=alice/my-server",
