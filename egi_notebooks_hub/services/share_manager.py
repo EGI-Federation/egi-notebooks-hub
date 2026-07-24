@@ -15,9 +15,9 @@ Sample configuration:
 ```
 c.JupyterHub.load_roles = [
     {
-        'name': 'user',
-        'description': 'Grant users access to hub services',
-        'scopes': ["access:services", "self"],
+        "name": "user",
+        "description": "Grant users access to hub services",
+        "scopes": ["access:services", "custom:token-acquirer:read", "self"],
     },
     {
         "name": "share-manager",
@@ -28,13 +28,13 @@ c.JupyterHub.load_roles = [
 
 c.JupyterHub.services = [
     {
-        'name': 'share-manager',
+        "name": "share-manager",
         # tune the port and host to listen on with --port and --host options
-        'command': [
-            'fastapi',
-            'run',
-            '-e',
-            'egi_notebooks_hub.services.share_manager:app',
+        "command": [
+            "fastapi",
+            "run",
+            "-e",
+            "egi_notebooks_hub.services.share_manager:app",
         ],
     }
 ]
@@ -51,6 +51,26 @@ c.JupyterHub.custom_scopes = {
     },
 }
 c.Spawner.oauth_client_allowed_scopes = ["custom:token-acquirer:read"]
+```
+
+A /token/{user_name} call is also available for services to get the access token
+of users, the service token needs to have the scope as configured in
+`Settings.token_acquirer_scope`, e.g.:
+
+```
+c.JupyterHub.services = [
+     {
+         "name": "token-getter",
+         "display": False,
+     }
+]
+c.JupyterHub.load_roles = [
+    {
+        "name": "token-getter",
+        "scopes": ["custom:token-acquirer:read"],
+        "services": ["token-getter"],
+    },
+]
 ```
 """
 
@@ -153,6 +173,9 @@ async def get_user_data(request: Request, verify_ownership=True):
     user_token = get_user_token(request)
     # Minimal user info from user_token
     user_info = await call_hub_api(path="user", token=user_token)
+    # Do not allow anything that is not a user
+    if user_info.get("kind", "") != "user":
+        raise HTTPException(403, detail="Forbidden, invalid token was used")
     token_info = await call_hub_api(
         path=f"users/{user_info['name']}/tokens/{user_info['token_id']}",
         token=settings.jupyterhub_api_token,
@@ -175,8 +198,8 @@ async def get_user_data(request: Request, verify_ownership=True):
     if not (session_id and oauth_client) or oauth_client.lower().find("server at") < 0:
         raise HTTPException(403, detail="Forbidden, invalid token was used")
 
-    server_name = None
     is_owner = False
+    server_name = None
 
     for server in user_info["servers"]:
         server_url_re = re.compile(
@@ -299,6 +322,39 @@ async def get_token(request: Request):
 
     access_token = None
     auth_state = user_data["user_info"].get("auth_state", {})
+    if auth_state:
+        access_token = auth_state.get("access_token", None)
+    if not access_token:
+        raise HTTPException(404, detail="No access token available for the user")
+    return {"access_token": access_token}
+
+
+@app.get("/token/{user_name:str}")
+async def get_token_for_user(request: Request, user_name: str):
+    """Gets access token for a particular user.
+
+    It will return the access token if:
+    1. the calling token is a service token
+    2. the calling token has the scope configured in `token_acquirer_scope`
+    """
+    logger.debug("Get token for user request")
+    service_token = get_user_token(request)
+    # Minimal user info from user_token
+    service_info = await call_hub_api(path="user", token=service_token)
+
+    if service_info.get("kind", "") != "service":
+        raise HTTPException(403, detail="Forbidden, no service token")
+
+    if settings.token_acquirer_scope not in service_info["scopes"]:
+        raise HTTPException(403, detail="Forbidden, missing expected scopes")
+
+    user_info = await call_hub_api(
+        path=f"users/{user_name}",
+        token=settings.jupyterhub_api_token,
+    )
+
+    access_token = None
+    auth_state = user_info.get("auth_state", {})
     if auth_state:
         access_token = auth_state.get("access_token", None)
     if not access_token:
