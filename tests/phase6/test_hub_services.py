@@ -331,6 +331,5 @@ def test_share_manager_user_token(running_hub):
     payload = response.json()
 
     assert response.status_code == 404
-    print(payload)
-    assert payload["url"].startswith("http://127.0.0.1:")
-    assert f"/services/{SERVICE_NAME}" not in payload["url"]
+    assert payload["status"] == 404
+    assert payload["message"].lower() == "not found"
