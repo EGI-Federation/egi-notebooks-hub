@@ -58,6 +58,18 @@ def fake_call_hub_api(calls=None, extra_calls={}):
                 "oauth_user": {"id": "alice@example.com"},
             },
         },
+        "users/alice": {
+            "name": "alice",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+            "auth_state": {
+                "access_token": "egi-access-token",
+                "oauth_user": {"id": "alice@example.com"},
+            },
+        },
         "/token_revoke": {"status": "revoked"},
     }
     calls_mapping.update(extra_calls)
@@ -1007,3 +1019,147 @@ async def test_exception_handler_json():
     )
     assert result.status_code == 500
     assert json.loads(result.body) == {"message": "foo bar"}
+
+
+# phase3-35
+# Component: share_manager.get_user_data
+# Purpose: Confirm that it fails for non users
+# Example pass case: with a json error, it returns the right message
+# Example fail case: the error handling fails.
+@pytest.mark.asyncio
+async def test_get_server_owner_user_data(monkeypatch):
+    extra_calls = {
+        "user": {
+            "name": "eve",
+            "kind": "server",
+            "token_id": "tok-1",
+            "scopes": [
+                "access:servers!server=alice/my-server",
+                "access:services!service=share-manager",
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
+    }
+    monkeypatch.setattr(
+        share_manager,
+        "call_hub_api",
+        fake_call_hub_api(extra_calls=extra_calls),
+    )
+    request = make_request({"Authorization": "Bearer abc123"})
+
+    with pytest.raises(HTTPException) as exc:
+        await share_manager.get_user_data(request)
+
+    assert exc.value.status_code == 403
+    assert "forbidden, invalid token was used" in exc.value.detail.lower()
+
+
+# phase3-36
+# Component: share_manager /token/{user_name} endpoint
+# Purpose: Validate the main success path: request token for a user with the right token
+def test_get_token_user_returns_access_token(client, monkeypatch):
+    calls: ClassVar[list[dict[str, Any]]] = []
+    extra_calls = {
+        "user": {
+            "name": "token-get",
+            "kind": "service",
+            "token_id": "tok-1",
+            "scopes": [
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
+    }
+
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls=extra_calls)
+    )
+    response = client.get(
+        "/token/alice", headers={"Authorization": "Bearer user-token"}
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"access_token": "egi-access-token"}
+    assert [c["path"] for c in calls] == [
+        "user",
+        "users/alice",
+    ]
+    assert calls[0]["token"] == "user-token"
+    assert calls[-1]["token"] == share_manager.settings.jupyterhub_api_token
+
+
+# phase3-37
+# Component: share_manager /token/{user_name} endpoint
+# Purpose: Return 404 with no access token in the user
+def test_get_token_user_returns_access_token(client, monkeypatch):
+    calls: ClassVar[list[dict[str, Any]]] = []
+    extra_calls = {
+        "user": {
+            "name": "token-get",
+            "kind": "service",
+            "token_id": "tok-1",
+            "scopes": [
+                share_manager.settings.token_acquirer_scope,
+            ],
+        },
+        "users/alice": {
+            "name": "alice",
+            "auth_state": {},
+        },
+    }
+
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls=extra_calls)
+    )
+    response = client.get(
+        "/token/alice", headers={"Authorization": "Bearer user-token"}
+    )
+
+    assert response.status_code == 404
+    assert [c["path"] for c in calls] == [
+        "user",
+        "users/alice",
+    ]
+    assert calls[0]["token"] == "user-token"
+    assert calls[-1]["token"] == share_manager.settings.jupyterhub_api_token
+
+
+# phase3-38
+# Component: share_manager /token/{user_name} endpoint
+# Purpose: Forbidden with user token
+def test_get_token_user_returns_access_token(client, monkeypatch):
+    calls: ClassVar[list[dict[str, Any]]] = []
+
+    monkeypatch.setattr(share_manager, "call_hub_api", fake_call_hub_api(calls))
+    response = client.get(
+        "/token/alice", headers={"Authorization": "Bearer user-token"}
+    )
+
+    assert response.status_code == 403
+    assert calls[0]["path"] == "user"
+    assert calls[0]["token"] == "user-token"
+
+
+# phase3-39
+# Component: share_manager /token/{user_name} endpoint
+# Purpose: Return 403 with no matching scopes
+def test_get_token_user_returns_access_token(client, monkeypatch):
+    calls: ClassVar[list[dict[str, Any]]] = []
+    extra_calls = {
+        "user": {
+            "name": "token-get",
+            "kind": "service",
+            "token_id": "tok-1",
+            "scopes": [],
+        },
+    }
+
+    monkeypatch.setattr(
+        share_manager, "call_hub_api", fake_call_hub_api(calls, extra_calls=extra_calls)
+    )
+    response = client.get(
+        "/token/alice", headers={"Authorization": "Bearer user-token"}
+    )
+
+    assert response.status_code == 403
+    assert calls[0]["path"] == "user"
+    assert calls[0]["token"] == "user-token"
