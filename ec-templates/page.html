@@ -6,69 +6,67 @@
 {{ super() }}
 
 <style>
-html {
-  font-size: 100%;
-  height: 100%;
-}
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.site-footer-fix {
-  margin-top: auto;
-}
-.container-fix {
-  flex-grow: 1;
-}
+  html {
+    font-size: 100%;
+    height: 100%;
+  }
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .site-footer-fix {
+    margin-top: auto;
+  }
+  .container-fix {
+    flex-grow: 1;
+  }
 </style>
 
 <link
   rel="stylesheet"
-  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/optional/ecl-ec-default.css"
-  integrity="sha256-7XbRWz/KIVcK0oC0bwOCo+I2AudyAMkeyu3L5Wpa1wc= sha384-+KnRIij0RjiqhQ1MN6SG8J1tPISkjN4CghvhKRlobxy/hPbe6ZbO4UHBNmcFuWEO sha512-W7YFpSpRijcAESw/ScePE87EiYwk3kyM2UJhvW9D2eKCfqytMYrq2h8vVw9Ft41bQPXX+esTFR4/g3ykEiibCg=="
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v5.1.0/ec/styles/optional/ecl-ec-default.css"
+  integrity="sha256-cpTJRXXrwfrpkoXcZ9ZGxMzPbjBvfqc4MurAqO3oPZY= sha384-Yk5f0kieov1JG5G8I3RDd7rW1aO9lo0fVgBjclg4/NSKJOHk9sH38ALgveQmZljY sha512-n+FcXGmwHFeDQXAI/9aqyrqECluOBm+9/iPm+oHIPNFH6b/GRwC3aFgYcLybabfXmZas9oBkmGCsdTnfE8+grw=="
+  crossorigin="anonymous"
+  media="screen"
+/>
+
+<link
+  rel="stylesheet"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v5.1.0/ec/styles/optional/ecl-reset.css"
+  integrity="sha256-vVUOVhn7NQTSpAHhmpYXydT4GGaAh1VdH6lEuHWrQcs= sha384-jEeocaSvvBeTSqVOIR5P+XhzKqQZOD1bHvfD7VS2veP1hccCVYxdA6aDC2C4utSd sha512-PvxOetiVG4BQ00iHi+C2j1xw1xZRV2Y6bOEhXLa61osVVuklSUPeUtcn+hIlFfVng7jZYZBsoleeujN/gn/sQA=="
+  crossorigin="anonymous"
+  media="screen"
+/>
+
+<link
+  rel="stylesheet"
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v5.1.0/ec/styles/ecl-ec.css"
+  integrity="sha256-Z6D0xe1Akhr3U7Uq+J/vPa48ZhKYM+hlaQr69S3dcUY= sha384-O3hbQj9dwVgFiMMcC4sy7bPDpTWZrFFlQRk4fh15W/efPvE38mBJ1btnBZU1M8Ap sha512-SgXDqMwvorrhnfllQOxXjogqpyMK33JpSvIWhI//nssQC6+6/ypuNUaJjew8O3W01R1KPTeBRQVxjd0XtrpCBw=="
   crossorigin="anonymous"
   media="screen"
 />
 <link
   rel="stylesheet"
-  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/optional/ecl-reset.css"
-  integrity="sha256-kgkV2jwxAv9rV/pEZMO1ZIUGlOeYhR/sWNko+nQzL+U= sha384-V/h7UkJ4neaFSddbrlgsdHZ7Yli4BsWBEzbGY1bL9s//Dne2gMX3qBW2mtGsI7gA sha512-ztGS5PYfTTDqz0ywyhsqxupHv+yX0t2ajqocSE/xviVoxLRZVJj6TARDt25xytzQ/6jP4IEl7nkIL6Ypt4lUQQ=="
-  crossorigin="anonymous"
-  media="screen"
-/>
-<link
-  rel="stylesheet"
-  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/ecl-ec.css"
-  integrity="sha256-EWyRRzWds5Kll0v6q5hOpX/JF7OZ20oTOXC5wweVx1E= sha384-4Ni640a5KqYEDjSOoyKYiBhrHoX0nl8s7ZVTPtbkguA9cJJtWbkbmXm12UO71a0C sha384-pht7Ak0/atyGGU+sNdoGMoYPtcq5gJ9eOEiD8jhbqowXOp04VjhqALtBzjQO+xVa sha512-WxR2fEkr9aF9hu1vMMgSH7UcZZiuIxQJJ5x4T6WPlG5pJYcLywgeHN6rS0T94KoVTMfrC4IZB9rSsJgfXImo4g=="
-  crossorigin="anonymous"
-  media="screen"
-/>
-<link
-  rel="stylesheet"
-  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/ecl-ec-print.css"
-  integrity="sha256-+h9JpKfnsC8n6oaTvvrKOaLro9ki67E1HUFSgh+FxP4= sha384-vH3QMqdGG/7+vk2t/Ai2GZ8refpKk/xVlspeMbdG7WxjPEYIqKmvfRl3PJ6Zb+Kc sha512-3vSGPqgwLC+wl9k+xN+XsAoxvoQGSrGCN6iq/52pCl5daazWFA8QrQkJSmX4bydX8IdOr2d+7K4TKrvnO7OiOw=="
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v5.1.0/ec/styles/ecl-ec-print.css"
+  integrity="sha256-2strgCYkaV9ef5lWmF9lKOn4nrDevVhLIv0BrSPXbiI= sha384-F/OAClmr5M5aeP160I+3zLzox50gqntKmuI907MvzglRPAiqntijRz9ifddHYFcN sha512-Z4oOtxyC2an8wkf3TS9oiXRhL0DZgf17JuwcfjmMrzIfUtiN9Lfy0gJORpJMghZ49UpUvGzYnIe+aSvmwINb9A=="
   crossorigin="anonymous"
   media="print"
 />
 <link
   rel="stylesheet"
-  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/styles/optional/ecl-ec-default-print.css"
-  integrity="sha256-r2h4/l+cHzvLXT3QvfaB7jlmj3L0xwOM83Wo543HE0A= sha384-iE/iHAMCZzQX5+ukUTK7xPB87CoAlgklPyLndBuJlWvwd3JqXO5/GaO2ePOF1pAW
-  sha512-wGTofG2I7XVxGV7Lrnpizbzu0rHLtAzmWKpcCudLDJ0sfro2TBqZB1MwkxjTD6LGfkoiC5f5jssXNLHClOiGRQ=="
+  href="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v5.1.0/ec/styles/optional/ecl-ec-default-print.css"
+  integrity="sha256-V4jUK4BgxtWyK4lm8a1+4CILx1iSPahwWE3V2GDfr5E= sha384-Xj6kT3PEgMiukrRc22GQQtmwGksrYwss2UGzd6HLb6Xu4fgySoSY+ki8xbujMwLF sha512-AargNX/K11j1YK6ogJ4burl5ioS0LUzODQiHrifl2B8RVuAHfd3eUSqgWST0/zMc4qWCmpyPDbrd4J7r3Y6SOQ=="
   crossorigin="anonymous"
   media="print"
 />
-
-
-
 {% endblock stylesheet %}
 
 {% block script %}
 {{ super() }}
 <script
-  src="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v4.11.0/ec/scripts/ecl-ec.js"
-  integrity="sha256-3ml+N1xH9anWmelzcIUcky/E/V29fpHAmvjc5qcHZzs= sha384-aR3Es/0z8R1Y4mve1kgTY0/X2DSqpmRmmvXgRpTYg0pwT2C8f4UrWMDLXyBYlmJC sha512-TqIr68oz3EDBP2P+W1N4V1k01NSaaVwcJWXNjPRxcQv5fO8iD281WyZkXaSVIp/bhA8SfEqI1QjJ6fjyWzYIJA=="
+  src="https://cdn1.fpfis.tech.ec.europa.eu/ecl/v5.1.0/ec/scripts/ecl-ec.js"
+  integrity="sha256-V9+YPvkODqgcsx01etrmrNRAAMNeCjobgfaWk+w5mWI= sha384-bEGzkV9Vblq0UDu6AlNKavxCLfOMmYVBzz/OoUNys9XAbZRD5V+TDH+NeCsrUxQl sha512-+XlsKDMao4g/qG6RnogzAZv0djvUN5bdxY1rghC6uTZyJ3ErgAPEoYFI9ZO+cVwInyrzmZYIvoQ/ZQtkuYuYKw=="
   crossorigin="anonymous"
 ></script>
 <script>
@@ -281,7 +279,7 @@ body {
             >
           </li>
           {% endif %}
-          {% endif %}
+	  {% endif %}
         </ul>
       </section>
     </div>
@@ -333,121 +331,132 @@ body {
 {% endblock announcement %}
 
 {% block footer %}
-<footer class="ecl-site-footer site-footer-fix">
-  <div class="ecl-container ecl-site-footer__container">
-    <div class="ecl-site-footer__row">
-      <div class="ecl-site-footer__column">
+<footer class="ecl-site-footer">
+  <div class="ecl-site-footer__main">
+    <div class="ecl-container ecl-site-footer__container">
+      <div class="ecl-site-footer__row ecl-site-footer__row--specific">
         <div
           class="ecl-site-footer__section ecl-site-footer__section--site-info"
         >
           <div class="ecl-site-footer__title">
             <a
               href="{{ base_url }}"
-              class="ecl-link ecl-link--standalone ecl-site-footer__title-link"
-            >{{ service_name }}</a>
+              class="ecl-link ecl-link--inverted ecl-site-footer__title-link"
+              >{{ service_name }}</a
+            >
           </div>
           <div class="ecl-site-footer__description">
-            This site is managed by:<br />Directorate-General for
-            Communications Networks, Content and Technology
-          </div>
-          <ul class="ecl-site-footer__list">
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/accessibility-statement"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Accessibility</a
-              >
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div class="ecl-site-footer__column">
-        <div class="ecl-site-footer__section">
-          <div class="ecl-site-footer__title">Contact us</div>
-          <ul class="ecl-site-footer__list">
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/support/helpdesk"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Contact our Helpdesk</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/support/frequently-asked-questions"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >FAQs</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/security-team"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Security Team</a
-              >
-            </li>
-          </ul>
-        </div>
-        <div class="ecl-site-footer__section">
-          <div class="ecl-site-footer__title">Policy statement</div>
-          <ul class="ecl-site-footer__list">
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/support/acceptable-use-policy"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >EOSC EU Node Acceptable Use Policy</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/support/user-access-policy"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >EOSC EU Node User Access Policy</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/privacy-statement"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >EOSC EU Node Privacy Statement</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/support/node-registration-policy"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >EOSC Node Registration Policy</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://open-science-cloud.ec.europa.eu/support/resources-and-services-onboarding-policy"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >EOSC EU Node Resources and Services Onboarding Policy</a
-              >
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div class="ecl-site-footer__column">
-        <div class="ecl-site-footer__section">
-          <div class="ecl-site-footer__title">About us</div>
-
-          <div class="ecl-site-footer__description">
-            The European Open Science Cloud aims to establish a federation of
-            infrastructures facilitating effortless access to interoperable
-            research assets and enhanced services spanning geographical
-            boundaries and diverse academic fields.
+            This site is managed by Directorate-General for Communications
+	    Networks, Content and Technology
           </div>
         </div>
+        <div class="ecl-site-footer__section ecl-site-footer__section--links">
+          <div class="ecl-site-footer__row">
+            <div
+              class="ecl-site-footer__section ecl-site-footer__section--contact"
+            >
+              <div class="ecl-site-footer__title">Contact us</div>
+              <ul class="ecl-site-footer__list">
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/support/helpdesk"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >Contact our Helpdesk</a
+                  >
+                </li>
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/support/frequently-asked-questions"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >FAQs</a
+                  >
+                </li>
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/security-team"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >Security Team</a
+                  >
+                </li>
+              </ul>
+            </div>
+            <div
+              class="ecl-site-footer__section ecl-site-footer__section--policy"
+            >
+              <div class="ecl-site-footer__title">Policy Statement</div>
+              <ul class="ecl-site-footer__list">
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/support/acceptable-use-policy"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >EOSC EU Node Acceptable Use Policy</a
+                  >
+                </li>
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/support/user-access-policy"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >EOSC EU Node User Access Policy</a
+                  >
+                </li>
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/privacy-statement"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >EOSC EU Node Privacy Statement</a
+                  >
+                </li>
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/support/node-registration-policy"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >EOSC EU Node Registration Policy</a
+                  >
+                </li>
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/support/resources-and-services-onboarding-policy"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >EOSC EU Node Resources and Serivces Onboarding Policy</a
+                  >
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="ecl-site-footer__row">
+            <div
+              class="ecl-site-footer__section ecl-site-footer__section--accessibility"
+            >
+              <div class="ecl-site-footer__title">Accessibility</div>
+              <ul class="ecl-site-footer__list">
+                <li class="ecl-site-footer__list-item">
+                  <a
+                    href="https://open-science-cloud.ec.europa.eu/accessibility-statement"
+                    class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                    >Accessibility statement</a
+                  >
+                </li>
+              </ul>
+            </div>
+            <div
+              class="ecl-site-footer__section ecl-site-footer__section--more"
+            >
+              <div class="ecl-site-footer__title">About us</div>
+              <div class="ecl-site-footer__description">
+                The European Open Science Cloud aims to establish a federation
+                of infrastructures facilitating effortless access to
+                interoperable research assets and enhanced services spanning
+                geographical boundaries and diverse academic fields.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="ecl-site-footer__row">
-      <div class="ecl-site-footer__column">
-        <div class="ecl-site-footer__section">
+      <div class="ecl-site-footer__row ecl-site-footer__row--common">
+        <div class="ecl-site-footer__section ecl-site-footer__section--common">
           <a
-            href="https://commission.europa.eu/index_en"
-            class="ecl-link ecl-link--standalone ecl-site-footer__logo-link"
+            href="/component-library/example#ubmhv"
+            class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__logo-link"
           >
             <picture class="ecl-picture ecl-site-footer__picture">
               <source
@@ -461,64 +470,53 @@ body {
               />
             </picture>
           </a>
-        </div>
-      </div>
-      <div class="ecl-site-footer__column">
-        <div
-          class="ecl-site-footer__section ecl-site-footer__section--split-list"
-        >
-          <ul class="ecl-site-footer__list">
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/about-european-commission/contact_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Contact the European Commission</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://european-union.europa.eu/contact-eu/social-media-channels_en#/search?page=0&institutions=european_commission"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Follow the European Commission on social media</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/resources-partners_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Resources for partners</a
-              >
-            </li>
-          </ul>
-        </div>
-      </div>
-      <div class="ecl-site-footer__column">
-        <div
-          class="ecl-site-footer__section ecl-site-footer__section--split-list"
-        >
-          <ul class="ecl-site-footer__list">
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/cookies_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Cookies</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/privacy-policy_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Privacy policy</a
-              >
-            </li>
-            <li class="ecl-site-footer__list-item">
-              <a
-                href="https://commission.europa.eu/legal-notice_en"
-                class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
-                >Legal notice</a
-              >
-            </li>
-          </ul>
+          <div class="ecl-site-footer__extra-links-container">
+            <ul class="ecl-site-footer__list ecl-site-footer__list--inline">
+              <li class="ecl-site-footer__list-item">
+                <a
+                  href="https://commission.europa.eu/about-european-commission/contact_en"
+                  class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                  >Contact the European Comission</a
+                >
+              </li>
+              <li class="ecl-site-footer__list-item">
+                <a
+                  href="https://european-union.europa.eu/contact-eu/social-media-channels_en#/search?page=0&institutions=european_commission"
+                  class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                  >Follow the European Commission on social media</a
+                >
+              </li>
+              <li class="ecl-site-footer__list-item">
+                <a
+                  href="https://european-union.europa.eu/contact-eu/social-media-channels_en#/search?page=0&institutions=european_commission"
+                  href="https://commission.europa.eu/resources-partners_en"
+                  class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                  >Resources for Partners</a
+                >
+              </li>
+              <li class="ecl-site-footer__list-item">
+                <a
+                  href="https://commission.europa.eu/cookies_en"
+                  class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                  >Cookies</a
+                >
+              </li>
+              <li class="ecl-site-footer__list-item">
+                <a
+                  href="https://commission.europa.eu/privacy-policy-websites-managed-european-commission_en"
+                  class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                  >Privacy policy</a
+                >
+              </li>
+              <li class="ecl-site-footer__list-item">
+                <a
+                  href="https://commission.europa.eu/legal-notice_en"
+                  class="ecl-link ecl-link--standalone ecl-link--inverted ecl-site-footer__link"
+                  >Legal notice</a
+                >
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
