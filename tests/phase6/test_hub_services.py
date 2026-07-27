@@ -319,3 +319,17 @@ def test_share_manager_public_service_url_has_no_hub_api_prefix(running_hub):
     assert SERVICE_URL.startswith(HUB_URL)
     assert "/hub/api/" not in SERVICE_URL
     assert SERVICE_URL.endswith(f"/services/{SERVICE_NAME}")
+
+
+# phase6-services-24
+# Component: share manager get user token
+# Purpose: Verify the share manager cat get a user token if called with a service token.
+# Pass example: share-manager returns 404 because the access_token is not there
+# Fail example: share-manager returns 403 because of lack of permissions
+def test_share_manager_user_token(running_hub):
+    response = api_get(f"/hub/api/services/{SERVICE_NAME}/token/alice")
+    payload = response.json()
+
+    assert response.status_code == 404
+    assert payload["status"] == 404
+    assert payload["message"].lower() == "not found"
