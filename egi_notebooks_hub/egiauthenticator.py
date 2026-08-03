@@ -51,7 +51,7 @@ class TokenRevokeHandler(APIHandler):
             auth_info["auth_state"] = auth_state
         await self.auth_to_user(auth_info, user)
         # finally revoke old_access_token
-        await self.authenticator.revoke_token(old_access_token)
+        #await self.authenticator.revoke_token(old_access_token)
 
 
 class JWTHandler(BaseHandler):
