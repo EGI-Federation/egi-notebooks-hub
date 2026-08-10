@@ -595,9 +595,10 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 )
                 return False
             else:
-                self.log.debug(
-                    f"Received fresh access_token for {user.name} via refresh_token"
-                )
+                msg = f"Received fresh access_token for {user.name} via refresh_token"
+                if token_info.get("expires_in") is not None:
+                    msg += f", expires_in: {token_info['expires_in']}"
+                self.log.info(msg)
             # Update token in the spawner
             if callable(getattr(user.spawner, "set_access_token", None)):
                 await user.spawner.set_access_token(
