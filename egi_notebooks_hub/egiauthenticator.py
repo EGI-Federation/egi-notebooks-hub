@@ -475,14 +475,17 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 )
                 return True
         except jwt.exceptions.InvalidTokenError as e:
-            decoded_token = jwt.decode(
-                access_token,
-                options=dict(
-                    verify_signature=False,
-                    verify_exp=False,
-                ),
-            )
-            self.log.debug(decoded_token)
+            try:
+                decoded_token = jwt.decode(
+                    access_token,
+                    options=dict(
+                        verify_signature=False,
+                        verify_exp=False,
+                    ),
+                )
+                self.log.debug(decoded_token)
+            except jwt.exceptions.InvalidTokenError:
+                pass
             self.log.debug(f"Invalid access token, will try to refresh: {e}")
 
         return None
