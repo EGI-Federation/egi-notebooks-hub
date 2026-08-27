@@ -151,6 +151,12 @@ class JWTHandler(BaseHandler):
                 "access_token": jwt_token,
                 "token_type": "bearer",
             }
+            # Kepp auth_state with a refresh token
+            if user:
+                auth_state = await user.get_auth_state()
+                if auth_state and auth_state.get("refresh_token", None):
+                    token_info["refresh_token"] = auth_state.get("refresh_token")
+            # now do the actual login
             user = await self.login_user(token_info)
             if user is None:
                 raise web.HTTPError(403, self.authenticator.custom_403_message)
