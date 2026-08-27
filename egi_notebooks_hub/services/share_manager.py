@@ -399,15 +399,15 @@ async def create_share_code(
     logger.debug("Share code post called")
     user_data = await get_user_data(request)
     verify_request_path_access(user_data, owner, server_name)
-    # if not await is_server_shared(owner, user_data["server_name"]):
-    #     # First revoke the token as the server is shared
-    #     hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
-    #     await call_hub_api(
-    #         path=settings.token_revoke_path,
-    #         base_url=hub_url,
-    #         method="post",
-    #         token=user_data["user_token"],
-    #     )
+    if not await is_server_shared(owner, user_data["server_name"]):
+        # First revoke the token as the server is shared
+        hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
+        await call_hub_api(
+            path=settings.token_revoke_path,
+            base_url=hub_url,
+            method="post",
+            token=user_data["user_token"],
+        )
     # 2. Then create sharing - just redirect the call
     resp = await call_hub_api(
         path=f"share-codes/{owner}/{server_name}",

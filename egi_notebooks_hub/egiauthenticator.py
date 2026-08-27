@@ -40,7 +40,7 @@ class TokenRevokeHandler(APIHandler):
         auth_state = await user.get_auth_state()
         if not auth_state:
             raise web.HTTPError(500, "No user state available")
-        # old_access_token = auth_state.get("access_token", None)
+        old_access_token = auth_state.get("access_token", None)
         # refresh the user so we get a new token
         # call the authenticator refresh directly to really force it
         # as the refresh may have been called just before this call
@@ -51,7 +51,7 @@ class TokenRevokeHandler(APIHandler):
             auth_info["auth_state"] = auth_state
         await self.auth_to_user(auth_info, user)
         # finally revoke old_access_token
-        # await self.authenticator.revoke_token(old_access_token)
+        await self.authenticator.revoke_token(old_access_token)
 
 
 class JWTHandler(BaseHandler):
