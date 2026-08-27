@@ -422,18 +422,21 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             "User-Agent": "JupyterHub",
         }
         params = {"token": token, "token_type_hint": "access_token"}
-        response = await self.httpfetch(
-            self.revoke_url,
-            label="Token revocation",
-            parse_json=False,
-            auth_username=self.client_id,
-            auth_password=self.client_secret,
-            headers=headers,
-            method="POST",
-            body=urlencode(params).encode("utf-8"),
-        )
-        # not caring about the response, assume it is ok
-        self.log.debug(f"Revocation response: {response.code}")
+        try:
+            response = await self.httpfetch(
+                self.revoke_url,
+                label="Token revocation",
+                parse_json=False,
+                auth_username=self.client_id,
+                auth_password=self.client_secret,
+                headers=headers,
+                method="POST",
+                body=urlencode(params).encode("utf-8"),
+            )
+            # not caring about the response, assume it is ok
+            self.log.debug(f"Revocation response: {response.code}")
+        except HTTPClientError as e:
+            self.log.warn(f"Error on revocation, ignoring: {e}")
 
     async def refresh_user_hook(self, authenticator, user, auth_state):
         """Force the refresh if the current token is to expire soon"""
