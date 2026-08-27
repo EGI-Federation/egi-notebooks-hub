@@ -5,6 +5,7 @@ Uses OpenID Connect with aai.egi.eu
 
 import base64
 import concurrent.futures
+import datetime
 import hashlib
 import json
 import os
@@ -456,18 +457,32 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             # See PyJWT code here:
             # https://github.com/jpadilla/pyjwt/blob/868cf4ab2ca5a0a39da40e5a14dd740b203662b2/jwt/api_jwt.py#L306
             leeway = -float(self.auth_refresh_age + self.auth_refresh_leeway)
-            if jwt.decode(
+            decoded_token = jwt.decode(
                 access_token,
                 options=dict(
                     verify_signature=False,
                     verify_exp=True,
                 ),
                 leeway=leeway,
-            ):
+            )
+            if decoded_token:
+                self.log.debug(decoded_token)
                 # access token is good, no need to keep going
-                self.log.debug("Access token is still good, no refresh needed")
+                exp = decoded_token.get("exp", None)
+                exp_date = datetime.datetime.fromtimestamp(exp) if exp else ""
+                self.log.debug(
+                    f"Access token is still good (expiry {exp} ({exp_date}), no refresh needed"
+                )
                 return True
         except jwt.exceptions.InvalidTokenError as e:
+            decoded_token = jwt.decode(
+                access_token,
+                options=dict(
+                    verify_signature=False,
+                    verify_exp=False,
+                ),
+            )
+            self.log.debug(decoded_token)
             self.log.debug(f"Invalid access token, will try to refresh: {e}")
 
         return None
