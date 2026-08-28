@@ -116,13 +116,16 @@ async def test_get_previous_hub_token_returns_none_without_user():
 
 # phase1-37
 # Component: reuse of previously minted Hub API tokens.
-# Purpose: Ensure an old Hub API token is only reused if it belongs to the same upstream
-# JWT access token.
-# Pass example: stored access_token differs from current jwt-token, so reuse is denied.
+# Purpose: Ensure an old Hub API token is only reused if it is mapped to the current
+# upstream JWT access token.
+# Pass example: the stored mapping is for a different JWT, so reuse is denied.
 # Fail example: a Hub API token from a previous login session is incorrectly reused.
 async def test_get_previous_hub_token_returns_none_when_access_token_does_not_match():
     user = DummyUser(
-        auth_state={"access_token": "different-token", "jwt_api_token": "api-token"}
+        auth_state={
+            "access_token": "different-token",
+            "jwt_api_tokens": {"different-token": "api-token"},
+        }
     )
     handler = SimpleNamespace(db=object(), log=Mock())
     result = await JWTHandler._get_previous_hub_token(handler, user, "jwt-token")
@@ -148,9 +151,7 @@ async def test_get_previous_hub_token_returns_none_when_api_token_missing():
 # Pass example: orm.APIToken.find returns None and reuse is rejected.
 # Fail example: the code assumes the DB token exists and dereferences None.
 async def test_get_previous_hub_token_returns_none_when_orm_token_missing():
-    user = DummyUser(
-        auth_state={"access_token": "jwt-token", "jwt_api_token": "api-token"}
-    )
+    user = DummyUser(auth_state={"jwt_api_tokens": {"jwt-token": "api-token"}})
     handler = SimpleNamespace(db=object(), log=Mock())
     with patch.object(orm.APIToken, "find", return_value=None):
         result = await JWTHandler._get_previous_hub_token(handler, user, "jwt-token")
@@ -163,9 +164,7 @@ async def test_get_previous_hub_token_returns_none_when_orm_token_missing():
 # Pass example: orm token with expires_in=0 leads to None.
 # Fail example: expired Hub API tokens continue to be handed out to clients.
 async def test_get_previous_hub_token_returns_none_when_orm_token_expired():
-    user = DummyUser(
-        auth_state={"access_token": "jwt-token", "jwt_api_token": "api-token"}
-    )
+    user = DummyUser(auth_state={"jwt_api_tokens": {"jwt-token": "api-token"}})
     handler = SimpleNamespace(db=object(), log=Mock())
     with patch.object(orm.APIToken, "find", return_value=SimpleNamespace(expires_in=0)):
         result = await JWTHandler._get_previous_hub_token(handler, user, "jwt-token")
@@ -178,9 +177,7 @@ async def test_get_previous_hub_token_returns_none_when_orm_token_expired():
 # Pass example: matching access token plus non-expired ORM token returns "api-token".
 # Fail example: the code needlessly creates a new Hub API token every time.
 async def test_get_previous_hub_token_reuses_existing_valid_token():
-    user = DummyUser(
-        auth_state={"access_token": "jwt-token", "jwt_api_token": "api-token"}
-    )
+    user = DummyUser(auth_state={"jwt_api_tokens": {"jwt-token": "api-token"}})
     handler = SimpleNamespace(db=object(), log=Mock())
     with patch.object(
         orm.APIToken, "find", return_value=SimpleNamespace(expires_in=3600)
@@ -199,7 +196,7 @@ async def test_get_previous_hub_token_reuses_existing_valid_token():
 # unnecessary authentication work.
 async def test_jwt_get_reuses_previous_hub_token(authenticator):
     user = DummyUser(
-        auth_state={"access_token": "jwt-token", "jwt_api_token": "api-token"},
+        auth_state={"jwt_api_tokens": {"jwt-token": "api-token"}},
         name="alice",
     )
     finished = {}
@@ -220,7 +217,7 @@ async def test_jwt_get_reuses_previous_hub_token(authenticator):
 # Component: JWTHandler main GET flow for first-time or non-reusable logins.
 # Purpose: Verify that the handler logs in the user, creates a Hub API token, saves it,
 # and returns it.
-# Pass example: no previous Hub token exists, so login_user is awaited and
+# Pass example: no previous Hub token exists, so authenticate is awaited and
 # user.new_api_token is called.
 # Fail example: the handler authenticates successfully but never persists
 # or returns a usable Hub token.
@@ -236,18 +233,24 @@ async def test_jwt_get_logs_in_user_and_creates_new_api_token(authenticator):
                 {"preferred_username": "alice", "iat": 1000, "exp": 4600},
             )
         ),
-        find_user=Mock(return_value=user),
+        find_user=Mock(side_effect=[None, None]),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=user),
+        authenticate=AsyncMock(
+            return_value={"name": "alice", "auth_state": user._auth_state}
+        ),
+        _jwt_user=lambda user_info, jwt_token: JWTHandler._jwt_user(
+            handler, user_info, jwt_token
+        ),
+        auth_to_user=AsyncMock(return_value=user),
         exchange_for_refresh_token=AsyncMock(return_value="refresh-token"),
         finish=lambda payload: finished.update(payload=payload),
     )
     await JWTHandler.get(handler)
-    handler.login_user.assert_awaited_once_with(
+    handler.authenticate.assert_awaited_once_with(
         {"access_token": "jwt-token", "token_type": "bearer"}
     )
     assert user.api_token_created == {"note": "JWT auth token", "expires_in": 3600}
-    assert user.saved_auth_state["jwt_api_token"] == "new-hub-api-token"
+    assert user.saved_auth_state["jwt_api_tokens"]["jwt-token"] == "new-hub-api-token"
     assert finished["payload"] == {"token": "new-hub-api-token", "user": "alice"}
 
 
@@ -271,9 +274,15 @@ async def test_jwt_get_exchanges_for_refresh_token_when_missing(authenticator):
                 {"preferred_username": "alice", "iat": 100, "exp": 4600},
             )
         ),
-        find_user=Mock(return_value=user),
+        find_user=Mock(side_effect=[None, None]),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=user),
+        authenticate=AsyncMock(
+            return_value={"name": "alice", "auth_state": user._auth_state}
+        ),
+        _jwt_user=lambda user_info, jwt_token: JWTHandler._jwt_user(
+            handler, user_info, jwt_token
+        ),
+        auth_to_user=AsyncMock(return_value=user),
         exchange_for_refresh_token=AsyncMock(return_value="refresh-123"),
         finish=lambda payload: finished.update(payload=payload),
     )
@@ -285,8 +294,8 @@ async def test_jwt_get_exchanges_for_refresh_token_when_missing(authenticator):
 
 # phase1-45
 # Component: JWTHandler error path for failed authentication.
-# Purpose: Confirm that failed login_user results in an explicit HTTP 403.
-# Pass example: login_user returns None and the handler raises HTTPError(403).
+# Purpose: Confirm that failed JWT authentication results in an explicit HTTP 403.
+# Pass example: authenticate returns None and the handler raises HTTPError(403).
 # Fail example: the handler returns success or crashes with a less meaningful exception.
 async def test_jwt_get_returns_403_when_login_fails():
     handler = SimpleNamespace(
@@ -298,7 +307,7 @@ async def test_jwt_get_returns_403_when_login_fails():
         _get_token=Mock(return_value=("jwt-token", {"preferred_username": "alice"})),
         find_user=Mock(return_value=None),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=None),
+        authenticate=AsyncMock(return_value=None),
     )
     with pytest.raises(HTTPError) as exc_info:
         await JWTHandler.get(handler)

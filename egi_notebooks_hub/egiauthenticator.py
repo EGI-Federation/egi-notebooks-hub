@@ -108,12 +108,12 @@ class JWTHandler(BaseHandler):
         # EOSC AAI returns the token into "access_token" field, so be it
         return token_info.get("access_token", None)
 
-    async def _get_previous_hub_token(self, user):
+    async def _get_previous_hub_token(self, user, jwt_token):
         if not user:
             return None
         auth_state = await user.get_auth_state()
         if auth_state:
-            api_token = auth_state.get("jwt_api_token", None)
+            api_token = auth_state.get("jwt_api_tokens", {}).get(jwt_token, None)
             if api_token is None:
                 return None
             orm_token = orm.APIToken.find(self.db, api_token)
@@ -137,37 +137,48 @@ class JWTHandler(BaseHandler):
             raise web.HTTPError(401)
         return jwt_token, decoded_token
 
+    async def _jwt_user(self, user_info, jwt_token):
+        auth_state = user_info.get("auth_state", {})
+        if auth_state and not auth_state.get("refresh_token", None):
+            refresh_token = await self.exchange_for_refresh_token(jwt_token)
+            if refresh_token:
+                self.log.debug("Got refresh token from exchange")
+                auth_state["refresh_token"] = refresh_token
+                user_info["auth_state"] = auth_state
+        self.log.debug(f"Getting user from JWT into the hub: {user_info['name']}")
+        return await self.auth_to_user(user_info)
+
     async def get(self):
         user = None
         jwt_token, decoded_token = self._get_token()
-        token_info = {
-            "access_token": jwt_token,
-            "token_type": "bearer",
-        }
-        #
-        authenticated = await self.authenticate(token_info)
-        if authenticated:
-            # the user is good to access the hub, if it's already available
+        try:
+            username = self.authenticator.user_info_to_username(decoded_token)
+            user = self.find_user(username)
+        except ValueError as e:
+            self.log.debug(f"Unable to get username from token: {e}")
+        api_token = await self._get_previous_hub_token(user, jwt_token)
+        if not api_token:
+            token_info = {
+                "access_token": jwt_token,
+                "token_type": "bearer",
+            }
+            authenticated = await self.authenticate(token_info)
+            if not authenticated:
+                raise web.HTTPError(403)
+            self.log.debug(f"Got a valid user via JWT: {authenticated['name']}")
             user = self.find_user(authenticated["name"])
             if not user:
-                # getting a refresh for the user just in case as this is the first time
-                # this one shows up
-                self.log.debug(f"Got a new valid user via JWT {authenticated['name']}")
-                auth_state = authenticated.get("auth_state", {})
-                if auth_state and not auth_state.get("refresh_token", None):
-                    refresh_token = await self.exchange_for_refresh_token(jwt_token)
-                    if refresh_token:
-                        self.log.debug("Got refresh token from exchange")
-                        auth_state["refresh_token"] = refresh_token
-                        authenticated["auth_state"] = auth_state
-                # commit to DB
-                user = await self.auth_to_user(authenticated)
-        else:
-            raise web.HTTPError(403, self.authenticator.custom_403_message)
+                user = await self._jwt_user(authenticated, jwt_token)
+            else:
+                user = await self.refresh_auth(user, force=True)
+                if user:
+                    # make sure groups are consistent
+                    user.sync_groups(authenticated.get("groups", []))
+                else:
+                    # user expired, we need to take the jwt one
+                    user = await self._jwt_user(authenticated, jwt_token)
 
-        # we have a valid user, now we need a valid token
-        api_token = await self._get_previous_hub_token(user)
-        if not api_token:
+            # create the token
             expires_in = 3600
             if "exp" in decoded_token and "iat" in decoded_token:
                 expires_in = decoded_token["exp"] - decoded_token["iat"]
@@ -184,7 +195,9 @@ class JWTHandler(BaseHandler):
             # we save this token for subsequent requests, but it will be
             # removed in any other valid authentication using the interactive flow
             if auth_state:
-                auth_state["jwt_api_token"] = api_token
+                tokens = auth_state.get("jwt_api_tokens", {})
+                tokens[jwt_token] = api_token
+                auth_state["jwt_api_tokens"] = tokens
             await user.save_auth_state(auth_state)
         self.finish({"token": api_token, "user": user.name})
 
@@ -468,12 +481,11 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 leeway=leeway,
             )
             if decoded_token:
-                self.log.debug(decoded_token)
                 # access token is good, no need to keep going
                 exp = decoded_token.get("exp", None)
                 exp_date = datetime.datetime.fromtimestamp(exp) if exp else ""
                 self.log.debug(
-                    f"Access token is still good (expiry {exp} ({exp_date}), no refresh needed"
+                    f"Access token is still good - expiry is {exp} ({exp_date}), no refresh needed"
                 )
                 return True
         except jwt.exceptions.InvalidTokenError as e:
