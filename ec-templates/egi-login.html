@@ -1,7 +1,8 @@
 <!-- htmlhint doctype-first:false,id-class-value:false -->
 {% extends "page.html" %}
+
 {% if announcement_login %}
-  {% set announcement = announcement_login %}
+{% set announcement = announcement_login %}
 {% endif %}
 
 {% block main %}
@@ -11,34 +12,49 @@
       <div class="ecl-u-mb-2xl">
         <div>
           <section
-            class="ecl-banner ecl-banner--text-highlight ecl-banner--m ecl-banner--full-width"
+            class="ecl-banner ecl-banner--m ecl-banner--font-s ecl-banner--font-weight-light ecl-banner--box-bg-light ecl-banner--color-dark ecl-banner--h-left ecl-banner--v-center ecl-banner--full-width"
+            data-ecl-banner
+            data-ecl-auto-init="Banner"
           >
-            <picture class="ecl-picture ecl-banner__picture"
-              ><img
-                class="ecl-banner__image"
-                src="{{ static_url('images/EOSC-Visuals-Interactive-Notebooks-blue-2.jpg') }}"
-                alt="Interactive notebooks"
-            /></picture>
-            <div class="ecl-container">
-              <div class="ecl-banner__container">
+            <figure class="ecl-banner__picture-container">
+              <picture
+                class="ecl-picture ecl-banner__picture"
+                data-ecl-banner-image
+              >
+                <img
+                  class="ecl-banner__image"
+                  src="{{ static_url('images/EOSC-Visuals-Interactive-Notebooks-blue-2.jpg') }}"
+                  alt="Interactive notebooks"
+                />
+              </picture>
+            </figure>
+            <div class="ecl-container ecl-banner__info">
+              <div class="ecl-banner__container" data-ecl-banner-container>
                 <div class="ecl-banner__content">
-                  <div class="ecl-banner__title">
-                    <span class="ecl-banner__title-text"
-                      >{{ service_name }}</span
-                    >
+                  <div
+                    class="ecl-banner__title"
+                    id="banner-example-image-title"
+                  >
+                    <span class="ecl-banner__title-text">
+                      {{ service_name }}
+                    </span>
                   </div>
-                  <p class="ecl-banner__description">
-                    <span class="ecl-banner__description-text"
-                      >Create and share documents with real-time code
+                  <p
+                    class="ecl-banner__description"
+                    id="banner-example-image-description"
+                  >
+                    <span class="ecl-banner__description-text">
+                      Create and share documents with real-time code
                       execution.</span
                     >
                   </p>
                   <div class="ecl-banner__cta">
                     <a
                       href="{{ authenticator_login_url }}"
-                      class="ecl-link ecl-link--cta ecl-link--icon ecl-link--icon-after ecl-banner__link-cta"
-                      ><span class="ecl-link__label">Get Started</span
-                      ><svg
+                      class="ecl-link ecl-link--primary-highlight"
+                    >
+                      Get Started
+                      <svg
                         class="ecl-icon ecl-icon--xs ecl-icon--rotate-90 ecl-link__icon"
                         focusable="false"
                         aria-hidden="true"
