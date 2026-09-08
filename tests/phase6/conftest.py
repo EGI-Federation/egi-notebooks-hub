@@ -126,6 +126,11 @@ def api_get(path: str, *, token: bool = True) -> httpx.Response:
     headers = auth_headers() if token else None
     return httpx.get(f"{HUB_URL}{path}", headers=headers, timeout=5)
 
+def api_get2(path: str, *, token: str = "") -> httpx.Response:
+    """Run a GET request against the Hub API."""
+    headers = {"Authorization": f"token {token}"}
+    return httpx.get(f"{HUB_URL}{path}", headers=headers, timeout=5)
+
 
 def api_post(
     path: str,
