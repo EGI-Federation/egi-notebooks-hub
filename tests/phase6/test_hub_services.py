@@ -332,4 +332,6 @@ def test_share_manager_user_token(running_hub):
 
     assert response.status_code == 404
     assert payload["status"] == 404
+    print(payload)
+    print(read_log(running_hub["log_path"]))
     assert payload["message"].lower() == "not found"
