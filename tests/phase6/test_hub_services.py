@@ -323,7 +323,7 @@ def test_share_manager_public_service_url_has_no_hub_api_prefix(running_hub):
 
 # phase6-services-24
 # Component: share manager get user token
-# Purpose: Verify the share manager cat get a user token if called with a service token.
+# Purpose: Verify the share manager can't get a user token if called with a service token.
 # Pass example: share-manager returns 404 because the access_token is not there
 # Fail example: share-manager returns 403 because of lack of permissions
 def test_share_manager_user_token(running_hub):
