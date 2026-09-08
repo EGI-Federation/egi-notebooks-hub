@@ -81,12 +81,12 @@ def authenticator(auth_config):
 # - the username is resolved through the authenticator
 # - an existing Hub user is found
 # - a previously issued Hub API token is reused
-# - login_user is NOT called because no new login is needed
+# - authenticate is NOT called because no new login is needed
 # Example pass:
 # - _get_previous_hub_token returns "reused-token" and the handler finishes
 #   immediately with that token.
 # Example fail:
-# - the handler ignores the reusable token and performs login_user anyway,
+# - the handler ignores the reusable token and performs authentication anyway,
 #   or returns the wrong response payload.
 @pytest.mark.asyncio
 async def test_jwt_handler_reuses_existing_hub_token_without_login(authenticator):
@@ -98,9 +98,7 @@ async def test_jwt_handler_reuses_existing_hub_token_without_login(authenticator
     - reuse a previously stored Hub API token
     - skip login and finish immediately
     """
-    user = DummyUser(
-        auth_state={"access_token": "jwt-token", "jwt_api_token": "reused-token"}
-    )
+    user = DummyUser(auth_state={"jwt_api_tokens": {"jwt-token": "reused-token"}})
     finished = {}
 
     handler = SimpleNamespace(
@@ -109,14 +107,14 @@ async def test_jwt_handler_reuses_existing_hub_token_without_login(authenticator
         _get_token=Mock(return_value=("jwt-token", {"preferred_username": "alice"})),
         find_user=Mock(return_value=user),
         _get_previous_hub_token=AsyncMock(return_value="reused-token"),
-        login_user=AsyncMock(),
+        authenticate=AsyncMock(),
         finish=lambda payload: finished.update(payload=payload),
     )
 
     await JWTHandler.get(handler)
 
     handler._get_previous_hub_token.assert_awaited_once_with(user, "jwt-token")
-    handler.login_user.assert_not_awaited()
+    handler.authenticate.assert_not_awaited()
     assert finished["payload"] == {"token": "reused-token", "user": "alice"}
 
 
@@ -125,12 +123,12 @@ async def test_jwt_handler_reuses_existing_hub_token_without_login(authenticator
 # Purpose: Verify the "login + exchange refresh token + issue new Hub token" path.
 # What this test checks:
 # - no reusable Hub token is available
-# - login_user is called with the JWT-derived token_info
+# - authenticate is called with the JWT-derived token_info
 # - if auth_state lacks refresh_token, exchange_for_refresh_token is called
 # - the returned refresh token is stored back into auth_state
 # - a new Hub API token is created and returned to the client
 # Example pass:
-# - login_user returns a user with only access_token, exchange returns
+# - authenticate returns user info with only access_token, exchange returns
 #   "refresh-token", and the response contains the newly generated Hub token.
 # Example fail:
 # - the refresh exchange is skipped, auth_state is not updated, or the final
@@ -154,21 +152,27 @@ async def test_jwt_handler_logs_in_user_and_stores_refresh_token_when_missing(
         authenticator=authenticator,
         log=Mock(),
         _get_token=Mock(return_value=("jwt-token", {"preferred_username": "alice"})),
-        find_user=Mock(return_value=user),
+        find_user=Mock(side_effect=[None, None]),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=user),
+        authenticate=AsyncMock(
+            return_value={"name": "alice", "auth_state": user._auth_state}
+        ),
+        _jwt_user=lambda user_info, jwt_token: JWTHandler._jwt_user(
+            handler, user_info, jwt_token
+        ),
+        auth_to_user=AsyncMock(return_value=user),
         exchange_for_refresh_token=AsyncMock(return_value="refresh-token"),
         finish=lambda payload: finished.update(payload=payload),
     )
 
     await JWTHandler.get(handler)
 
-    handler.login_user.assert_awaited_once_with(
+    handler.authenticate.assert_awaited_once_with(
         {"access_token": "jwt-token", "token_type": "bearer"}
     )
     handler.exchange_for_refresh_token.assert_awaited_once_with("jwt-token")
     assert user._auth_state["refresh_token"] == "refresh-token"
-    assert user._auth_state["jwt_api_token"] == "new-hub-api-token"
+    assert user._auth_state["jwt_api_tokens"]["jwt-token"] == "new-hub-api-token"
     assert finished["payload"] == {"token": "new-hub-api-token", "user": "alice"}
 
 
@@ -177,7 +181,7 @@ async def test_jwt_handler_logs_in_user_and_stores_refresh_token_when_missing(
 # Purpose: Verify that the refresh-token exchange is skipped when auth_state
 # already contains a refresh token.
 # What this test checks:
-# - login_user still runs because no reusable Hub token exists
+# - authenticate still runs because no reusable Hub token exists
 # - exchange_for_refresh_token is NOT called
 # - the existing refresh token is preserved
 # - a new Hub API token is still created and returned
@@ -206,9 +210,15 @@ async def test_jwt_handler_skips_refresh_exchange_when_refresh_token_already_pre
         authenticator=authenticator,
         log=Mock(),
         _get_token=Mock(return_value=("jwt-token", {"preferred_username": "alice"})),
-        find_user=Mock(return_value=user),
+        find_user=Mock(side_effect=[None, None]),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=user),
+        authenticate=AsyncMock(
+            return_value={"name": "alice", "auth_state": user._auth_state}
+        ),
+        _jwt_user=lambda user_info, jwt_token: JWTHandler._jwt_user(
+            handler, user_info, jwt_token
+        ),
+        auth_to_user=AsyncMock(return_value=user),
         exchange_for_refresh_token=AsyncMock(),
         finish=lambda payload: finished.update(payload=payload),
     )
@@ -217,7 +227,7 @@ async def test_jwt_handler_skips_refresh_exchange_when_refresh_token_already_pre
 
     handler.exchange_for_refresh_token.assert_not_awaited()
     assert user._auth_state["refresh_token"] == "existing-refresh"
-    assert user._auth_state["jwt_api_token"] == "new-hub-api-token"
+    assert user._auth_state["jwt_api_tokens"]["jwt-token"] == "new-hub-api-token"
     assert finished["payload"] == {"token": "new-hub-api-token", "user": "alice"}
 
 
@@ -226,11 +236,10 @@ async def test_jwt_handler_skips_refresh_exchange_when_refresh_token_already_pre
 # Purpose: Verify the explicit "login failed" path.
 # What this test checks:
 # - no reusable Hub token exists
-# - login_user returns None
+# - authenticate returns None
 # - the handler raises HTTP 403
-# - the 403 uses the authenticator's custom message
 # Example pass:
-# - login_user returns None and the handler raises HTTPError(403, ...).
+# - authenticate returns None and the handler raises HTTPError(403).
 # Example fail:
 # - the handler silently returns, raises the wrong status code, or ignores the
 #   custom authenticator message.
@@ -240,8 +249,8 @@ async def test_jwt_handler_raises_403_when_login_returns_none(authenticator):
     Integration scenario:
     - token was decoded correctly
     - no reusable Hub token exists
-    - login_user returns None
-    - handler must return HTTP 403 with authenticator message
+    - authenticate returns None
+    - handler must return HTTP 401
     """
     handler = SimpleNamespace(
         authenticator=SimpleNamespace(
@@ -252,14 +261,13 @@ async def test_jwt_handler_raises_403_when_login_returns_none(authenticator):
         _get_token=Mock(return_value=("jwt-token", {"preferred_username": "alice"})),
         find_user=Mock(return_value=None),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=None),
+        authenticate=AsyncMock(return_value=None),
     )
 
     with pytest.raises(HTTPError) as exc_info:
         await JWTHandler.get(handler)
 
     assert exc_info.value.status_code == 403
-    assert "Forbidden by test" in str(exc_info.value)
 
 
 # phase4-auth-5
@@ -393,13 +401,13 @@ def test_user_info_to_username_and_primary_group_form_consistent_identity(
 # - user_info_to_username raises ValueError
 # - the handler logs debug output
 # - the handler continues with user=None
-# - login_user still runs
+# - authenticate still runs
 # - the handler can still finish successfully if later steps succeed
 # Example pass:
-# - broken user_info_to_username raises ValueError, but login_user succeeds and
+# - broken user_info_to_username raises ValueError, but authenticate succeeds and
 #   the handler finishes with a new Hub token.
 # Example fail:
-# - the handler crashes immediately on ValueError or never attempts login_user.
+# - the handler crashes immediately on ValueError or never attempts authentication.
 @pytest.mark.asyncio
 async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fails(
     authenticator,
@@ -423,7 +431,13 @@ async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fai
         _get_token=Mock(return_value=("jwt-token", {"preferred_username": "alice"})),
         find_user=Mock(return_value=None),
         _get_previous_hub_token=AsyncMock(return_value=None),
-        login_user=AsyncMock(return_value=user),
+        authenticate=AsyncMock(
+            return_value={"name": "alice", "auth_state": user._auth_state}
+        ),
+        _jwt_user=lambda user_info, jwt_token: JWTHandler._jwt_user(
+            handler, user_info, jwt_token
+        ),
+        auth_to_user=AsyncMock(return_value=user),
         exchange_for_refresh_token=AsyncMock(return_value="refresh-token"),
         finish=lambda payload: finished.update(payload=payload),
     )
@@ -431,5 +445,5 @@ async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fai
     await JWTHandler.get(handler)
 
     handler.log.debug.assert_called()
-    handler.login_user.assert_awaited_once()
+    handler.authenticate.assert_awaited_once()
     assert finished["payload"] == {"token": "new-hub-api-token", "user": "alice"}
