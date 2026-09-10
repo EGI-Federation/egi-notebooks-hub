@@ -19,6 +19,7 @@ class EInfraAuthenticator(GenericOAuthenticator):
             self.log.info("subject_token: length %d", len(subject_token))
         else:
             self.log.info("subject_token: (None)")
+            return
         krbctx = krb5cc.Krb5cc()
         self.log.info("krb5-cred2cc context: %s", str(krbctx))
         kerberos_token = krbctx.oidc_token_exchange(
@@ -28,6 +29,7 @@ class EInfraAuthenticator(GenericOAuthenticator):
             self.log.info("kerberos_token: length %d", len(kerberos_token))
         else:
             self.log.info("kerberos_token: (None)")
+            return
         fd, fname = tempfile.mkstemp(prefix="krb5cc.", suffix=".dat")
         os.close(fd)
         self.log.info("temporary file for CC: %s", fname)
