@@ -97,9 +97,9 @@ class EGISpawner(KubeSpawner):
         except ApiException:
             # no secret, no problem
             pass
-        # encode coming data
+        # encode coming data (convert to bytes first, if needed)
         new_encoded = {
-            k: base64.b64encode(v.encode()).decode()
+            k: base64.b64encode(v if isinstance(v, bytes) else v.encode()).decode()
             for k, v in new_data.items()
             if v is not None
         }
