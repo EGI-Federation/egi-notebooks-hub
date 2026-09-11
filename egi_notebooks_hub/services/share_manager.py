@@ -77,7 +77,6 @@ c.JupyterHub.load_roles = [
 import json
 import logging
 import re
-from typing import List, Optional
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -90,7 +89,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     auth_header: str = "authorization"
     api_timeout: float = 15.0
-    token_types: List[str] = ["bearer", "token"]
+    token_types: list[str] = ["bearer", "token"]
     jupyterhub_service_prefix: str = "/services/share-manager"
     jupyterhub_api_url: str = "http://localhost:8000/hub/api"
     # path of the revocation call of the authenticator
@@ -104,7 +103,7 @@ class Settings(BaseSettings):
     release_with_shared_server: bool = False
     # define a list of fields to be returned when getting the token details
     # if empty, everything will be returned
-    token_info_fields: List[str] = []
+    token_info_fields: list[str] = []
 
 
 settings = Settings()
@@ -230,7 +229,7 @@ async def get_user_data(request: Request, verify_ownership=True):
 
 
 def verify_request_path_access(
-    user_data: dict, owner: str, server_name: Optional[str] = ""
+    user_data: dict, owner: str, server_name: str | None = ""
 ):
     if (
         user_data["user_info"]["name"] != owner
@@ -240,7 +239,7 @@ def verify_request_path_access(
 
 
 async def server_has_shares(
-    owner: str, server_name: Optional[str] = "", raise_exc: Optional[bool] = False
+    owner: str, server_name: str | None = "", raise_exc: bool | None = False
 ):
     shares = await call_hub_api(
         path=f"shares/{owner}/{server_name}",
@@ -253,7 +252,7 @@ async def server_has_shares(
 
 
 async def server_has_share_codes(
-    owner: str, server_name: Optional[str] = "", raise_exc: Optional[bool] = False
+    owner: str, server_name: str | None = "", raise_exc: bool | None = False
 ):
     share_codes = await call_hub_api(
         path=f"share-codes/{owner}/{server_name}",
@@ -266,13 +265,13 @@ async def server_has_share_codes(
     return result
 
 
-async def is_server_shared(owner: str, server_name: Optional[str] = ""):
+async def is_server_shared(owner: str, server_name: str | None = ""):
     return await server_has_share_codes(
         owner, server_name, False
     ) or await server_has_shares(owner, server_name, False)
 
 
-async def fail_if_shared_server(owner: str, server_name: Optional[str] = ""):
+async def fail_if_shared_server(owner: str, server_name: str | None = ""):
     await server_has_share_codes(owner, server_name, True)
     await server_has_shares(owner, server_name, True)
 
@@ -363,7 +362,7 @@ async def get_token_for_user(request: Request, user_name: str):
 
 
 async def call_wrapper(
-    request: Request, path: str, owner: str, svc_path: Optional[str] = ""
+    request: Request, path: str, owner: str, svc_path: str | None = ""
 ):
     """Wraps calls the the HUP API using our token"""
     logger.debug(f"Wrapping call to {path}")
@@ -389,7 +388,7 @@ async def call_wrapper(
 @app.post("/share-codes/{owner:str}/")
 @app.post("/share-codes/{owner:str}/{server_name:str}")
 async def create_share_code(
-    request: Request, owner: str, server_name: Optional[str] = ""
+    request: Request, owner: str, server_name: str | None = ""
 ):
     """Creates a share code for an owner and server.
 
@@ -426,7 +425,7 @@ async def create_share_code(
 async def share_codes_calls(
     request: Request,
     owner: str,
-    svc_path: Optional[str] = "",
+    svc_path: str | None = "",
 ):
     path = f"share-codes/{owner}/{svc_path}"
     return await call_wrapper(request, path, owner, svc_path)
@@ -441,7 +440,7 @@ async def share_codes_calls(
 async def wrap_shares(
     request: Request,
     owner: str,
-    svc_path: Optional[str] = "",
+    svc_path: str | None = "",
 ):
     path = f"shares/{owner}/{svc_path}"
     return await call_wrapper(request, path, owner, svc_path)

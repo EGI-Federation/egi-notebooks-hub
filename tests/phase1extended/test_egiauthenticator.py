@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from tornado.httpclient import HTTPClient
+from tornado.httpclient import HTTPClient, HTTPClientError
 
 from egi_notebooks_hub.egiauthenticator import (
     EGICheckinAuthenticator,
@@ -620,3 +620,80 @@ def test_urls_are_discovered_from_issuer(auth_config):
         assert authenticator.userdata_url == f"{base}/info"
         assert authenticator.introspect_url == f"{base}/introspection"
         assert authenticator.revoke_url == f"{base}/revocation"
+
+
+# phase1-39
+# Component: EGICheckinAuthenticator refresh-token exchange error handling.
+# Purpose: Ensure malformed JSON from the provider is handled gracefully.
+# Pass example: body b"not-json" returns None.
+# Fail example: invalid JSON propagates as an uncaught exception and breaks login flow.
+async def test_exchange_for_refresh_token_returns_none_for_invalid_json(authenticator):
+    authenticator.httpfetch = AsyncMock(
+        side_effect=json.JSONDecodeError("error", "invalid json", 1)
+    )
+    token = await authenticator.exchange_for_refresh_token("jwt-access-token")
+    assert token is None
+
+
+# phase1-40
+# Component: EGICheckinAuthenticator refresh-token exchange network error handling.
+# Purpose: Verify that provider-side HTTP failures are converted into a safe None
+# result.
+# Pass example: HTTP 500 from fetch leads to None.
+# Fail example: transient provider errors bubble up and crash the handler.
+async def test_exchange_for_refresh_token_returns_none_on_http_error(authenticator):
+    authenticator.httpfetch = AsyncMock(
+        side_effect=HTTPClientError(500, message="boom")
+    )
+    token = await authenticator.exchange_for_refresh_token("jwt-access-token")
+    assert token is None
+
+
+# phase1-41
+# Component: EGICheckintAuthenticator refresh-token exchange helper.
+# Purpose: Verify that the handler can exchange a JWT-style access token for a refresh
+# token.
+# Pass example: the IdP responds with {"refresh_token": "..."} and the helper returns
+# that value.
+# Fail example: the helper ignores the response body or posts to the wrong
+# token endpoint.
+async def test_exchange_for_refresh_token_returns_refresh_token(authenticator):
+    authenticator.httpfetch = AsyncMock(return_value={"refresh_token": "refresh-123"})
+    token = await authenticator.exchange_for_refresh_token("jwt-access-token")
+    assert token == "refresh-123"
+    fetch_args = authenticator.httpfetch.await_args
+    assert fetch_args.args[0] == authenticator.token_url
+    assert fetch_args.kwargs["auth_username"] == authenticator.client_id
+    assert fetch_args.kwargs["auth_password"] == authenticator.client_secret
+    assert "subject_token=jwt-access-token" in fetch_args.kwargs["body"]
+
+
+# phase1-42
+# Component: EGICheckintAuthenticator refresh-token exchange compatibility behavior.
+# Purpose: Ensure the helper still works if a provider returns the token in access_token
+# rather than refresh_token.
+# Pass example: {"access_token": "refresh-in-access-field"} is accepted as a usable
+# fallback.
+# Fail example: the helper rejects otherwise workable provider responses
+# due to strict field expectations.
+async def test_exchange_for_refresh_token_falls_back_to_access_token_field(
+    authenticator,
+):
+    authenticator.httpfetch = AsyncMock(
+        return_value={"access_token": "refresh-in-access-field"}
+    )
+    token = await authenticator.exchange_for_refresh_token("jwt-access-token")
+    assert token == "refresh-in-access-field"
+
+
+# phase1-43
+# Component: EGICheckintAuthenticator refresh-token exchange error handling.
+# Purpose: Check that an empty IdP response fails safely and returns None.
+# Pass example: an empty body produces None and no crash.
+# Fail example: JSON parsing crashes on empty content or returns garbage.
+async def test_exchange_for_refresh_token_returns_none_for_empty_response(
+    authenticator,
+):
+    authenticator.httpfetch = AsyncMock(return_value={})
+    token = await authenticator.exchange_for_refresh_token("jwt-access-token")
+    assert token is None
