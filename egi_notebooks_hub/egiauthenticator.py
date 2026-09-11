@@ -19,7 +19,7 @@ from jupyterhub.apihandlers import APIHandler
 from jupyterhub.handlers import BaseHandler
 from oauthenticator.generic import GenericOAuthenticator
 from tornado import web
-from tornado.httpclient import AsyncHTTPClient, HTTPClient, HTTPClientError, HTTPRequest
+from tornado.httpclient import HTTPClient, HTTPClientError, HTTPRequest
 from traitlets import Bool, Int, List, Unicode, default, validate
 
 
@@ -60,48 +60,41 @@ class JWTHandler(BaseHandler):
 
     async def exchange_for_refresh_token(self, access_token):
         self.log.debug("Exchanging access token for refresh")
-        http_client = AsyncHTTPClient()
         headers = {
             "Accept": "application/json",
             "User-Agent": "JupyterHub",
         }
         body = urlencode(
-            dict(
-                grant_type="urn:ietf:params:oauth:grant-type:token-exchange",
-                requested_token_type="urn:ietf:params:oauth:token-type:refresh_token",
-                subject_token_type="urn:ietf:params:oauth:token-type:access_token",
-                subject_token=access_token,
+            {
+                "grant_type": "urn:ietf:params:oauth:grant-type:token-exchange",
+                "requested_token_type": "urn:ietf:params:oauth:token-type:refresh_token",
+                "subject_token_type": "urn:ietf:params:oauth:token-type:access_token",
+                "subject_token": access_token,
                 # beware that this requires the "offline_access" or similar
                 # to be included, otherwise the refresh token will not be
                 # released. Also the access token must have this scope.
-                scope=" ".join(self.authenticator.scope),
-            )
-        )
-        req = HTTPRequest(
-            self.authenticator.token_url,
-            auth_username=self.authenticator.client_id,
-            auth_password=self.authenticator.client_secret,
-            headers=headers,
-            method="POST",
-            body=body,
+                "scope": " ".join(self.authenticator.scope),
+            }
         )
         try:
-            resp = await http_client.fetch(req)
+            token_info = await self.httpfetch(
+                self.authenticator.token_url,
+                auth_username=self.authenticator.client_id,
+                auth_password=self.authenticator.client_secret,
+                headers=headers,
+                method="POST",
+                body=body,
+            )
         except HTTPClientError as e:
             self.log.warning(f"Unable to get refresh token: {e}")
             if e.response:
                 self.log.debug(e.response.body)
             return None
-        resp_body = resp.body.decode("utf8", "replace")
-        if not resp_body:
-            self.log.warning("Empty reply from refresh call when exchanging token")
-            return None
-        try:
-            token_info = json.loads(resp_body)
         except json.JSONDecodeError as e:
-            self.log.error(
-                f"Invalid JSON from server: {e}, server response: {resp_body}"
-            )
+            self.log.error(f"Invalid JSON from server: {e}")
+            return None
+        if not token_info:
+            self.log.warning("Empty reply from refresh call when exchanging token")
             return None
         if "refresh_token" in token_info:
             return token_info.get("refresh_token")
@@ -130,7 +123,7 @@ class JWTHandler(BaseHandler):
         try:
             decoded_token = jwt.decode(
                 jwt_token,
-                options=dict(verify_signature=False, verify_exp=True),
+                options={"verify_signature": False, "verify_exp": True},
             )
         except jwt.exceptions.InvalidTokenError as e:
             self.log.debug(f"Invalid token {e}")
@@ -402,10 +395,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
                 # let's treat this as an anonymous user with a name
                 # that's generated as a hash of user_info
                 info_str = json.dumps(user_info, sort_keys=True).encode("utf-8")
-                username = "{0}-{1}".format(
-                    self.anonymous_username_prefix,
-                    hashlib.sha256(info_str).hexdigest(),
-                )
+                username = f"{self.anonymous_username_prefix}-{hashlib.sha256(info_str).hexdigest()}"
             return username
 
     async def _token_to_auth_model(self, token_info):
@@ -447,8 +437,8 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             )
             # not caring about the response, assume it is ok
             self.log.debug(f"Revocation response: {response.code}")
-        except HTTPClientError as e:
-            self.log.warn(f"Error on revocation, ignoring: {e}")
+        except ClientError as e:
+            self.log.warning(f"Error on revocation, ignoring: {e}")
 
     async def refresh_user_hook(self, authenticator, user, auth_state):
         """Force the refresh if the current token is to expire soon"""
@@ -474,10 +464,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             leeway = -float(self.auth_refresh_age + self.auth_refresh_leeway)
             decoded_token = jwt.decode(
                 access_token,
-                options=dict(
-                    verify_signature=False,
-                    verify_exp=True,
-                ),
+                options={"verify_signature": False, "verify_exp": True},
                 leeway=leeway,
             )
             if decoded_token:
@@ -492,10 +479,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             try:
                 decoded_token = jwt.decode(
                     access_token,
-                    options=dict(
-                        verify_signature=False,
-                        verify_exp=False,
-                    ),
+                    options={"verify_signature": False, "verify_exp": False},
                 )
                 self.log.debug(decoded_token)
             except jwt.exceptions.InvalidTokenError:
@@ -529,7 +513,7 @@ class EGICheckinAuthenticator(GenericOAuthenticator):
             return super().build_access_tokens_request_params(handler, data)
 
     async def get_token_info(self, handler, params):
-        if "data" in params and params["data"]:
+        if params.get("data"):
             # access token is already here no need to do anything else
             return params["data"]
         else:

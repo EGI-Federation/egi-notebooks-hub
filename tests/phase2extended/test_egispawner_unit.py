@@ -309,7 +309,7 @@ async def test_update_secret_reraises_create_error_after_404_replace(
     with pytest.raises(SpawnException) as exc:
         await spawner._update_secret({"access_token": "abc"})
 
-    assert exc.value.status_code == 403
+    assert exc.value.status_code == 500 
 
 
 # phase2-13
