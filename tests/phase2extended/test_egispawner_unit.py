@@ -281,7 +281,7 @@ async def test_update_secret_reraises_non_404_replace_error(spawner, monkeypatch
     with pytest.raises(SpawnException) as exc:
         await spawner._update_secret({"access_token": "abc"})
 
-    assert exc.status_code == 500
+    assert exc.value.status_code == 500
     spawner.api.create_namespaced_secret.assert_not_awaited()
 
 
@@ -309,7 +309,7 @@ async def test_update_secret_reraises_create_error_after_404_replace(
     with pytest.raises(SpawnException) as exc:
         await spawner._update_secret({"access_token": "abc"})
 
-    assert exc.status_code == 403
+    assert exc.value.status_code == 403
 
 
 # phase2-13
