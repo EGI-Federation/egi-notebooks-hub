@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from jupyterhub.spawner import SpawnException
 from kubernetes_asyncio.client.rest import ApiException
 from kubespawner import KubeSpawner
 
@@ -277,10 +278,10 @@ async def test_update_secret_reraises_non_404_replace_error(spawner, monkeypatch
     spawner.api.create_namespaced_secret = AsyncMock()
     monkeypatch.setattr(spawner, "_get_secret_manifest", lambda data: {"data": data})
 
-    with pytest.raises(ApiException) as exc:
+    with pytest.raises(SpawnException) as exc:
         await spawner._update_secret({"access_token": "abc"})
 
-    assert exc.value.status == 500
+    assert exc.status_code == 500
     spawner.api.create_namespaced_secret.assert_not_awaited()
 
 
@@ -305,10 +306,10 @@ async def test_update_secret_reraises_create_error_after_404_replace(
     )
     monkeypatch.setattr(spawner, "_get_secret_manifest", lambda data: {"data": data})
 
-    with pytest.raises(ApiException) as exc:
+    with pytest.raises(SpawnException) as exc:
         await spawner._update_secret({"access_token": "abc"})
 
-    assert exc.value.status == 403
+    assert exc.status_code == 403
 
 
 # phase2-13
