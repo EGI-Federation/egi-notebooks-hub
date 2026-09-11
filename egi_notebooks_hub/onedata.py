@@ -4,7 +4,9 @@ Onedata extras for the Oauthenticator
 
 import json
 
-from tornado.httpclient import AsyncHTTPClient, HTTPError, HTTPRequest
+from aiohttp import ClientError, ClientResponseError
+from jupyterhub.httpclient import fetch
+from jupyterhub.spawner import SpawnException
 from traitlets import Bool, Dict, List, Unicode
 
 from egi_notebooks_hub.egiauthenticator import EGICheckinAuthenticator
@@ -66,27 +68,25 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
     async def create_onedata_token(self, access_token, token_name, caveats):
         onedata_token = None
         onedata_user = None
-        http_client = AsyncHTTPClient()
         headers = {
             "content-type": "application/json",
             "x-auth-token": f"{self.onezone_token_prefix}{access_token}",
         }
         token_url = (
-            self.onezone_url + "/api/v3/onezone/user/tokens/named/name/%s" % token_name
+            self.onezone_url + f"/api/v3/onezone/user/tokens/named/name/{token_name}"
         )
-        req = HTTPRequest(token_url, headers=headers, method="GET")
         try:
-            resp = await http_client.fetch(req)
+            resp = await fetch(token_url, headers=headers, method="GET")
             datahub_response = json.loads(resp.body.decode("utf8", "replace"))
             onedata_token = datahub_response["token"]
             onedata_user = datahub_response["subject"]["id"]
             self.log.debug("Reusing existing token!")
-        except HTTPError as e:
-            if e.code != 404:
+        except ClientResponseError as e:
+            if e.status != 404:
                 self.log.info("Something failed! %s", e)
                 if self.onedata_failsafe:
                     return onedata_token, onedata_user
-                raise e
+                raise
         if not onedata_token:
             # we don't have a token, create one
             token_desc = {
@@ -94,36 +94,33 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
                 "type": {"accessToken": {}},
                 "caveats": caveats,
             }
-            req = HTTPRequest(
-                self.onezone_url + "/api/v3/onezone/user/tokens/named",
-                headers=headers,
-                method="POST",
-                body=json.dumps(token_desc),
-            )
             try:
-                resp = await http_client.fetch(req)
+                resp = await fetch(
+                    self.onezone_url + "/api/v3/onezone/user/tokens/named",
+                    headers=headers,
+                    method="POST",
+                    body=json.dumps(token_desc),
+                )
                 datahub_response = json.loads(resp.body.decode("utf8", "replace"))
                 onedata_token = datahub_response["token"]
-            except HTTPError as e:
+            except ClientError as e:
                 self.log.info("Something failed! %s", e)
                 if self.onedata_failsafe:
                     return onedata_token, onedata_user
-                raise e
-            # Finally get the user information
-            req = HTTPRequest(
-                self.onezone_url + "/api/v3/onezone/user",
-                headers=headers,
-                method="GET",
-            )
+                raise
             try:
-                resp = await http_client.fetch(req)
+                resp = await fetch(
+                    self.onezone_url + "/api/v3/onezone/user",
+                    headers=headers,
+                    method="GET",
+                )
                 datahub_response = json.loads(resp.body.decode("utf8", "replace"))
                 onedata_user = datahub_response["userId"]
-            except HTTPError as e:
+            except ClientError as e:
                 self.log.info("Something failed! %s", e)
                 if self.onedata_failsafe:
                     return onedata_token, onedata_user
-                raise e
+                raise
         return onedata_token, onedata_user
 
     async def authenticate(self, handler, data=None):
@@ -173,14 +170,14 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
                 "content-type": "application/json",
                 "x-auth-token": self.oneprovider_token,
             }
-            http_client = AsyncHTTPClient()
             user_id = auth_state.get("onedata_user")
-            req = HTTPRequest(map_url + f"/{user_id}", headers=headers, method="GET")
             try:
-                resp = await http_client.fetch(req)
+                resp = await fetch(
+                    map_url + f"/{user_id}", headers=headers, method="GET"
+                )
                 self.log.info("Mapping exists: %s", resp.body)
-            except HTTPError as e:
-                if e.code == 404:
+            except ClientResponseError as e:
+                if e.status != 404:
                     mapping = {
                         "onedataUser": {
                             "mappingScheme": "onedataUser",
@@ -191,21 +188,20 @@ class OnedataAuthenticator(EGICheckinAuthenticator):
                             "displayUid": "1000",
                         },
                     }
-                    req = HTTPRequest(
-                        map_url,
-                        headers=headers,
-                        method="POST",
-                        body=json.dumps(mapping),
-                    )
                     try:
-                        resp = await http_client.fetch(req)
+                        resp = await fetch(
+                            map_url,
+                            headers=headers,
+                            method="POST",
+                            body=json.dumps(mapping),
+                        )
                         self.log.info("Mapping created: %s", resp.body)
-                    except HTTPError as e:
+                    except ClientError as e:
                         self.log.info("Something failed! %s", e)
-                        raise e
+                        raise
                 else:
                     self.log.info("Something failed! %s", e)
-                    raise e
+                    raise
 
 
 class OnedataSpawner(EGISpawner):
@@ -297,32 +293,42 @@ class OnedataSpawner(EGISpawner):
 
     async def _get_local_spaces(self, oneprovider_host, onezone_url, onezone_token):
         # 1. Get the id of the oneprovider (this may be just config?)
-        http_client = AsyncHTTPClient()
-        req = HTTPRequest(
-            f"https://{oneprovider_host}/api/v3/oneprovider/configuration", method="GET"
-        )
         try:
-            resp = await http_client.fetch(req)
-        except HTTPError as e:
-            self.log.warning("Unable to connect to oneprovider: %s", e)
-            raise HTTPError(403)
+            resp = await fetch(
+                f"https://{oneprovider_host}/api/v3/oneprovider/configuration",
+                method="GET",
+            )
+        except ClientError as e:
+            raise SpawnException(
+                "Unable to connect to oneprovider",
+                reason="onedata",
+                log_message=f"Unable to connect to oneprovider: {e}",
+                status_code=403,
+            )
         resp_json = json.loads(resp.body.decode("utf8", "replace"))
         provider_id = resp_json.get("providerId", None)
         if not provider_id:
-            self.log.warning("Unable to get provider id: %s", resp_json)
-            raise HTTPError(403)
+            raise SpawnException(
+                "Unable to get provider id",
+                reason="onedata",
+                log_message="Unable to get provider id",
+                status_code=403,
+            )
         # 2. Get the spaces supported by the oneprovider
-        req = HTTPRequest(
-            f"{onezone_url}/api/v3/onezone/user/effective_providers/"
-            f"{provider_id}/spaces",
-            method="GET",
-            headers={"X-Auth-Token": f"{onezone_token}"},
-        )
         try:
-            resp = await http_client.fetch(req)
-        except HTTPError as e:
-            self.log.warning("Unable to get spaces from onezone: %s", e)
-            raise HTTPError(403)
+            resp = await fetch(
+                f"{onezone_url}/api/v3/onezone/user/effective_providers/"
+                f"{provider_id}/spaces",
+                method="GET",
+                headers={"X-Auth-Token": f"{onezone_token}"},
+            )
+        except ClientError as e:
+            raise SpawnException(
+                "Unable to get spaces from onezone",
+                reason="onedata",
+                log_message=f"Unable to get spaces from onezone: {e}",
+                status_code=403,
+            )
         resp_json = json.loads(resp.body.decode("utf8", "replace"))
         self.log.debug(resp_json.get("spaces", []))
         return resp_json.get("spaces", [])
@@ -353,7 +359,7 @@ class OnedataSpawner(EGISpawner):
         if self.oneprovider_storage_mapping:
             for mapping in self.oneprovider_storage_mapping:
                 cmd.append("--override")
-                cmd.append("%(storage_id)s:mountPoint:%(mount_point)s" % mapping)
+                cmd.append("{storage_id}:mountPoint:{mount_point}".format(**mapping))
         if self.oneclient_extra_args:
             cmd.extend(self.oneclient_extra_args)
         cmd.append(self.mount_point)
