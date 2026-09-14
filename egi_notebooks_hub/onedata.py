@@ -285,15 +285,20 @@ class OnedataSpawner(EGISpawner):
 
     extra_mounts = List([], config=True, help="""extra volume mounts in k8s""")
 
+    onedata_auth_data = {}
+
     async def auth_state_hook(self, spawner, auth_state):
         await super().auth_state_hook(spawner, auth_state)
         # get onedata stuff ready to be used later on
         if auth_state is None:
             self.log.warning("No auth_state provided")
             return
-        spawner.environment[self.onezone_env] = auth_state.get("onezone_url")
-        spawner.environment[self.oneprovider_env] = auth_state.get("oneprovider")
-        spawner.environment[self.onedata_user_env] = auth_state.get("onedata_user")
+        # these are for sidecar container only - due to user sharing and RTC
+        self.onedata_auth_data[self.onedata_user_env] = auth_state.get("onedata_user")
+        self.onedata_auth_data[self.onezone_env] = auth_state.get("onezone_url")
+        self.onedata_auth_data[self.onezone_token_env] = auth_state.get("onezone_token")
+        self.onedata_auth_data[self.token_env] = auth_state.get("oneclient_token")
+        self.onedata_auth_data[self.oneprovider_env] = auth_state.get("oneprovider")
 
     async def _get_local_spaces(self, oneprovider_host, onezone_url, onezone_token):
         # 1. Get the id of the oneprovider (this may be just config?)
@@ -329,10 +334,10 @@ class OnedataSpawner(EGISpawner):
 
     async def pre_spawn_hook(self, spawner):
         await super().pre_spawn_hook(spawner)
-        host = spawner.environment.get(self.oneprovider_env, "")
-        token = spawner.environment.get(self.token_env, "")
-        onezone_url = spawner.environment.get(self.onezone_env, "")
-        onezone_token = spawner.environment.get(self.onezone_token_env, "")
+        host = self.onedata_auth_data.get(self.oneprovider_env, "")
+        token = self.onedata_auth_data.get(self.token_env, "")
+        onezone_url = self.onedata_auth_data.get(self.onezone_env, "")
+        onezone_token = self.onedata_auth_data.get(self.onezone_token_env, "")
         if not all([host, token, onezone_url, onezone_token]):
             self.log.warning(
                 "Missing environment values for onedata mounting, skipping"
