@@ -387,9 +387,7 @@ async def call_wrapper(
 
 @app.post("/share-codes/{owner:str}/")
 @app.post("/share-codes/{owner:str}/{server_name:str}")
-async def create_share_code(
-    request: Request, owner: str, server_name: str | None = ""
-):
+async def create_share_code(request: Request, owner: str, server_name: str | None = ""):
     """Creates a share code for an owner and server.
 
     Wraps the JupyterHub API call for creating a share code by
