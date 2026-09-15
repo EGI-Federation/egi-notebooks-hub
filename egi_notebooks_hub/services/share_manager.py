@@ -125,7 +125,10 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
             message = err.get("message", message)
     except json.decoder.JSONDecodeError:
         pass
-    return JSONResponse(status_code=exc.status_code, content={"message": message})
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"status": exc.status_code, "message": message},
+    )
 
 
 def get_user_token(request: Request):
