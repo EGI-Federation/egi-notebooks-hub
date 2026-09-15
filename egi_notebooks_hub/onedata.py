@@ -363,7 +363,11 @@ class OnedataSpawner(EGISpawner):
             cmd.extend(self.oneclient_extra_args)
         cmd.append(self.mount_point)
         volume_mounts = [
-            {"mountPath": f"{self.mount_point}:shared", "name": "oneclient"},
+            {
+                "mountPath": f"{self.mount_point}",
+                "name": "oneclient",
+                "mountPropagation": "Bidirectional",
+            },
         ]
         if self.extra_mounts:
             volume_mounts.extend(self.extra_mounts)
