@@ -1,4 +1,4 @@
-jupyterhub>=5.5.1,<6.0.0
+jupyterhub>=6.0.1
 oauthenticator>=17.4.0
 jupyterhub-kubespawner>=7.1.0
 xmltodict

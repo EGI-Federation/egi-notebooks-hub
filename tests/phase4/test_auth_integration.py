@@ -161,16 +161,15 @@ async def test_jwt_handler_logs_in_user_and_stores_refresh_token_when_missing(
             handler, user_info, jwt_token
         ),
         auth_to_user=AsyncMock(return_value=user),
-        exchange_for_refresh_token=AsyncMock(return_value="refresh-token"),
         finish=lambda payload: finished.update(payload=payload),
     )
+    authenticator.exchange_for_refresh_token = AsyncMock(return_value="refresh-token")
 
     await JWTHandler.get(handler)
-
     handler.authenticate.assert_awaited_once_with(
         {"access_token": "jwt-token", "token_type": "bearer"}
     )
-    handler.exchange_for_refresh_token.assert_awaited_once_with("jwt-token")
+    authenticator.exchange_for_refresh_token.assert_awaited_once_with("jwt-token")
     assert user._auth_state["refresh_token"] == "refresh-token"
     assert user._auth_state["jwt_api_tokens"]["jwt-token"] == "new-hub-api-token"
     assert finished["payload"] == {"token": "new-hub-api-token", "user": "alice"}
@@ -423,6 +422,7 @@ async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fai
     broken_authenticator = SimpleNamespace(
         custom_403_message="Forbidden",
         user_info_to_username=Mock(side_effect=ValueError("bad token payload")),
+        exchange_for_refresh_token=AsyncMock(return_value="refresh-token"),
     )
 
     handler = SimpleNamespace(
@@ -438,7 +438,6 @@ async def test_jwt_handler_logs_debug_and_continues_when_username_extraction_fai
             handler, user_info, jwt_token
         ),
         auth_to_user=AsyncMock(return_value=user),
-        exchange_for_refresh_token=AsyncMock(return_value="refresh-token"),
         finish=lambda payload: finished.update(payload=payload),
     )
 

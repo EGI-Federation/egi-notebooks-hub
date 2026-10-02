@@ -3,6 +3,7 @@
 import base64
 import uuid
 
+from jupyterhub.spawner import SpawnException
 from kubernetes_asyncio.client import V1ObjectMeta, V1Secret
 from kubernetes_asyncio.client.rest import ApiException
 from kubespawner import KubeSpawner
@@ -122,9 +123,19 @@ class EGISpawner(KubeSpawner):
                         namespace=self.namespace, body=secret
                     )
                 except ApiException:
-                    raise
+                    raise SpawnException(
+                        "Cannot create access token secret",
+                        reason="secrets",
+                        log_message=f"Cannot create access token {self.token_secret_name}: {e}",
+                        status_code=500,
+                    )
             else:
-                raise
+                raise SpawnException(
+                    "Cannot update access token secret",
+                    reason="secrets",
+                    log_message=f"Cannot update access token {self.token_secret_name}: {e}",
+                    status_code=500,
+                )
 
     async def set_access_token(self, access_token, id_token=None):
         """updates the secret in k8s with the token of the user"""
