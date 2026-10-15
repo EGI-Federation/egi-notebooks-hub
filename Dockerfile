@@ -1,5 +1,5 @@
 # Starting with the image used in helm jupyterhub
-FROM quay.io/jupyterhub/k8s-hub:4.4.1 AS base
+FROM quay.io/jupyterhub/k8s-hub:4.4.2 AS base
 
 ARG KRB5CC_VERSION=1.1.0
 FROM base AS build
