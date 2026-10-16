@@ -37,6 +37,11 @@ RUN pip3 install --no-cache-dir /egi-notebooks-hub
 # Copy images to the right place so they are found
 RUN cp -r /egi-notebooks-hub/static/* /usr/local/share/jupyterhub/static/
 
+# XXX: Remove when https://github.com/jupyterhub/jupyterhub/pull/5567
+#      is merged
+RUN sed -i 's/_TOKEN_MAX_LEN = 64/_TOKEN_MAX_LEN = 65/' \ 
+    /usr/local/lib/python3.12/site-packages/jupyterhub/utils.py
+
 HEALTHCHECK --interval=5m --timeout=3s \
   CMD curl -f http://localhost:8000/hub/health || exit 1
 
