@@ -6,7 +6,13 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+  # python packages
   - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+  # docker image
+  - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
