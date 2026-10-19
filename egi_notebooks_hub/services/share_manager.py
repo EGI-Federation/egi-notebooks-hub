@@ -102,6 +102,8 @@ class Settings(BaseSettings):
     token_acquirer_scope: str = "custom:token-acquirer:read"
     # whether to release tokens when the server is already shared
     release_with_shared_server: bool = False
+    # whether the token revocation mechanism should be active
+    preventive_token_revocation: bool = True
     # define a list of fields to be returned when getting the token details
     # if empty, everything will be returned
     token_info_fields: List[str] = []
@@ -399,7 +401,9 @@ async def create_share_code(
     logger.debug("Share code post called")
     user_data = await get_user_data(request)
     verify_request_path_access(user_data, owner, server_name)
-    if not await is_server_shared(owner, user_data["server_name"]):
+    if settings.preventive_token_revocation and not await is_server_shared(
+        owner, user_data["server_name"]
+    ):
         # First revoke the token as the server is shared
         hub_url = settings.jupyterhub_api_url.rstrip("/").removesuffix("/api")
         await call_hub_api(
