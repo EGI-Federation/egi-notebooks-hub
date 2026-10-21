@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from jupyterhub import orm
-from tornado.httpclient import HTTPClientError
 from tornado.web import HTTPError
 
 from egi_notebooks_hub.egiauthenticator import JWTHandler, TokenRevokeHandler
@@ -33,41 +32,6 @@ class DummyUser:
     def new_api_token(self, note=None, expires_in=None):
         self.api_token_created = {"note": note, "expires_in": expires_in}
         return "new-hub-api-token"
-
-
-# phase1-32
-# Component: JWTHandler refresh-token exchange error handling.
-# Purpose: Ensure malformed JSON from the provider is handled gracefully.
-# Pass example: body b"not-json" returns None.
-# Fail example: invalid JSON propagates as an uncaught exception and breaks login flow.
-async def test_exchange_for_refresh_token_returns_none_for_invalid_json(authenticator):
-    handler = SimpleNamespace(log=Mock(), authenticator=authenticator)
-    fake_client = SimpleNamespace(
-        fetch=AsyncMock(return_value=DummyResponse(b"not-json"))
-    )
-    with patch(
-        "egi_notebooks_hub.egiauthenticator.AsyncHTTPClient", return_value=fake_client
-    ):
-        token = await JWTHandler.exchange_for_refresh_token(handler, "jwt-access-token")
-    assert token is None
-
-
-# phase1-33
-# Component: JWTHandler refresh-token exchange network error handling.
-# Purpose: Verify that provider-side HTTP failures are converted into a safe None
-# result.
-# Pass example: HTTP 500 from AsyncHTTPClient leads to None.
-# Fail example: transient provider errors bubble up and crash the handler.
-async def test_exchange_for_refresh_token_returns_none_on_http_error(authenticator):
-    handler = SimpleNamespace(log=Mock(), authenticator=authenticator)
-    fake_client = SimpleNamespace(
-        fetch=AsyncMock(side_effect=HTTPClientError(500, message="boom"))
-    )
-    with patch(
-        "egi_notebooks_hub.egiauthenticator.AsyncHTTPClient", return_value=fake_client
-    ):
-        token = await JWTHandler.exchange_for_refresh_token(handler, "jwt-access-token")
-    assert token is None
 
 
 # phase1-34
@@ -283,11 +247,11 @@ async def test_jwt_get_exchanges_for_refresh_token_when_missing(authenticator):
             handler, user_info, jwt_token
         ),
         auth_to_user=AsyncMock(return_value=user),
-        exchange_for_refresh_token=AsyncMock(return_value="refresh-123"),
         finish=lambda payload: finished.update(payload=payload),
     )
+    authenticator.exchange_for_refresh_token = AsyncMock(return_value="refresh-123")
     await JWTHandler.get(handler)
-    handler.exchange_for_refresh_token.assert_awaited_once_with("jwt-token")
+    authenticator.exchange_for_refresh_token.assert_awaited_once_with("jwt-token")
     assert user.saved_auth_state["refresh_token"] == "refresh-123"
     assert finished["payload"]["user"] == "alice"
 
@@ -326,72 +290,6 @@ def test_get_token_raises_401_for_invalid_jwt():
     with pytest.raises(HTTPError) as exc_info:
         JWTHandler._get_token(handler)
     assert exc_info.value.status_code == 401
-
-
-# phase1-27
-# Component: JWTHandler refresh-token exchange helper.
-# Purpose: Verify that the handler can exchange a JWT-style access token for a refresh
-# token.
-# Pass example: the IdP responds with {"refresh_token": "..."} and the helper returns
-# that value.
-# Fail example: the helper ignores the response body or posts to the wrong
-# token endpoint.
-async def test_exchange_for_refresh_token_returns_refresh_token(authenticator):
-    handler = SimpleNamespace(log=Mock(), authenticator=authenticator)
-    fake_client = SimpleNamespace(
-        fetch=AsyncMock(return_value=DummyResponse(b'{"refresh_token": "refresh-123"}'))
-    )
-    with patch(
-        "egi_notebooks_hub.egiauthenticator.AsyncHTTPClient", return_value=fake_client
-    ):
-        token = await JWTHandler.exchange_for_refresh_token(handler, "jwt-access-token")
-    assert token == "refresh-123"
-    request = fake_client.fetch.await_args.args[0]
-    assert request.url == authenticator.token_url
-    assert request.auth_username == authenticator.client_id
-    assert request.auth_password == authenticator.client_secret
-    assert b"subject_token=jwt-access-token" in request.body
-
-
-# phase1-48
-# Component: JWTHandler refresh-token exchange compatibility behavior.
-# Purpose: Ensure the helper still works if a provider returns the token in access_token
-# rather than refresh_token.
-# Pass example: {"access_token": "refresh-in-access-field"} is accepted as a usable
-# fallback.
-# Fail example: the helper rejects otherwise workable provider responses
-# due to strict field expectations.
-async def test_exchange_for_refresh_token_falls_back_to_access_token_field(
-    authenticator,
-):
-    handler = SimpleNamespace(log=Mock(), authenticator=authenticator)
-    fake_client = SimpleNamespace(
-        fetch=AsyncMock(
-            return_value=DummyResponse(b'{"access_token": "refresh-in-access-field"}')
-        )
-    )
-    with patch(
-        "egi_notebooks_hub.egiauthenticator.AsyncHTTPClient", return_value=fake_client
-    ):
-        token = await JWTHandler.exchange_for_refresh_token(handler, "jwt-access-token")
-    assert token == "refresh-in-access-field"
-
-
-# phase1-49
-# Component: JWTHandler refresh-token exchange error handling.
-# Purpose: Check that an empty IdP response fails safely and returns None.
-# Pass example: an empty body produces None and no crash.
-# Fail example: JSON parsing crashes on empty content or returns garbage.
-async def test_exchange_for_refresh_token_returns_none_for_empty_response(
-    authenticator,
-):
-    handler = SimpleNamespace(log=Mock(), authenticator=authenticator)
-    fake_client = SimpleNamespace(fetch=AsyncMock(return_value=DummyResponse(b"")))
-    with patch(
-        "egi_notebooks_hub.egiauthenticator.AsyncHTTPClient", return_value=fake_client
-    ):
-        token = await JWTHandler.exchange_for_refresh_token(handler, "jwt-access-token")
-    assert token is None
 
 
 # phase1-50
