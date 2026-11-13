@@ -22,7 +22,7 @@ from jupyterhub.auth import DummyAuthenticator
 from egi_notebooks_hub.egispawner import EGISpawner
 
 try:
-    c: Any = get_config()  # type: ignore[name-defined]  # noqa: F821
+    c: Any = get_config()  # type: ignore[name-defined]
 except NameError:
     c = None
 

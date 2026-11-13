@@ -1005,7 +1005,7 @@ async def test_exception_handler_no_json():
         None, HTTPException(status_code=500, detail="foo bar")
     )
     assert result.status_code == 500
-    assert json.loads(result.body) == {"message": "foo bar"}
+    assert json.loads(result.body) == {"status": 500, "message": "foo bar"}
 
 
 # phase3-34
@@ -1019,7 +1019,7 @@ async def test_exception_handler_json():
         None, HTTPException(status_code=500, detail='{"message": "foo bar"}')
     )
     assert result.status_code == 500
-    assert json.loads(result.body) == {"message": "foo bar"}
+    assert json.loads(result.body) == {"status": 500, "message": "foo bar"}
 
 
 # phase3-35
